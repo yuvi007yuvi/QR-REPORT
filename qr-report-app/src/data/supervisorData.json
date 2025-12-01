@@ -1,0 +1,422 @@
+[
+  {
+    "Ward No": 1,
+    "Supervisor": "Ankit",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 2,
+    "Supervisor": "Sudesh",
+    "Zonal Head": "Girish",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 3,
+    "Supervisor": "Sonveer",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 4,
+    "Supervisor": "Sudesh",
+    "Zonal Head": "Girish",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 5,
+    "Supervisor": "Hariom",
+    "Zonal Head": "Girish",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 6,
+    "Supervisor": "Dilip",
+    "Zonal Head": "Nishant",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 7,
+    "Supervisor": "Subhash",
+    "Zonal Head": "Girish",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 8,
+    "Supervisor": "Satish",
+    "Zonal Head": "Abhinav",
+    "Manager": "Satyaprakash"
+  },
+  {
+    "Ward No": 9,
+    "Supervisor": "Priyanshu",
+    "Zonal Head": "Abhinav",
+    "Manager": "Satyaprakash"
+  },
+  {
+    "Ward No": 10,
+    "Supervisor": "Dilip",
+    "Zonal Head": "Nishant",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 11,
+    "Supervisor": "Ankit",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 12,
+    "Supervisor": "Anil Rana",
+    "Zonal Head": "Ranveer",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 13,
+    "Supervisor": "Satish",
+    "Zonal Head": "Abhinav",
+    "Manager": "Satyaprakash"
+  },
+  {
+    "Ward No": 14,
+    "Supervisor": "Aman Yadav",
+    "Zonal Head": "Girish",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 15,
+    "Supervisor": "Ankit",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 16,
+    "Supervisor": "Sachin",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 17,
+    "Supervisor": "Sanjeev",
+    "Zonal Head": "Girish",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 18,
+    "Supervisor": "Jitendra",
+    "Zonal Head": "Girish",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 19,
+    "Supervisor": "Subhash",
+    "Zonal Head": "Girish",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 20,
+    "Supervisor": "Vikash",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 21,
+    "Supervisor": "Satendra",
+    "Zonal Head": "Abhinav",
+    "Manager": "Satyaprakash"
+  },
+  {
+    "Ward No": 22,
+    "Supervisor": "Charan Singh",
+    "Zonal Head": "Ranveer",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 23,
+    "Supervisor": "Mohit",
+    "Zonal Head": "Nishant",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 24,
+    "Supervisor": "Anil Rana",
+    "Zonal Head": "Ranveer",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 25,
+    "Supervisor": "Sumit",
+    "Zonal Head": "Abhinav",
+    "Manager": "Satyaprakash"
+  },
+  {
+    "Ward No": 26,
+    "Supervisor": "Jitendra",
+    "Zonal Head": "Girish",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 27,
+    "Supervisor": "Anil Baghel",
+    "Zonal Head": "Nishant",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 28,
+    "Supervisor": "Dilip",
+    "Zonal Head": "Nishant",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 29,
+    "Supervisor": "Anil Baghel",
+    "Zonal Head": "Nishant",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 30,
+    "Supervisor": "Vikash",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 31,
+    "Supervisor": "Gaurav",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 32,
+    "Supervisor": "Anil Baghel",
+    "Zonal Head": "Nishant",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 33,
+    "Supervisor": "Sonveer",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 34,
+    "Supervisor": "Manoj",
+    "Zonal Head": "Abhinav",
+    "Manager": "Satyaprakash"
+  },
+  {
+    "Ward No": 35,
+    "Supervisor": "Gaurav",
+    "Zonal Head": "Girish",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 36,
+    "Supervisor": "Arjun",
+    "Zonal Head": "Ranveer",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 37,
+    "Supervisor": "Veeresh",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 38,
+    "Supervisor": "Aman Chauhan",
+    "Zonal Head": "Nishant",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 39,
+    "Supervisor": "Arjun",
+    "Zonal Head": "Ranveer",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 40,
+    "Supervisor": "Charan Singh",
+    "Zonal Head": "Ranveer",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 41,
+    "Supervisor": "Aman Chauhan",
+    "Zonal Head": "Nishant",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 42,
+    "Supervisor": "Adil Malik",
+    "Zonal Head": "Ranveer",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 43,
+    "Supervisor": "Sachin",
+    "Zonal Head": "Ranveer",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 44,
+    "Supervisor": "Gaurav",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 45,
+    "Supervisor": "Harikesh",
+    "Zonal Head": "Ranveer",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 46,
+    "Supervisor": "Surendra",
+    "Zonal Head": "Ranveer",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 47,
+    "Supervisor": "Anshu",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 48,
+    "Supervisor": "Sachin",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 49,
+    "Supervisor": "Anshu",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 50,
+    "Supervisor": "Vishnu",
+    "Zonal Head": "Abhinav",
+    "Manager": "Satyaprakash"
+  },
+  {
+    "Ward No": 51,
+    "Supervisor": "Manoj",
+    "Zonal Head": "Abhinav",
+    "Manager": "Satyaprakash"
+  },
+  {
+    "Ward No": 52,
+    "Supervisor": "Mohit (Vrindavan)",
+    "Zonal Head": "Abhinav",
+    "Manager": "Satyaprakash"
+  },
+  {
+    "Ward No": 53,
+    "Supervisor": "Mahaveer",
+    "Zonal Head": "Girish",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 54,
+    "Supervisor": "Veeresh",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 55,
+    "Supervisor": "Surendra",
+    "Zonal Head": "Ranveer",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 56,
+    "Supervisor": "Sanjeev",
+    "Zonal Head": "Girish",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 57,
+    "Supervisor": "Deepak",
+    "Zonal Head": "Nishant",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 58,
+    "Supervisor": "Sanjeev",
+    "Zonal Head": "Girish",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 59,
+    "Supervisor": "Sonveer",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 60,
+    "Supervisor": "Aryan",
+    "Zonal Head": "Ranveer",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 61,
+    "Supervisor": "Naresh",
+    "Zonal Head": "Girish",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 62,
+    "Supervisor": "Pavan",
+    "Zonal Head": "Abhinav",
+    "Manager": "Satyaprakash"
+  },
+  {
+    "Ward No": 63,
+    "Supervisor": "Aman Yadav",
+    "Zonal Head": "Girish",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 64,
+    "Supervisor": "Mahaveer",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 65,
+    "Supervisor": "Mahaveer",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 66,
+    "Supervisor": "Vishnu",
+    "Zonal Head": "Abhinav",
+    "Manager": "Satyaprakash"
+  },
+  {
+    "Ward No": 67,
+    "Supervisor": "Hemant",
+    "Zonal Head": "Abhinav",
+    "Manager": "Satyaprakash"
+  },
+  {
+    "Ward No": 68,
+    "Supervisor": "Veeresh",
+    "Zonal Head": "Bharat",
+    "Manager": "Abhishek Bajapai"
+  },
+  {
+    "Ward No": 69,
+    "Supervisor": "Hemant",
+    "Zonal Head": "Abhinav",
+    "Manager": "Satyaprakash"
+  },
+  {
+    "Ward No": 70,
+    "Supervisor": "Pavan",
+    "Zonal Head": "Abhinav",
+    "Manager": "Satyaprakash"
+  }
+]

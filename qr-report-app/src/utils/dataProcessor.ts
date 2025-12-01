@@ -1,0 +1,234 @@
+import * as XLSX from 'xlsx';
+
+export interface ReportRecord {
+    qrId: string;
+    ward: string;
+    zone: string;
+    assignedTo: string;
+    zonalHead: string;
+    buildingName: string;
+    status: 'Scanned' | 'Pending' | 'Unknown';
+    scannedBy: string;
+    scanTime: string;
+    remarks: string;
+}
+
+export interface SummaryStats {
+    total: number;
+    scanned: number;
+    pending: number;
+    unknown: number;
+    scannedPercentage: number;
+    zoneStats: Record<string, { total: number; scanned: number; pending: number }>;
+    zonalHeadStats: Record<string, { total: number; scanned: number; pending: number }>;
+}
+
+export const parseFile = (file: File): Promise<any[]> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = e.target?.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet);
+                resolve(json);
+            } catch (error) {
+                reject(error);
+            }
+        };
+        reader.onerror = (error) => reject(error);
+        reader.readAsBinaryString(file);
+    });
+};
+
+export const processData = (
+    masterData: any[],
+    supervisorData: any[],
+    scannedData: any[],
+    filterDate?: string
+): { report: ReportRecord[]; stats: SummaryStats; availableDates: string[] } => {
+    // 1. Create Supervisor & Zonal Head Map (Ward -> { Supervisor, ZonalHead })
+    const wardMap = new Map<string, { supervisor: string; zonalHead: string }>();
+
+    supervisorData.forEach((row) => {
+        let ward = row['Ward No'] ? String(row['Ward No']).trim() : (row['WARD NO.'] ? String(row['WARD NO.']).trim() : '');
+        // Normalize: remove leading zeros (e.g. "01" -> "1")
+        ward = ward.replace(/^0+/, '');
+
+        const supervisor = row['Supervisor'] || row['SUPERVISOR NAME'] || '';
+        const zonalHead = row['Zonal Head'] || '';
+        if (ward) wardMap.set(ward, { supervisor, zonalHead });
+    });
+
+    // 2. Create Master Map (QR ID -> Record)
+    const masterMap = new Map<string, ReportRecord>();
+
+    // Zone Mapping
+    const zoneMapping: Record<string, string> = {
+        '1': '1-City',
+        '2': '2-Bhuteswar',
+        '3': '3-Aurangabad',
+        '4': '4-Vrindavan'
+    };
+
+    masterData.forEach((row) => {
+        const qrId = row['QR Code ID'] ? String(row['QR Code ID']).trim() : '';
+        if (!qrId) return;
+
+        const wardRaw = row['Ward'] ? String(row['Ward']).trim() : '';
+        let zone = row['Zone & Circle'] ? String(row['Zone & Circle']).trim() : '';
+
+        // Apply Zone Mapping
+        if (zoneMapping[zone]) {
+            zone = zoneMapping[zone];
+        }
+
+        const buildingName = row['Building/Street'] || row['Site Name'] || '';
+
+        // Extract Ward Number from "60-Jagannath Puri" -> "60"
+        let wardNum = wardRaw.split('-')[0].trim();
+        // Normalize: remove leading zeros
+        wardNum = wardNum.replace(/^0+/, '');
+
+        const mapping = wardMap.get(wardNum) || { supervisor: 'Unassigned', zonalHead: 'Unassigned' };
+        const assignedTo = mapping.supervisor;
+        const zonalHead = mapping.zonalHead;
+
+        masterMap.set(qrId, {
+            qrId,
+            ward: wardRaw,
+            zone,
+            assignedTo,
+            zonalHead,
+            buildingName,
+            status: 'Pending', // Default
+            scannedBy: '-',
+            scanTime: '-',
+            remarks: '-',
+        });
+    });
+
+    const report: ReportRecord[] = [];
+    const unknownQRs: ReportRecord[] = [];
+    const availableDatesSet = new Set<string>();
+
+    // Helper to convert Excel serial date to JS Date string
+    const formatExcelDate = (serial: number | string): string => {
+        if (!serial) return '-';
+        if (typeof serial === 'string' && (serial.includes('/') || serial.includes('-'))) {
+            return serial;
+        }
+        const num = Number(serial);
+        if (!isNaN(num)) {
+            const date = new Date(Math.round((num - 25569) * 86400 * 1000));
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+        return String(serial);
+    };
+
+    // 3. Process Scanned Data
+    scannedData.forEach((row) => {
+        const qrId = row['QR Code ID'] ? String(row['QR Code ID']).trim() : '';
+        if (!qrId) return;
+
+        const rawDate = row['Date Of Scan'];
+        const scanTime = formatExcelDate(rawDate);
+
+        if (scanTime !== '-') {
+            availableDatesSet.add(scanTime);
+        }
+
+        // If filtering is active, skip if date doesn't match
+        if (filterDate && filterDate !== 'All' && scanTime !== filterDate) {
+            return;
+        }
+
+        const scannedBy = row['Supervisor Name'] || row['Scan ID'] || 'Unknown';
+
+        if (masterMap.has(qrId)) {
+            const record = masterMap.get(qrId)!;
+            if (record.status !== 'Scanned') {
+                record.status = 'Scanned';
+                record.scannedBy = scannedBy;
+                record.scanTime = scanTime;
+            }
+        } else {
+            const existingUnknown = unknownQRs.find(u => u.qrId === qrId);
+            if (!existingUnknown) {
+                unknownQRs.push({
+                    qrId,
+                    ward: 'Unknown',
+                    zone: 'Unknown',
+                    assignedTo: 'Unknown',
+                    zonalHead: 'Unknown',
+                    buildingName: 'Unknown',
+                    status: 'Unknown',
+                    scannedBy,
+                    scanTime,
+                    remarks: '-',
+                });
+            }
+        }
+    });
+
+    // 4. Combine Results
+    report.push(...Array.from(masterMap.values()));
+    report.push(...unknownQRs);
+
+    // Sort dates descending
+    const availableDates = Array.from(availableDatesSet).sort((a, b) => {
+        const parseDate = (d: string) => {
+            const parts = d.split(/[-/]/);
+            if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+            return 0;
+        };
+        return parseDate(b) - parseDate(a);
+    });
+
+    // 5. Calculate Stats
+    const total = report.length;
+    const scanned = report.filter((r) => r.status === 'Scanned').length;
+    const pending = report.filter((r) => r.status === 'Pending').length;
+    const unknown = report.filter((r) => r.status === 'Unknown').length;
+    const scannedPercentage = total > 0 ? Math.round((scanned / total) * 100) : 0;
+
+    const zoneStats: Record<string, { total: number; scanned: number; pending: number }> = {};
+    const zonalHeadStats: Record<string, { total: number; scanned: number; pending: number }> = {};
+
+    report.forEach((r) => {
+        if (r.status === 'Unknown') return;
+
+        // Zone Stats
+        const zone = r.zone || 'Unspecified';
+        if (!zoneStats[zone]) zoneStats[zone] = { total: 0, scanned: 0, pending: 0 };
+        zoneStats[zone].total++;
+        if (r.status === 'Scanned') zoneStats[zone].scanned++;
+        if (r.status === 'Pending') zoneStats[zone].pending++;
+
+        // Zonal Head Stats
+        const head = r.zonalHead || 'Unassigned';
+        if (!zonalHeadStats[head]) zonalHeadStats[head] = { total: 0, scanned: 0, pending: 0 };
+        zonalHeadStats[head].total++;
+        if (r.status === 'Scanned') zonalHeadStats[head].scanned++;
+        if (r.status === 'Pending') zonalHeadStats[head].pending++;
+    });
+
+    return {
+        report,
+        stats: {
+            total,
+            scanned,
+            pending,
+            unknown,
+            scannedPercentage,
+            zoneStats,
+            zonalHeadStats,
+        },
+        availableDates
+    };
+};

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { Dashboard } from './components/Dashboard';
 import { ReportTable } from './components/ReportTable';
+import { ZonalReport } from './components/ZonalReport';
 import { parseFile, processData, type ReportRecord, type SummaryStats } from './utils/dataProcessor';
 import { FileDown, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -17,6 +18,7 @@ function App() {
   const [stats, setStats] = useState<SummaryStats | null>(null);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('All');
+  const [viewMode, setViewMode] = useState<'detailed' | 'zonal'>('detailed');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -192,7 +194,35 @@ function App() {
         ) : (
           <div className="space-y-8 animate-fade-in">
             <Dashboard stats={stats} />
-            <ReportTable data={reportData} />
+
+            <div className="flex justify-center mb-6">
+              <div className="bg-gray-100 p-1 rounded-lg inline-flex">
+                <button
+                  onClick={() => setViewMode('detailed')}
+                  className={clsx(
+                    "px-4 py-2 rounded-md text-sm font-medium transition-all",
+                    viewMode === 'detailed' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                  )}
+                >
+                  Detailed Report
+                </button>
+                <button
+                  onClick={() => setViewMode('zonal')}
+                  className={clsx(
+                    "px-4 py-2 rounded-md text-sm font-medium transition-all",
+                    viewMode === 'zonal' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                  )}
+                >
+                  Zonal Summary
+                </button>
+              </div>
+            </div>
+
+            {viewMode === 'detailed' ? (
+              <ReportTable data={reportData} />
+            ) : (
+              <ZonalReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />
+            )}
           </div>
         )}
       </main>

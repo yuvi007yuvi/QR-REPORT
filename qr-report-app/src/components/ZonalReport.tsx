@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
 import type { ReportRecord } from '../utils/dataProcessor';
-import { FileDown, Image as ImageIcon } from 'lucide-react';
+import { Image as ImageIcon } from 'lucide-react';
 import { exportToJPEG } from '../utils/exporter';
-import * as XLSX from 'xlsx';
 
 interface ZonalReportProps {
     data: ReportRecord[];
@@ -28,7 +27,7 @@ interface ZoneHeadStats {
 export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
     const reportData = useMemo(() => {
         const statsByHead: Record<string, ZoneHeadStats> = {};
-        
+
         // Helper to normalize names for grouping
         const normalize = (s: string) => s ? s.trim() : 'Unknown';
 
@@ -83,7 +82,7 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
         // Since we don't have explicit city mapping in Zonal Head, we'll try to infer or just sum all for now.
         // Looking at the user image, it seems they separate by city. 
         // Let's check the data. Zone 4 is Vrindavan.
-        
+
         data.forEach(r => {
             const isVrindavan = r.zone.toLowerCase().includes('vrindavan') || r.zonalHead.toLowerCase().includes('abhinav'); // Abhinav is Vrindavan in sample
             if (isVrindavan) {
@@ -98,18 +97,10 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
         return { mathuraTotal, mathuraScanned, vrindavanTotal, vrindavanScanned };
     }, [data]);
 
-    const exportToExcel = () => {
-        // Custom Excel export for this specific format could be complex, 
-        // for now let's just export the raw data or a simple summary.
-        // Or we can try to replicate the table structure.
-        // Let's stick to the image export as primary for this "Report" view.
-        alert("Excel export for this specific layout is not yet implemented. Please use JPEG export.");
-    };
-
     return (
         <div className="space-y-6">
             <div className="flex justify-end gap-2">
-                 <button
+                <button
                     onClick={() => exportToJPEG('zonal-report-container', `Zonal_Report_${date.replace(/\//g, '-')}`)}
                     className="flex items-center gap-1 px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors"
                 >
@@ -128,7 +119,7 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
                     <div className="bg-[#d9ead3] p-2 font-bold text-center border-b border-black text-xl">
                         Secondary Points Mathura - Vrindavan
                     </div>
-                    
+
                     {/* Summary Stats */}
                     <div className="grid grid-cols-[2fr_1fr_1fr_1fr] border-b border-black text-sm font-bold bg-[#ffe699]">
                         <div className="p-1 border-r border-black">MATHURA:-</div>
@@ -142,7 +133,7 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
                         <div className="p-1 border-r border-black text-center">Out of</div>
                         <div className="p-1 text-center">{grandTotals.vrindavanTotal}</div>
                     </div>
-                     <div className="grid grid-cols-[2fr_1fr_1fr_1fr] border-b border-black text-sm font-bold bg-[#ffe699]">
+                    <div className="grid grid-cols-[2fr_1fr_1fr_1fr] border-b border-black text-sm font-bold bg-[#ffe699]">
                         <div className="p-1 border-r border-black">TOTAL QR SCAN</div>
                         <div className="p-1 border-r border-black text-center">{grandTotals.mathuraScanned + grandTotals.vrindavanScanned}</div>
                         <div className="p-1 border-r border-black text-center"></div>
@@ -150,13 +141,13 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
                     </div>
 
                     {/* Zonal Sections */}
-                    {reportData.map((zone, idx) => (
+                    {reportData.map((zone) => (
                         <div key={zone.name}>
                             {/* Zone Header */}
                             <div className="bg-[#ffc000] p-2 font-bold text-center border-b border-black uppercase border-t-2 border-t-black">
                                 UNDER ZONAL MR. {zone.name}
                             </div>
-                            
+
                             {/* Table Header */}
                             <div className="grid grid-cols-[2fr_1fr_2fr_1fr_1fr] bg-[#bdd7ee] text-xs font-bold border-b border-black text-center">
                                 <div className="p-1 border-r border-black">NAME</div>
@@ -167,14 +158,14 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
                             </div>
 
                             {/* Supervisors */}
-                            {zone.supervisors.map((sup, sIdx) => {
+                            {zone.supervisors.map((sup) => {
                                 // Determine row background based on scanned count (mimicking the image logic roughly)
                                 // Image shows red/orange gradient for 0 scanned.
                                 const isZeroScanned = sup.scanned === 0;
-                                const scannedBg = isZeroScanned 
-                                    ? 'bg-gradient-to-r from-red-500 via-orange-500 to-red-500 text-white' 
+                                const scannedBg = isZeroScanned
+                                    ? 'bg-gradient-to-r from-red-500 via-orange-500 to-red-500 text-white'
                                     : 'bg-white text-black';
-                                
+
                                 const pendingBg = sup.pending === 0 ? 'bg-green-400' : 'bg-white';
 
                                 return (
@@ -187,7 +178,7 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
                                     </div>
                                 );
                             })}
-                            
+
                             {/* Zone Total */}
                             <div className="grid grid-cols-[2fr_1fr_2fr_1fr_1fr] bg-[#00b0f0] text-xs font-bold border-b border-black text-center">
                                 <div className="p-1 border-r border-black">TOTAL</div>

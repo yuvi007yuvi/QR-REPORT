@@ -3,6 +3,7 @@ import { FileUpload } from './components/FileUpload';
 import { Dashboard } from './components/Dashboard';
 import { ReportTable } from './components/ReportTable';
 import { ZonalReport } from './components/ZonalReport';
+import { BeforeAfterReport } from './components/BeforeAfterReport';
 import { parseFile, processData, type ReportRecord, type SummaryStats } from './utils/dataProcessor';
 import { FileDown, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -18,7 +19,7 @@ function App() {
   const [stats, setStats] = useState<SummaryStats | null>(null);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('All');
-  const [viewMode, setViewMode] = useState<'detailed' | 'zonal'>('detailed');
+  const [viewMode, setViewMode] = useState<'detailed' | 'zonal' | 'beforeAfter'>('detailed');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -215,13 +216,24 @@ function App() {
                 >
                   Zonal Summary
                 </button>
+                <button
+                  onClick={() => setViewMode('beforeAfter')}
+                  className={clsx(
+                    "px-4 py-2 rounded-md text-sm font-medium transition-all",
+                    viewMode === 'beforeAfter' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                  )}
+                >
+                  Before/After Report
+                </button>
               </div>
             </div>
 
             {viewMode === 'detailed' ? (
               <ReportTable data={reportData} />
-            ) : (
+            ) : viewMode === 'zonal' ? (
               <ZonalReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />
+            ) : (
+              <BeforeAfterReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />
             )}
           </div>
         )}

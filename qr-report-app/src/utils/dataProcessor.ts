@@ -11,6 +11,11 @@ export interface ReportRecord {
     scannedBy: string;
     scanTime: string;
     remarks: string;
+    beforeScanStatus: 'Scanned' | 'Pending';
+    afterScanStatus: 'Scanned' | 'Pending';
+    beforeScanTime: string;
+    afterScanTime: string;
+    timeDifference: string;
 }
 
 export interface SummaryStats {
@@ -107,6 +112,11 @@ export const processData = (
             scannedBy: '-',
             scanTime: '-',
             remarks: '-',
+            beforeScanStatus: 'Pending',
+            afterScanStatus: 'Pending',
+            beforeScanTime: '-',
+            afterScanTime: '-',
+            timeDifference: '-'
         });
     });
 
@@ -131,6 +141,77 @@ export const processData = (
         return String(serial);
     };
 
+    // Helper to convert Excel serial date to JS Time string (12-hour format)
+    const formatExcelTime = (serial: number | string): string => {
+        if (!serial) return '-';
+
+        let hours: number;
+        let minutes: number;
+
+        if (typeof serial === 'string') {
+            let timePart = serial;
+            if (serial.includes(' ')) {
+                timePart = serial.split(' ')[1];
+            }
+
+            // If already has AM/PM, return as is
+            if (timePart && (timePart.toUpperCase().includes('AM') || timePart.toUpperCase().includes('PM'))) {
+                return timePart;
+            }
+
+            if (!timePart || !timePart.includes(':')) return '-';
+
+            const parts = timePart.split(':');
+            hours = parseInt(parts[0], 10);
+            minutes = parseInt(parts[1], 10);
+        } else {
+            const num = Number(serial);
+            if (isNaN(num)) return '-';
+            const date = new Date(Math.round((num - 25569) * 86400 * 1000));
+            hours = date.getHours();
+            minutes = date.getMinutes();
+        }
+
+        if (isNaN(hours) || isNaN(minutes)) return '-';
+
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const hours12 = hours % 12 || 12;
+        const minutesStr = String(minutes).padStart(2, '0');
+
+        return `${hours12}:${minutesStr} ${ampm}`;
+    };
+
+    const calculateTimeDifference = (start: string, end: string): string => {
+        if (start === '-' || end === '-') return '-';
+
+        const parseMinutes = (timeStr: string): number => {
+            const [time, modifier] = timeStr.split(' ');
+            let [hours, minutes] = time.split(':').map(Number);
+
+            if (hours === 12) {
+                hours = 0;
+            }
+            if (modifier === 'PM') {
+                hours += 12;
+            }
+            return hours * 60 + minutes;
+        };
+
+        const startMin = parseMinutes(start);
+        const endMin = parseMinutes(end);
+
+        let diff = endMin - startMin;
+        if (diff < 0) {
+            diff += 24 * 60; // Assume next day
+        }
+
+        const h = Math.floor(diff / 60);
+        const m = diff % 60;
+
+        if (h === 0) return `${m}m`;
+        return `${h}h ${m}m`;
+    };
+
     // 3. Process Scanned Data
     scannedData.forEach((row) => {
         const qrId = row['QR Code ID'] ? String(row['QR Code ID']).trim() : '';
@@ -150,12 +231,33 @@ export const processData = (
 
         const scannedBy = row['Supervisor Name'] || row['Scan ID'] || 'Unknown';
 
+        const beforeScanRaw = row['Before Scan'] || row['Before Scan Time'];
+        const afterScanRaw = row['After Scan'] || row['After Scan Time'];
+        const beforeScanTime = formatExcelTime(beforeScanRaw);
+        const afterScanTime = formatExcelTime(afterScanRaw);
+        const beforeScanStatus = beforeScanTime !== '-' ? 'Scanned' : 'Pending';
+        const afterScanStatus = afterScanTime !== '-' ? 'Scanned' : 'Pending';
+        const timeDifference = calculateTimeDifference(beforeScanTime, afterScanTime);
+
         if (masterMap.has(qrId)) {
             const record = masterMap.get(qrId)!;
             if (record.status !== 'Scanned') {
                 record.status = 'Scanned';
                 record.scannedBy = scannedBy;
                 record.scanTime = scanTime;
+            }
+            // Update Before/After status if available in this scan record
+            // Note: Assuming the scanned file contains the latest status for these
+            if (beforeScanStatus === 'Scanned') {
+                record.beforeScanStatus = 'Scanned';
+                record.beforeScanTime = beforeScanTime;
+            }
+            if (afterScanStatus === 'Scanned') {
+                record.afterScanStatus = 'Scanned';
+                record.afterScanTime = afterScanTime;
+            }
+            if (beforeScanStatus === 'Scanned' && afterScanStatus === 'Scanned') {
+                record.timeDifference = timeDifference;
             }
         } else {
             const existingUnknown = unknownQRs.find(u => u.qrId === qrId);
@@ -171,6 +273,11 @@ export const processData = (
                     scannedBy,
                     scanTime,
                     remarks: '-',
+                    beforeScanStatus,
+                    afterScanStatus,
+                    beforeScanTime,
+                    afterScanTime,
+                    timeDifference
                 });
             }
         }

@@ -7,6 +7,7 @@ export interface ReportRecord {
     assignedTo: string;
     zonalHead: string;
     buildingName: string;
+    type: string;
     status: 'Scanned' | 'Pending' | 'Unknown';
     scannedBy: string;
     scanTime: string;
@@ -91,6 +92,7 @@ export const processData = (
         }
 
         const buildingName = row['Building/Street'] || row['Site Name'] || '';
+        const type = row['Type'] || '';
 
         // Extract Ward Number from "60-Jagannath Puri" -> "60"
         let wardNum = wardRaw.split('-')[0].trim();
@@ -108,6 +110,7 @@ export const processData = (
             assignedTo,
             zonalHead,
             buildingName,
+            type,
             status: 'Pending', // Default
             scannedBy: '-',
             scanTime: '-',
@@ -269,6 +272,7 @@ export const processData = (
                     assignedTo: 'Unknown',
                     zonalHead: 'Unknown',
                     buildingName: 'Unknown',
+                    type: 'Unknown',
                     status: 'Unknown',
                     scannedBy,
                     scanTime,

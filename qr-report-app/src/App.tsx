@@ -4,6 +4,7 @@ import { Dashboard } from './components/Dashboard';
 import { ReportTable } from './components/ReportTable';
 import { ZonalReport } from './components/ZonalReport';
 import { BeforeAfterReport } from './components/BeforeAfterReport';
+import { SupervisorZonalMapping } from './components/SupervisorZonalMapping';
 import { parseFile, processData, type ReportRecord, type SummaryStats } from './utils/dataProcessor';
 import { FileDown, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -19,7 +20,7 @@ function App() {
   const [stats, setStats] = useState<SummaryStats | null>(null);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('All');
-  const [viewMode, setViewMode] = useState<'detailed' | 'zonal' | 'beforeAfter'>('detailed');
+  const [viewMode, setViewMode] = useState<'detailed' | 'zonal' | 'beforeAfter' | 'mapping'>('detailed');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -225,6 +226,15 @@ function App() {
                 >
                   Before/After Report
                 </button>
+                <button
+                  onClick={() => setViewMode('mapping')}
+                  className={clsx(
+                    "px-4 py-2 rounded-md text-sm font-medium transition-all",
+                    viewMode === 'mapping' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                  )}
+                >
+                  Mapping
+                </button>
               </div>
             </div>
 
@@ -232,8 +242,10 @@ function App() {
               <ReportTable data={reportData} />
             ) : viewMode === 'zonal' ? (
               <ZonalReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />
-            ) : (
+            ) : viewMode === 'beforeAfter' ? (
               <BeforeAfterReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />
+            ) : (
+              <SupervisorZonalMapping />
             )}
           </div>
         )}

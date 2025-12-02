@@ -170,6 +170,7 @@ export const BeforeAfterReport: React.FC<BeforeAfterReportProps> = ({ data, date
                                                             <th className="p-1">QR ID</th>
                                                             <th className="p-1">Ward</th>
                                                             <th className="p-1">Building/Street</th>
+                                                            <th className="p-1">Type</th>
                                                             <th className="p-1">Before Scan</th>
                                                             <th className="p-1">After Scan</th>
                                                             <th className="p-1">Time Diff</th>
@@ -181,8 +182,9 @@ export const BeforeAfterReport: React.FC<BeforeAfterReportProps> = ({ data, date
                                                             <tr key={qr.qrId} className="border-b border-gray-100">
                                                                 <td className="p-1">{qrIndex + 1}</td>
                                                                 <td className="p-1">{qr.qrId}</td>
-                                                                <td className="p-1">{qr.ward}</td>
-                                                                <td className="p-1">{qr.buildingName}</td>
+                                                                <td className="p-1">{qr.ward.split('-')[0]}</td>
+                                                                <td className="p-1 text-xs text-gray-500 truncate max-w-[150px]" title={qr.buildingName}>{qr.buildingName}</td>
+                                                                <td className="p-1 text-xs text-gray-500">{qr.type}</td>
                                                                 <td className="p-1">
                                                                     <div className={qr.beforeScanStatus === 'Scanned' ? 'text-green-600' : 'text-red-500'}>
                                                                         {qr.beforeScanStatus} <span className="text-gray-400 text-[10px]">{qr.beforeScanTime}</span>
@@ -217,7 +219,7 @@ export const BeforeAfterReport: React.FC<BeforeAfterReportProps> = ({ data, date
                         </div>
                     ))}
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };

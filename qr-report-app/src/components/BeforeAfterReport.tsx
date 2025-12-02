@@ -169,6 +169,7 @@ export const BeforeAfterReport: React.FC<BeforeAfterReportProps> = ({ data, date
                                                             <th className="p-1">S.No.</th>
                                                             <th className="p-1">QR ID</th>
                                                             <th className="p-1">Ward</th>
+                                                            <th className="p-1">Site Name</th>
                                                             <th className="p-1">Building/Street</th>
                                                             <th className="p-1">Type</th>
                                                             <th className="p-1">Before Scan</th>
@@ -183,6 +184,7 @@ export const BeforeAfterReport: React.FC<BeforeAfterReportProps> = ({ data, date
                                                                 <td className="p-1">{qrIndex + 1}</td>
                                                                 <td className="p-1">{qr.qrId}</td>
                                                                 <td className="p-1">{qr.ward.split('-')[0]}</td>
+                                                                <td className="p-1 text-xs text-gray-500 truncate max-w-[150px]" title={qr.siteName}>{qr.siteName}</td>
                                                                 <td className="p-1 text-xs text-gray-500 truncate max-w-[150px]" title={qr.buildingName}>{qr.buildingName}</td>
                                                                 <td className="p-1 text-xs text-gray-500">{qr.type}</td>
                                                                 <td className="p-1">

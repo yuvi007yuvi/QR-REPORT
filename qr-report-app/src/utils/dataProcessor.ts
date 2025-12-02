@@ -173,9 +173,17 @@ export const processData = (
         } else {
             const num = Number(serial);
             if (isNaN(num)) return '-';
-            const date = new Date(Math.round((num - 25569) * 86400 * 1000));
-            hours = date.getHours();
-            minutes = date.getMinutes();
+
+            // Extract the fractional part (time)
+            // Excel serial numbers are days. The fractional part is the time.
+            const fractionalDay = num - Math.floor(num);
+
+            // Convert to total seconds (1 day = 86400 seconds)
+            // Add a small epsilon to handle floating point precision issues
+            const totalSeconds = Math.round(fractionalDay * 86400);
+
+            hours = Math.floor(totalSeconds / 3600);
+            minutes = Math.floor((totalSeconds % 3600) / 60);
         }
 
         if (isNaN(hours) || isNaN(minutes)) return '-';

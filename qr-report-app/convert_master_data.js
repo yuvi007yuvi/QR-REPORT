@@ -4,7 +4,7 @@ import path from 'path';
 
 const { read, utils } = pkg;
 
-const inputFile = '../total qr data.csv';
+const inputFile = './Total qr .csv';
 const outputFile = './src/data/masterData.json';
 
 try {

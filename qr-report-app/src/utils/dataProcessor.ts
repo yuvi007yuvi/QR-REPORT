@@ -301,7 +301,7 @@ export const processData = (
 
     // 4. Combine Results
     report.push(...Array.from(masterMap.values()));
-    report.push(...unknownQRs);
+    // report.push(...unknownQRs); // Disabled as per user request to only show master list QRs
 
     // Sort dates descending
     const availableDates = Array.from(availableDatesSet).sort((a, b) => {

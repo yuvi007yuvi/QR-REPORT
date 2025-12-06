@@ -30,6 +30,7 @@ export interface SummaryStats {
     zonalHeadStats: Record<string, { total: number; scanned: number; pending: number }>;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const parseFile = (file: File): Promise<any[]> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -51,8 +52,11 @@ export const parseFile = (file: File): Promise<any[]> => {
 };
 
 export const processData = (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     masterData: any[],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     supervisorData: any[],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     scannedData: any[],
     filterDate?: string
 ): { report: ReportRecord[]; stats: SummaryStats; availableDates: string[] } => {
@@ -94,7 +98,12 @@ export const processData = (
 
         const buildingName = row['Building/Street'] || '';
         const siteName = row['Site Name'] || '';
-        const type = row['Type'] || '';
+        let type = row['Type'] || '';
+
+        // Identify Underground Dustbins
+        if (siteName.toUpperCase().includes('UNDERGROUND') || siteName.toUpperCase().includes('UNDER GROUND')) {
+            type = 'Underground Dustbin';
+        }
 
         // Extract Ward Number from "60-Jagannath Puri" -> "60"
         let wardNum = wardRaw.split('-')[0].trim();

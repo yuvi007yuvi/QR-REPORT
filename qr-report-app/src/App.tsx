@@ -5,6 +5,7 @@ import { ReportTable } from './components/ReportTable';
 import { ZonalReport } from './components/ZonalReport';
 import { BeforeAfterReport } from './components/BeforeAfterReport';
 import { SupervisorZonalMapping } from './components/SupervisorZonalMapping';
+import { UndergroundReport } from './components/UndergroundReport';
 import { parseFile, processData, type ReportRecord, type SummaryStats } from './utils/dataProcessor';
 import { FileDown, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -20,12 +21,13 @@ function App() {
   const [stats, setStats] = useState<SummaryStats | null>(null);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('All');
-  const [viewMode, setViewMode] = useState<'detailed' | 'zonal' | 'beforeAfter' | 'mapping'>('detailed');
+  const [viewMode, setViewMode] = useState<'detailed' | 'zonal' | 'beforeAfter' | 'mapping' | 'underground'>('detailed');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Keep track of raw scanned data to re-filter without re-parsing
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rawScannedData, setRawScannedData] = useState<any[] | null>(null);
 
   const handleProcess = async () => {
@@ -66,6 +68,7 @@ function App() {
       setReportData(report);
       setStats(stats);
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       setError('Error processing files. Please check the file formats.');
@@ -235,6 +238,15 @@ function App() {
                 >
                   Mapping
                 </button>
+                <button
+                  onClick={() => setViewMode('underground')}
+                  className={clsx(
+                    "px-4 py-2 rounded-md text-sm font-medium transition-all",
+                    viewMode === 'underground' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                  )}
+                >
+                  Underground Dustbin
+                </button>
               </div>
             </div>
 
@@ -244,8 +256,10 @@ function App() {
               <ZonalReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />
             ) : viewMode === 'beforeAfter' ? (
               <BeforeAfterReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />
-            ) : (
+            ) : viewMode === 'mapping' ? (
               <SupervisorZonalMapping />
+            ) : (
+              <UndergroundReport data={reportData} />
             )}
           </div>
         )}

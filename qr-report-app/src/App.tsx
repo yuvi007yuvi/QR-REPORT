@@ -6,6 +6,7 @@ import { ZonalReport } from './components/ZonalReport';
 import { BeforeAfterReport } from './components/BeforeAfterReport';
 import { SupervisorZonalMapping } from './components/SupervisorZonalMapping';
 import { UndergroundReport } from './components/UndergroundReport';
+import { ZonalUndergroundReport } from './components/ZonalUndergroundReport';
 import { parseFile, processData, type ReportRecord, type SummaryStats } from './utils/dataProcessor';
 import { FileDown, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -21,7 +22,7 @@ function App() {
   const [stats, setStats] = useState<SummaryStats | null>(null);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('All');
-  const [viewMode, setViewMode] = useState<'detailed' | 'zonal' | 'beforeAfter' | 'mapping' | 'underground'>('detailed');
+  const [viewMode, setViewMode] = useState<'detailed' | 'zonal' | 'beforeAfter' | 'mapping' | 'underground' | 'zonalUnderground'>('detailed');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -247,6 +248,15 @@ function App() {
                 >
                   Underground Dustbin
                 </button>
+                <button
+                  onClick={() => setViewMode('zonalUnderground')}
+                  className={clsx(
+                    "px-4 py-2 rounded-md text-sm font-medium transition-all",
+                    viewMode === 'zonalUnderground' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                  )}
+                >
+                  Zonal Underground
+                </button>
               </div>
             </div>
 
@@ -258,8 +268,10 @@ function App() {
               <BeforeAfterReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />
             ) : viewMode === 'mapping' ? (
               <SupervisorZonalMapping />
-            ) : (
+            ) : viewMode === 'underground' ? (
               <UndergroundReport data={reportData} />
+            ) : (
+              <ZonalUndergroundReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />
             )}
           </div>
         )}

@@ -87,7 +87,7 @@ export const ZonalUndergroundReport: React.FC<ZonalUndergroundReportProps> = ({ 
         const undergroundData = data.filter(item => item.type === 'Underground Dustbin');
 
         undergroundData.forEach(r => {
-            const isVrindavan = r.zone.toLowerCase().includes('vrindavan') || r.zonalHead.toLowerCase().includes('abhinav');
+            const isVrindavan = r.zone.toLowerCase().includes('vrindavan') || r.zonalHead.toLowerCase().includes('vrindavan');
             if (isVrindavan) {
                 vrindavanTotal++;
                 if (r.status === 'Scanned') vrindavanScanned++;

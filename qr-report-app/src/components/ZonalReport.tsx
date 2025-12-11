@@ -84,7 +84,7 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
         // Let's check the data. Zone 4 is Vrindavan.
 
         data.forEach(r => {
-            const isVrindavan = r.zone.toLowerCase().includes('vrindavan') || r.zonalHead.toLowerCase().includes('abhinav'); // Abhinav is Vrindavan in sample
+            const isVrindavan = r.zone.toLowerCase().includes('vrindavan') || r.zonalHead.toLowerCase().includes('vrindavan'); // Updated for new name
             if (isVrindavan) {
                 vrindavanTotal++;
                 if (r.status === 'Scanned') vrindavanScanned++;

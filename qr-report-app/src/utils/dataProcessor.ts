@@ -164,12 +164,30 @@ export const processData = (
         let minutes: number;
 
         if (typeof serial === 'string') {
-            let timePart = serial;
-            if (serial.includes(' ')) {
-                timePart = serial.split(' ')[1];
+            let timePart = serial.trim(); // Trim whitespace
+
+            // Check if it's already in "HH:MM AM/PM" or "HH:MM" format
+            // If it matches a time pattern directly, use it
+            const timePattern = /^\d{1,2}:\d{2}(\s?[AP]M)?$/i;
+            if (timePattern.test(timePart)) {
+                // Ensure proper spacing for AM/PM if missing (e.g., "12:30PM" -> "12:30 PM")
+                // normalize only if it has AM/PM
+                if (timePart.toUpperCase().includes('M')) {
+                    return timePart.replace(/([AP]M)/i, ' $1').replace(/\s+/g, ' ').trim();
+                }
+                return timePart;
             }
 
-            // If already has AM/PM, return as is
+            // If it has a space, it might be "Date Time". Split and take the second part ONLY if the first part looks like a date
+            if (serial.includes(' ')) {
+                const parts = serial.split(' ');
+                // Heuristic: If part[0] has numbers and slashes/dashes, it's likely a date.
+                if (parts[0].match(/[\d/-]/)) {
+                    timePart = parts[1] || parts[0]; // Fallback to full string if split fails strangely
+                }
+            }
+
+            // If already has AM/PM after processing, return as is
             if (timePart && (timePart.toUpperCase().includes('AM') || timePart.toUpperCase().includes('PM'))) {
                 return timePart;
             }
@@ -235,13 +253,35 @@ export const processData = (
         return `${h}h ${m}m`;
     };
 
+    // Helper to find value from multiple possible keys
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const getValue = (row: any, keys: string[]): string | undefined => {
+        for (const key of keys) {
+            if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+                return String(row[key]);
+            }
+        }
+        return undefined;
+    };
+
     // 3. Process Scanned Data
+    const qrKeys = ['QR Code ID', 'QR Code', 'QR ID', 'qr_code_id', 'Content', 'Data', 'Serial Number', 'Barcode'];
+    const beforeScanKeys = ['Before Clean Time', 'Before Scan', 'Before Scan Time', 'BeforeScan', 'In Time', 'Start Time', 'Time In'];
+    const afterScanKeys = ['After Clean Time', 'After Scan', 'After Scan Time', 'AfterScan', 'Out Time', 'End Time', 'Time Out'];
+    const dateKeys = ['Date Of Scan', 'Date', 'Scan Date', 'Timestamp', 'Time'];
+    const supervisorKeys = ['Supervisor Name', 'Scan ID', 'Scanner', 'User', 'Employee Name'];
+
+    // Log the first row keys to help debugging
+    if (scannedData.length > 0) {
+        console.log('Detected Scanned Data Keys:', Object.keys(scannedData[0]));
+    }
+
     scannedData.forEach((row) => {
-        const qrId = row['QR Code ID'] ? String(row['QR Code ID']).trim() : '';
+        const qrId = getValue(row, qrKeys)?.trim() || '';
         if (!qrId) return;
 
-        const rawDate = row['Date Of Scan'];
-        const scanTime = formatExcelDate(rawDate);
+        const rawDate = getValue(row, dateKeys);
+        const scanTime = formatExcelDate(rawDate || '');
 
         if (scanTime !== '-') {
             availableDatesSet.add(scanTime);
@@ -252,12 +292,12 @@ export const processData = (
             return;
         }
 
-        const scannedBy = row['Supervisor Name'] || row['Scan ID'] || 'Unknown';
+        const scannedBy = getValue(row, supervisorKeys) || 'Unknown';
 
-        const beforeScanRaw = row['Before Scan'] || row['Before Scan Time'];
-        const afterScanRaw = row['After Scan'] || row['After Scan Time'];
-        const beforeScanTime = formatExcelTime(beforeScanRaw);
-        const afterScanTime = formatExcelTime(afterScanRaw);
+        const beforeScanRaw = getValue(row, beforeScanKeys);
+        const afterScanRaw = getValue(row, afterScanKeys);
+        const beforeScanTime = formatExcelTime(beforeScanRaw || '');
+        const afterScanTime = formatExcelTime(afterScanRaw || '');
         const beforeScanStatus = beforeScanTime !== '-' ? 'Scanned' : 'Pending';
         const afterScanStatus = afterScanTime !== '-' ? 'Scanned' : 'Pending';
         const timeDifference = calculateTimeDifference(beforeScanTime, afterScanTime);

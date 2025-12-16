@@ -172,8 +172,10 @@ export const BeforeAfterReport: React.FC<BeforeAfterReportProps> = ({ data, date
                                                             <th className="p-1">Site Name</th>
                                                             <th className="p-1">Building/Street</th>
                                                             <th className="p-1">Type</th>
-                                                            <th className="p-1">Before Scan</th>
-                                                            <th className="p-1">After Scan</th>
+                                                            <th className="p-1">Before Status</th>
+                                                            <th className="p-1">Before Time</th>
+                                                            <th className="p-1">After Status</th>
+                                                            <th className="p-1">After Time</th>
                                                             <th className="p-1">Time Diff</th>
                                                             <th className="p-1">Status</th>
                                                         </tr>
@@ -189,13 +191,19 @@ export const BeforeAfterReport: React.FC<BeforeAfterReportProps> = ({ data, date
                                                                 <td className="p-1 text-xs text-gray-500">{qr.type}</td>
                                                                 <td className="p-1">
                                                                     <div className={qr.beforeScanStatus === 'Scanned' ? 'text-green-600' : 'text-red-500'}>
-                                                                        {qr.beforeScanStatus} <span className="text-gray-400 text-[10px]">{qr.beforeScanTime}</span>
+                                                                        {qr.beforeScanStatus}
                                                                     </div>
+                                                                </td>
+                                                                <td className="p-1 text-gray-600 text-xs">
+                                                                    {qr.beforeScanTime}
                                                                 </td>
                                                                 <td className="p-1">
                                                                     <div className={qr.afterScanStatus === 'Scanned' ? 'text-green-600' : 'text-red-500'}>
-                                                                        {qr.afterScanStatus} <span className="text-gray-400 text-[10px]">{qr.afterScanTime}</span>
+                                                                        {qr.afterScanStatus}
                                                                     </div>
+                                                                </td>
+                                                                <td className="p-1 text-gray-600 text-xs">
+                                                                    {qr.afterScanTime}
                                                                 </td>
                                                                 <td className="p-1 text-blue-600 font-medium">{qr.timeDifference}</td>
                                                                 <td className="p-1">{qr.status}</td>

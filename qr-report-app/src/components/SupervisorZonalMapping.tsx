@@ -12,24 +12,75 @@ interface SupervisorData {
     "Zonal Head": string;
 }
 
+const WARD_NAMES: Record<string, string> = {
+    "1": "01-Birjapur", "2": "02-Ambedkar Nagar", "3": "03-Girdharpur", "4": "04-Ishapur Yamunapar",
+    "5": "05-Bharatpur Gate", "6": "06-Aduki", "7": "07-Lohvan", "8": "08-Atas", "9": "09-Gandhi Nagar",
+    "10": "10-Aurangabad First", "11": "11-Tarsi", "12": "12-Radhe Shyam Colony", "13": "13-Sunrakh",
+    "14": "14-Lakshmi Nagar Yamunapar", "15": "15-Maholi First", "16": "16-Bakalpur", "17": "17-Bairaagpura",
+    "18": "18-General Ganj", "19": "19-Ramnagar Yamunapar", "20": "20-Krishna Nagar First", "21": "21-Chaitanya Bihar",
+    "22": "22-Badhri Nagar", "23": "23-Aheer Pada", "24": "24-Sarai Azamabad", "25": "25-Chharaura",
+    "26": "26-Naya Nagla", "27": "27-Baad", "28": "28-Aurangabad Second", "29": "29-Koyla Alipur",
+    "30": "30-Krishna Nagar Second", "31": "31-Navneet Nagar", "32": "32-Ranchibagar", "33": "33-Palikhera",
+    "34": "34-Radhaniwas", "35": "35-Bankhandi", "36": "36-Jaisingh Pura", "37": "37-Baldevpuri",
+    "38": "38-Civil Lines", "39": "39-Mahavidhya Colony", "40": "40-Rajkumar", "41": "41-Dhaulipiau",
+    "42": "42-Manoharpur", "43": "43-Ganeshra", "44": "44-Radhika Bihar", "45": "45-Birla Mandir",
+    "46": "46-Radha Nagar", "47": "47-Dwarkapuri", "48": "48-Satoha Asangpur", "49": "49-Daimpiriyal Nagar",
+    "50": "50-Patharpura", "51": "51-Gaushala Nagar", "52": "52-Chandrapuri", "53": "53-Krishna Puri",
+    "54": "54-Pratap Nagar", "55": "55-Govind Nagar", "56": "56-Mandi Randas", "57": "57-Balajipuram",
+    "58": "58-Gau Ghat", "59": "59-Maholi Second", "60": "60-Jagannath Puri", "61": "61-Chaubia Para",
+    "62": "62-Mathura Darwaza", "63": "63-Maliyaan Sadar", "64": "64-Ghati Bahalray", "65": "65-Holi Gali",
+    "66": "66-Keshighat", "67": "67-Kemar Van", "68": "68-Shanti Nagar", "69": "69-Ratan Chhatri", "70": "70-Biharipur"
+};
+
 export const SupervisorZonalMapping: React.FC = () => {
+
     const mappingData = useMemo(() => {
         const data = supervisorDataJson as unknown as SupervisorData[];
-        const grouped: Record<string, SupervisorData[]> = {};
+        const groupedByZone: Record<string, Record<string, SupervisorData[]>> = {};
 
+        // Group by Zone and then by Supervisor
         data.forEach(item => {
             const head = item["Zonal Head"] || 'Unassigned';
-            if (!grouped[head]) {
-                grouped[head] = [];
+            const supervisor = item["Supervisor"] || 'Unknown';
+
+            if (!groupedByZone[head]) {
+                groupedByZone[head] = {};
             }
-            grouped[head].push(item);
+            if (!groupedByZone[head][supervisor]) {
+                groupedByZone[head][supervisor] = [];
+            }
+            groupedByZone[head][supervisor].push(item);
         });
 
-        // Sort keys
-        return Object.keys(grouped).sort().reduce((acc, key) => {
-            acc[key] = grouped[key];
-            return acc;
-        }, {} as Record<string, SupervisorData[]>);
+        // Consolidate and format data
+        const consolidated: Record<string, SupervisorData[]> = {};
+
+        Object.keys(groupedByZone).sort().forEach(zone => {
+            const supervisorsInZone = groupedByZone[zone];
+            consolidated[zone] = Object.keys(supervisorsInZone).sort().map(supName => {
+                const entries = supervisorsInZone[supName];
+                const wards = entries
+                    .map(e => {
+                        const num = e["Ward No"].toString();
+                        return WARD_NAMES[num] || `Ward ${num}`;
+                    })
+                    // Sort by the numeric prefix of the ward string
+                    .sort((a, b) => {
+                        const numA = parseInt(a.match(/^(\d+)/)?.[1] || '0', 10);
+                        const numB = parseInt(b.match(/^(\d+)/)?.[1] || '0', 10);
+                        return numA - numB;
+                    })
+                    .join(", ");
+
+                // Use the first entry for other details and override Ward No
+                return {
+                    ...entries[0],
+                    "Ward No": wards
+                };
+            });
+        });
+
+        return consolidated;
     }, []);
 
     return (
@@ -67,7 +118,7 @@ export const SupervisorZonalMapping: React.FC = () => {
                                     <tr>
                                         <th className="p-3 w-16 text-center">S.No.</th>
                                         <th className="p-3">Supervisor Name</th>
-                                        <th className="p-3">Ward No</th>
+                                        <th className="p-3">Ward Name</th>
                                         <th className="p-3">Mobile No</th>
                                         <th className="p-3">Zone & Circle</th>
                                     </tr>

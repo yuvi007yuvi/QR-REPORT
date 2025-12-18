@@ -34,6 +34,7 @@ interface AggregatedStats {
 interface WardStats {
     wardNumber: string;
     wardName: string;
+    routeName: string;
     supervisorName: string;
     zonalHead: string;
     total: number;
@@ -48,6 +49,9 @@ export const CoverageReport: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [fileName, setFileName] = useState<string>('');
     const [viewType, setViewType] = useState<'supervisor' | 'ward'>('supervisor');
+    const [selectedZone, setSelectedZone] = useState('All');
+    const [selectedSupervisor, setSelectedSupervisor] = useState('All');
+    const [selectedWard, setSelectedWard] = useState('All');
 
     // Create Ward -> Supervisor Lookup
     const wardLookup = useMemo(() => {
@@ -97,6 +101,7 @@ export const CoverageReport: React.FC = () => {
 
             const wardNum = wardMatch[1];
             const vehicle = row["Vehicle Number"];
+            const routeName = row["Route Name"] || "-";
 
             // Find Supervisor
             const supervisorInfo = wardLookup.get(wardNum) || {
@@ -134,11 +139,13 @@ export const CoverageReport: React.FC = () => {
                 supEntry.vehicles.push(vehicle);
             }
 
-            // --- Ward Aggregation ---
-            if (!wardMap.has(wardNum)) {
-                wardMap.set(wardNum, {
+            // --- Ward Route Aggregation ---
+            const wardRouteKey = `${wardNum}_${routeName}`;
+            if (!wardMap.has(wardRouteKey)) {
+                wardMap.set(wardRouteKey, {
                     wardNumber: wardNum,
                     wardName: row["Ward Name"],
+                    routeName: routeName,
                     supervisorName: supervisorInfo.supervisor,
                     zonalHead: supervisorInfo.zonalHead,
                     total: 0,
@@ -148,7 +155,7 @@ export const CoverageReport: React.FC = () => {
                 });
             }
 
-            const wardEntry = wardMap.get(wardNum)!;
+            const wardEntry = wardMap.get(wardRouteKey)!;
             wardEntry.total += Number(row.Total) || 0;
             wardEntry.covered += Number(row.Covered) || 0;
             wardEntry.notCovered += Number(row["Not Covered"]) || 0;
@@ -168,15 +175,50 @@ export const CoverageReport: React.FC = () => {
         });
 
         const sortedWardStats = Array.from(wardMap.values()).sort((a, b) => {
-            // Sort by Zonal Head, then Supervisor, then Ward Number
+            // Sort by Zonal Head, then Supervisor, then Ward Number, then Route
             if (a.zonalHead !== b.zonalHead) return a.zonalHead.localeCompare(b.zonalHead);
             if (a.supervisorName !== b.supervisorName) return a.supervisorName.localeCompare(b.supervisorName);
-            return Number(a.wardNumber) - Number(b.wardNumber);
+            if (Number(a.wardNumber) !== Number(b.wardNumber)) return Number(a.wardNumber) - Number(b.wardNumber);
+            return a.routeName.localeCompare(b.routeName);
         });
 
         setStats(sortedSupervisorStats);
         setWardStats(sortedWardStats);
     };
+
+    // --- Filters & Derived Data ---
+    const zones = useMemo(() => ['All', ...Array.from(new Set(stats.map(s => s.zonalHead))).sort()], [stats]);
+
+    const supervisors = useMemo(() => {
+        let filtered = stats;
+        if (selectedZone !== 'All') filtered = filtered.filter(s => s.zonalHead === selectedZone);
+        return ['All', ...Array.from(new Set(filtered.map(s => s.supervisorName))).sort()];
+    }, [stats, selectedZone]);
+
+    const wards = useMemo(() => {
+        let filtered = wardStats;
+        if (selectedZone !== 'All') filtered = filtered.filter(w => w.zonalHead === selectedZone);
+        if (selectedSupervisor !== 'All') filtered = filtered.filter(w => w.supervisorName === selectedSupervisor);
+        return ['All', ...Array.from(new Set(filtered.map(w => w.wardNumber))).sort((a, b) => Number(a) - Number(b))];
+    }, [wardStats, selectedZone, selectedSupervisor]);
+
+    const filteredStats = useMemo(() => {
+        return stats.filter(item => {
+            if (selectedZone !== 'All' && item.zonalHead !== selectedZone) return false;
+            if (selectedSupervisor !== 'All' && item.supervisorName !== selectedSupervisor) return false;
+            if (selectedWard !== 'All' && !item.wards.includes(selectedWard)) return false;
+            return true;
+        });
+    }, [stats, selectedZone, selectedSupervisor, selectedWard]);
+
+    const filteredWardStats = useMemo(() => {
+        return wardStats.filter(item => {
+            if (selectedZone !== 'All' && item.zonalHead !== selectedZone) return false;
+            if (selectedSupervisor !== 'All' && item.supervisorName !== selectedSupervisor) return false;
+            if (selectedWard !== 'All' && item.wardNumber !== selectedWard) return false;
+            return true;
+        });
+    }, [wardStats, selectedZone, selectedSupervisor, selectedWard]);
 
     const exportToExcel = () => {
         const wb = XLSX.utils.book_new();
@@ -195,11 +237,12 @@ export const CoverageReport: React.FC = () => {
         const wsSupervisor = XLSX.utils.json_to_sheet(supervisorData);
         XLSX.utils.book_append_sheet(wb, wsSupervisor, "Supervisor Wise");
 
-        // Sheet 2: Ward Wise
+        // Sheet 2: Ward Route Wise
         const wardData = wardStats.map(item => ({
             "Zonal Head": item.zonalHead,
             "Supervisor": item.supervisorName,
             "Ward": item.wardName,
+            "Route Name": item.routeName,
             "Assigned Vehicles": item.vehicles.join(", "),
             "Total Points": item.total,
             "Covered": item.covered,
@@ -207,7 +250,7 @@ export const CoverageReport: React.FC = () => {
             "Coverage %": item.total > 0 ? ((item.covered / item.total) * 100).toFixed(2) + '%' : '0%'
         }));
         const wsWard = XLSX.utils.json_to_sheet(wardData);
-        XLSX.utils.book_append_sheet(wb, wsWard, "Ward Wise");
+        XLSX.utils.book_append_sheet(wb, wsWard, "Ward & Route Wise");
 
         XLSX.writeFile(wb, "Coverage_Report.xlsx");
     };
@@ -250,6 +293,99 @@ export const CoverageReport: React.FC = () => {
 
                 {stats.length > 0 && (
                     <>
+                        {/* Summary Cards */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                            <div className="bg-white p-4 rounded-lg border border-blue-100 shadow-sm">
+                                <p className="text-sm text-gray-500 font-medium">Total Points</p>
+                                <div className="flex items-end justify-between mt-2">
+                                    <h3 className="text-2xl font-bold text-gray-900">
+                                        {filteredStats.reduce((sum, item) => sum + item.total, 0).toLocaleString()}
+                                    </h3>
+                                    <div className="p-2 bg-blue-50 rounded-lg">
+                                        <TrendingUp className="w-5 h-5 text-blue-600" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-white p-4 rounded-lg border border-green-100 shadow-sm">
+                                <p className="text-sm text-gray-500 font-medium">Covered Points</p>
+                                <div className="flex items-end justify-between mt-2">
+                                    <h3 className="text-2xl font-bold text-green-600">
+                                        {filteredStats.reduce((sum, item) => sum + item.covered, 0).toLocaleString()}
+                                    </h3>
+                                    <div className="p-2 bg-green-50 rounded-lg">
+                                        <TrendingUp className="w-5 h-5 text-green-600" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-white p-4 rounded-lg border border-red-100 shadow-sm">
+                                <p className="text-sm text-gray-500 font-medium">Not Covered</p>
+                                <div className="flex items-end justify-between mt-2">
+                                    <h3 className="text-2xl font-bold text-red-600">
+                                        {filteredStats.reduce((sum, item) => sum + item.notCovered, 0).toLocaleString()}
+                                    </h3>
+                                    <div className="p-2 bg-red-50 rounded-lg">
+                                        <AlertCircle className="w-5 h-5 text-red-600" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-white p-4 rounded-lg border border-purple-100 shadow-sm">
+                                <p className="text-sm text-gray-500 font-medium">Overall Coverage</p>
+                                <div className="flex items-end justify-between mt-2">
+                                    <h3 className="text-2xl font-bold text-purple-600">
+                                        {(() => {
+                                            const total = filteredStats.reduce((sum, item) => sum + item.total, 0);
+                                            const covered = filteredStats.reduce((sum, item) => sum + item.covered, 0);
+                                            return total > 0 ? ((covered / total) * 100).toFixed(2) + '%' : '0%';
+                                        })()}
+                                    </h3>
+                                    <div className="p-2 bg-purple-50 rounded-lg">
+                                        <TrendingUp className="w-5 h-5 text-purple-600" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Filter Controls */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Zonal Head</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                    value={selectedZone}
+                                    onChange={(e) => {
+                                        setSelectedZone(e.target.value);
+                                        setSelectedSupervisor('All');
+                                        setSelectedWard('All');
+                                    }}
+                                >
+                                    {zones.map(z => <option key={z} value={z}>{z}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                    value={selectedSupervisor}
+                                    onChange={(e) => {
+                                        setSelectedSupervisor(e.target.value);
+                                        setSelectedWard('All');
+                                    }}
+                                >
+                                    {supervisors.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Ward Number</label>
+                                <select
+                                    className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                    value={selectedWard}
+                                    onChange={(e) => setSelectedWard(e.target.value)}
+                                >
+                                    {wards.map(w => <option key={w} value={w}>{w}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
                         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
                             {/* View Toggle */}
                             <div className="flex bg-gray-100 p-1 rounded-lg">
@@ -279,6 +415,9 @@ export const CoverageReport: React.FC = () => {
                                         setStats([]);
                                         setWardStats([]);
                                         setFileName('');
+                                        setSelectedZone('All');
+                                        setSelectedSupervisor('All');
+                                        setSelectedWard('All');
                                     }}
                                     className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"
                                 >
@@ -311,7 +450,7 @@ export const CoverageReport: React.FC = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
-                                        {stats.map((row, index) => {
+                                        {filteredStats.map((row, index) => {
                                             const coverage = row.total > 0 ? (row.covered / row.total) * 100 : 0;
                                             const isHigh = coverage >= 90;
                                             const isLow = coverage < 75;
@@ -349,8 +488,8 @@ export const CoverageReport: React.FC = () => {
                             </div>
                         ) : (
                             <div className="space-y-8">
-                                {stats.map((supervisor, sIndex) => {
-                                    const supervisorWards = wardStats.filter(w => w.supervisorName === supervisor.supervisorName);
+                                {filteredStats.map((supervisor, sIndex) => {
+                                    const supervisorWards = filteredWardStats.filter(w => w.supervisorName === supervisor.supervisorName);
                                     if (supervisorWards.length === 0) return null;
 
                                     const supCoverage = supervisor.total > 0 ? (supervisor.covered / supervisor.total) * 100 : 0;
@@ -396,6 +535,7 @@ export const CoverageReport: React.FC = () => {
                                                     <thead className="bg-white text-gray-500 border-b border-gray-100">
                                                         <tr>
                                                             <th className="p-3 pl-4 font-medium">Ward Name</th>
+                                                            <th className="p-3 font-medium">Route Name</th>
                                                             <th className="p-3 font-medium">Assigned Vehicles</th>
                                                             <th className="p-3 text-right font-medium">Total</th>
                                                             <th className="p-3 text-right font-medium">Covered</th>
@@ -412,6 +552,7 @@ export const CoverageReport: React.FC = () => {
                                                             return (
                                                                 <tr key={wIndex} className="hover:bg-gray-50">
                                                                     <td className="p-3 pl-4 font-medium text-gray-800">{ward.wardName}</td>
+                                                                    <td className="p-3 text-gray-600">{ward.routeName}</td>
                                                                     <td className="p-3 text-gray-500 text-xs">{ward.vehicles.join(", ")}</td>
                                                                     <td className="p-3 text-right font-mono text-gray-600">{ward.total}</td>
                                                                     <td className="p-3 text-right font-mono text-green-600">{ward.covered}</td>

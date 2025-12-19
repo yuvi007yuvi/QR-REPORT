@@ -1,420 +1,490 @@
 [
   {
     "Ward No": 1,
+    "Ward Name": "Birjapur",
     "Supervisor": "Ankit",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 2,
+    "Ward Name": "Ambedkar Nagar",
     "Supervisor": "Sudesh",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 3,
+    "Ward Name": "Girdharpur",
     "Supervisor": "Sonveer",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 4,
+    "Ward Name": "Ishapur Yamunapar",
     "Supervisor": "Sudesh",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 5,
+    "Ward Name": "Bharatpur Gate",
     "Supervisor": "Hariom",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 6,
+    "Ward Name": "Aduki",
     "Supervisor": "Dilip",
     "Zonal Head": "Nishant",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 7,
+    "Ward Name": "Lohvan",
     "Supervisor": "Subhash",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 8,
+    "Ward Name": "Atas",
     "Supervisor": "Satish",
     "Zonal Head": "Vrindavan Zone",
     "Manager": "Satyaprakash"
   },
   {
     "Ward No": 9,
+    "Ward Name": "Gandhi Nagar",
     "Supervisor": "Priyanshu",
     "Zonal Head": "Vrindavan Zone",
     "Manager": "Satyaprakash"
   },
   {
     "Ward No": 10,
+    "Ward Name": "Aurangabad First",
     "Supervisor": "Dilip",
     "Zonal Head": "Nishant",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 11,
+    "Ward Name": "Tarsi",
     "Supervisor": "Ankit",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 12,
+    "Ward Name": "Radhe Shyam Colony",
     "Supervisor": "Anil Rana",
     "Zonal Head": "Ranveer",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 13,
+    "Ward Name": "Sunrakh",
     "Supervisor": "Satish",
     "Zonal Head": "Vrindavan Zone",
     "Manager": "Satyaprakash"
   },
   {
     "Ward No": 14,
+    "Ward Name": "Lakshmi Nagar Yamunapar",
     "Supervisor": "Aman Yadav",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 15,
+    "Ward Name": "Maholi First",
     "Supervisor": "Ankit",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 16,
+    "Ward Name": "Bakalpur",
     "Supervisor": "Sachin",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 17,
+    "Ward Name": "Bairaagpura",
     "Supervisor": "Sanjeev",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 18,
+    "Ward Name": "General Ganj",
     "Supervisor": "Jitendra",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 19,
+    "Ward Name": "Ramnagar Yamunapar",
     "Supervisor": "Subhash",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 20,
+    "Ward Name": "Krishna Nagar First",
     "Supervisor": "Vikash",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 21,
+    "Ward Name": "Chaitanya Bihar",
     "Supervisor": "Satendra",
     "Zonal Head": "Vrindavan Zone",
     "Manager": "Satyaprakash"
   },
   {
     "Ward No": 22,
+    "Ward Name": "Badhri Nagar",
     "Supervisor": "Charan Singh",
     "Zonal Head": "Ranveer",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 23,
+    "Ward Name": "Aheer Pada",
     "Supervisor": "Mohit",
     "Zonal Head": "Nishant",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 24,
+    "Ward Name": "Sarai Azamabad",
     "Supervisor": "Anil Rana",
     "Zonal Head": "Ranveer",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 25,
+    "Ward Name": "Chharaura",
     "Supervisor": "Sumit",
     "Zonal Head": "Vrindavan Zone",
     "Manager": "Satyaprakash"
   },
   {
     "Ward No": 26,
+    "Ward Name": "Naya Nagla",
     "Supervisor": "Jitendra",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 27,
+    "Ward Name": "Baad",
     "Supervisor": "Anil Baghel",
     "Zonal Head": "Nishant",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 28,
+    "Ward Name": "Aurangabad Second",
     "Supervisor": "Dilip",
     "Zonal Head": "Nishant",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 29,
+    "Ward Name": "Koyla Alipur",
     "Supervisor": "Anil Baghel",
     "Zonal Head": "Nishant",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 30,
+    "Ward Name": "Krishna Nagar Second",
     "Supervisor": "Vikash",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 31,
+    "Ward Name": "Navneet Nagar",
     "Supervisor": "Gaurav",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 32,
+    "Ward Name": "Ranchibagar",
     "Supervisor": "Anil Baghel",
     "Zonal Head": "Nishant",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 33,
+    "Ward Name": "Palikhera",
     "Supervisor": "Sonveer",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 34,
+    "Ward Name": "Radhaniwas",
     "Supervisor": "Manoj",
     "Zonal Head": "Vrindavan Zone",
     "Manager": "Satyaprakash"
   },
   {
     "Ward No": 35,
+    "Ward Name": "Bankhandi",
     "Supervisor": "Gaurav",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 36,
+    "Ward Name": "Jaisingh Pura",
     "Supervisor": "Arjun",
     "Zonal Head": "Ranveer",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 37,
+    "Ward Name": "Baldevpuri",
     "Supervisor": "Veeresh",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 38,
+    "Ward Name": "Civil Lines",
     "Supervisor": "Aman Chauhan",
     "Zonal Head": "Nishant",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 39,
+    "Ward Name": "Mahavidhya Colony",
     "Supervisor": "Arjun",
     "Zonal Head": "Ranveer",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 40,
+    "Ward Name": "Rajkumar",
     "Supervisor": "Charan Singh",
     "Zonal Head": "Ranveer",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 41,
+    "Ward Name": "Dhaulipiau",
     "Supervisor": "Aman Chauhan",
     "Zonal Head": "Nishant",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 42,
+    "Ward Name": "Manoharpur",
     "Supervisor": "Adil Malik",
     "Zonal Head": "Ranveer",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 43,
+    "Ward Name": "Ganeshra",
     "Supervisor": "Sachin",
     "Zonal Head": "Ranveer",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 44,
+    "Ward Name": "Radhika Bihar",
     "Supervisor": "Gaurav",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 45,
+    "Ward Name": "Birla Mandir",
     "Supervisor": "Harikesh",
     "Zonal Head": "Ranveer",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 46,
+    "Ward Name": "Radha Nagar",
     "Supervisor": "Surendra",
     "Zonal Head": "Ranveer",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 47,
+    "Ward Name": "Dwarkapuri",
     "Supervisor": "Anshu",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 48,
+    "Ward Name": "Satoha Asangpur",
     "Supervisor": "Sachin",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 49,
+    "Ward Name": "Daimpiriyal Nagar",
     "Supervisor": "Anshu",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 50,
+    "Ward Name": "Patharpura",
     "Supervisor": "Vishnu",
     "Zonal Head": "Vrindavan Zone",
     "Manager": "Satyaprakash"
   },
   {
     "Ward No": 51,
+    "Ward Name": "Gaushala Nagar",
     "Supervisor": "Manoj",
     "Zonal Head": "Vrindavan Zone",
     "Manager": "Satyaprakash"
   },
   {
     "Ward No": 52,
+    "Ward Name": "Chandrapuri",
     "Supervisor": "Deepak",
     "Zonal Head": "Nishant",
     "Manager": "Satyaprakash"
   },
   {
     "Ward No": 53,
+    "Ward Name": "Krishna Puri",
     "Supervisor": "Mahaveer",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 54,
+    "Ward Name": "Pratap Nagar",
     "Supervisor": "Veeresh",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 55,
+    "Ward Name": "Govind Nagar",
     "Supervisor": "Surendra",
     "Zonal Head": "Ranveer",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 56,
+    "Ward Name": "Mandi Randas",
     "Supervisor": "Sanjeev",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 57,
+    "Ward Name": "Balajipuram",
     "Supervisor": "Deepak",
     "Zonal Head": "Nishant",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 58,
+    "Ward Name": "Gau Ghat",
     "Supervisor": "Sanjeev",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 59,
+    "Ward Name": "Maholi Second",
     "Supervisor": "Sonveer",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 60,
+    "Ward Name": "Jagannath Puri",
     "Supervisor": "Aryan",
     "Zonal Head": "Ranveer",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 61,
+    "Ward Name": "Chaubia Para",
     "Supervisor": "Naresh",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 62,
+    "Ward Name": "Mathura Darwaza",
     "Supervisor": "Pavan",
     "Zonal Head": "Vrindavan Zone",
     "Manager": "Satyaprakash"
   },
   {
     "Ward No": 63,
+    "Ward Name": "Maliyaan Sadar",
     "Supervisor": "Aman Yadav",
     "Zonal Head": "Girish",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 64,
+    "Ward Name": "Ghati Bahalray",
     "Supervisor": "Mahaveer",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 65,
+    "Ward Name": "Holi Gali",
     "Supervisor": "Mahaveer",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 66,
+    "Ward Name": "Keshighat",
     "Supervisor": "Vishnu",
     "Zonal Head": "Vrindavan Zone",
     "Manager": "Satyaprakash"
   },
   {
     "Ward No": 67,
+    "Ward Name": "Kemar Van",
     "Supervisor": "Hemant",
     "Zonal Head": "Vrindavan Zone",
     "Manager": "Satyaprakash"
   },
   {
     "Ward No": 68,
+    "Ward Name": "Shanti Nagar",
     "Supervisor": "Veeresh",
     "Zonal Head": "Bharat",
     "Manager": "Abhishek Bajapai"
   },
   {
     "Ward No": 69,
+    "Ward Name": "Ratan Chhatri",
     "Supervisor": "Hemant",
     "Zonal Head": "Vrindavan Zone",
     "Manager": "Satyaprakash"
   },
   {
     "Ward No": 70,
+    "Ward Name": "Biharipur",
     "Supervisor": "Pavan",
     "Zonal Head": "Vrindavan Zone",
     "Manager": "Satyaprakash"

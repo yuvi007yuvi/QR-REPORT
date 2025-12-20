@@ -6,7 +6,8 @@ import {
     Clock,
     AlertTriangle,
     TrendingUp,
-    Image as ImageIcon
+    Image as ImageIcon,
+    MessageCircle
 } from 'lucide-react';
 import { exportToJPEG } from '../utils/exporter';
 import {
@@ -261,8 +262,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                             </div>
                             <div className="pt-2">
                                 <div className={`px-3 py-1.5 rounded-lg text-center text-xs font-bold uppercase tracking-wider ${stats.scannedPercentage >= 90 ? 'bg-green-50 text-green-700' :
-                                        stats.scannedPercentage >= 75 ? 'bg-yellow-50 text-yellow-700' :
-                                            'bg-red-50 text-red-700'
+                                    stats.scannedPercentage >= 75 ? 'bg-yellow-50 text-yellow-700' :
+                                        'bg-red-50 text-red-700'
                                     }`}>
                                     {stats.scannedPercentage >= 90 ? 'Excellent Coverage' :
                                         stats.scannedPercentage >= 75 ? 'On Track' :
@@ -301,14 +302,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                                 <td className="px-6 py-3 text-right text-green-600 font-semibold">{data.scanned}</td>
                                                 <td className="px-6 py-3 text-right text-red-500">{data.pending}</td>
                                                 <td className="px-6 py-3">
-                                                    <div className="flex items-center gap-2 justify-center">
-                                                        <div className="w-20 bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                                                            <div
-                                                                className={`h-full rounded-full transition-all duration-500 ${percentage === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
-                                                                style={{ width: `${percentage}%` }}
-                                                            ></div>
+                                                    <div className="flex items-center gap-2 justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-16 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                                                                <div
+                                                                    className={`h-full rounded-full transition-all duration-500 ${percentage === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                                                                    style={{ width: `${percentage}%` }}
+                                                                ></div>
+                                                            </div>
+                                                            <span className="text-xs font-medium text-gray-500 w-8">{percentage}%</span>
                                                         </div>
-                                                        <span className="text-xs font-medium text-gray-500 w-8">{percentage}%</span>
+                                                        <button
+                                                            onClick={() => {
+                                                                const text = `🚩 *Zone Daily Report*\n\n🏢 *Zone:* ${zone}\n📍 *Total:* ${data.total}\n✅ *Scanned:* ${data.scanned}\n⏳ *Pending:* ${data.pending}\n📊 *Progress:* ${percentage}%\n\n_Generated from QR Analysis Tool_`;
+                                                                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                                                            }}
+                                                            title="Share to WhatsApp"
+                                                            className="p-1.5 text-green-600 hover:bg-green-50 rounded-full transition-colors flex-shrink-0"
+                                                        >
+                                                            <MessageCircle className="w-3.5 h-3.5" />
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -345,14 +358,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                                 <td className="px-6 py-3 text-right text-green-600 font-semibold">{data.scanned}</td>
                                                 <td className="px-6 py-3 text-right text-red-500">{data.pending}</td>
                                                 <td className="px-6 py-3">
-                                                    <div className="flex items-center gap-2 justify-center">
-                                                        <div className="w-20 bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                                                            <div
-                                                                className={`h-full rounded-full transition-all duration-500 ${percentage === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
-                                                                style={{ width: `${percentage}%` }}
-                                                            ></div>
+                                                    <div className="flex items-center gap-2 justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-16 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                                                                <div
+                                                                    className={`h-full rounded-full transition-all duration-500 ${percentage === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                                                                    style={{ width: `${percentage}%` }}
+                                                                ></div>
+                                                            </div>
+                                                            <span className="text-xs font-medium text-gray-500 w-8">{percentage}%</span>
                                                         </div>
-                                                        <span className="text-xs font-medium text-gray-500 w-8">{percentage}%</span>
+                                                        <button
+                                                            onClick={() => {
+                                                                const text = `🚩 *Zonal Head Report*\n\n👤 *Head:* ${head}\n📍 *Total:* ${data.total}\n✅ *Scanned:* ${data.scanned}\n⏳ *Pending:* ${data.pending}\n📊 *Progress:* ${percentage}%\n\n_Generated from QR Analysis Tool_`;
+                                                                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                                                            }}
+                                                            title="Share to WhatsApp"
+                                                            className="p-1.5 text-green-600 hover:bg-green-50 rounded-full transition-colors flex-shrink-0"
+                                                        >
+                                                            <MessageCircle className="w-3.5 h-3.5" />
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>

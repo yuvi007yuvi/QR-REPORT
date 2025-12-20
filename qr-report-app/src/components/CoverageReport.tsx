@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import Papa from 'papaparse';
-import { Upload, Download, TrendingUp, TrendingDown, CheckCircle, AlertCircle, MapPin, Image as ImageIcon, FileText } from 'lucide-react';
+import { Upload, Download, TrendingUp, TrendingDown, CheckCircle, AlertCircle, MapPin, Image as ImageIcon, FileText, MessageCircle, Play, Pause, StopCircle, Bot, SkipForward, Camera } from 'lucide-react';
 import supervisorDataJson from '../data/supervisorData.json';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -92,9 +92,14 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
         if (initialMode) setViewType(initialMode);
     }, [initialMode]);
 
+
     const [selectedZone, setSelectedZone] = useState('All');
     const [selectedSupervisor, setSelectedSupervisor] = useState('All');
     const [selectedWard, setSelectedWard] = useState('All');
+
+    const [isAutoSharing, setIsAutoSharing] = useState(false);
+    const [currentShareIndex, setCurrentShareIndex] = useState(0);
+    const [isAutoPlaying, setIsAutoPlaying] = useState(false);
 
     // Create Ward -> Supervisor Lookup
     const wardLookup = useMemo(() => {
@@ -255,6 +260,31 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
             return true;
         });
     }, [stats, selectedZone, selectedSupervisor, selectedWard]);
+
+    // Keyboard Shortcuts for Bot
+    React.useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (isAutoSharing && !loading) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleAutoShare();
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isAutoSharing, loading, currentShareIndex, filteredStats]);
+
+    // Auto-Pilot Logic
+    React.useEffect(() => {
+        let timer: any;
+        if (isAutoSharing && isAutoPlaying && !loading) {
+            timer = setTimeout(() => {
+                handleAutoShare();
+            }, 3500); // 3.5 second delay for auto-pilot
+        }
+        return () => clearTimeout(timer);
+    }, [isAutoSharing, isAutoPlaying, currentShareIndex, loading]);
 
     const filteredWardStats = useMemo(() => {
         return wardStats.filter(item => {
@@ -554,6 +584,55 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
         }
     };
 
+    const handleAutoShare = async () => {
+        if (currentShareIndex >= filteredStats.length) {
+            setIsAutoSharing(false);
+            setCurrentShareIndex(0);
+            return;
+        }
+
+        setLoading(true);
+        const supervisor = filteredStats[currentShareIndex];
+        const cardId = `supervisor-bot-card`;
+
+        try {
+            // Give React a moment to render the hidden card if needed
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // 1. Take Screenshot
+            await exportToJPEG(cardId, `${supervisor.supervisorName}_Coverage_Report`);
+
+            // 2. Prepare Text
+            const cov = supervisor.total > 0 ? (supervisor.covered / supervisor.total * 100).toFixed(1) : '0';
+            const text = `🚩 *POI Coverage Report*\n\n🏆 *Supervisor:* ${supervisor.supervisorName}\n🏢 *Zone:* ${supervisor.zonalHead}\n📍 *Total Wards:* ${supervisor.wardCount}\n📍 *Total POI:* ${supervisor.total}\n✅ *Covered:* ${supervisor.covered}\n❌ *Pending:* ${supervisor.notCovered}\n📊 *Coverage:* ${cov}%\n\n_Auto-shared by Coverage Bot_`;
+
+            // 3. Open WhatsApp
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+
+            // Move to next
+            if (currentShareIndex < filteredStats.length - 1) {
+                setCurrentShareIndex(prev => prev + 1);
+            } else {
+                setIsAutoSharing(false);
+                setCurrentShareIndex(0);
+            }
+        } catch (err) {
+            console.error("Bot screenshot failed:", err);
+            alert("Could not capture screenshot. Sending text only.");
+            const cov = supervisor.total > 0 ? (supervisor.covered / supervisor.total * 100).toFixed(1) : '0';
+            const text = `🚩 *POI Coverage Report*\n\n🏆 *Supervisor:* ${supervisor.supervisorName}\n🏢 *Zone:* ${supervisor.zonalHead}\n📍 *Total Wards:* ${supervisor.wardCount}\n📍 *Total POI:* ${supervisor.total}\n✅ *Covered:* ${supervisor.covered}\n❌ *Pending:* ${supervisor.notCovered}\n📊 *Coverage:* ${cov}%\n\n_Auto-shared by Coverage Bot_`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+            if (currentShareIndex < filteredStats.length - 1) {
+                setCurrentShareIndex(prev => prev + 1);
+            } else {
+                setIsAutoSharing(false);
+                setCurrentShareIndex(0);
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
 
@@ -591,6 +670,96 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
 
             {stats.length > 0 && (
                 <>
+                    {/* Hidden Bot Capture Area */}
+                    {isAutoSharing && (
+                        <div className="fixed -left-[2000px] top-0 w-[1000px]" data-html2canvas-ignore="false">
+                            {filteredStats[currentShareIndex] && (
+                                <div id="supervisor-bot-card" className="bg-white p-4">
+                                    {(() => {
+                                        const supervisor = filteredStats[currentShareIndex];
+                                        const supervisorWards = wardStats.filter(w =>
+                                            w.supervisorName === supervisor.supervisorName &&
+                                            w.zonalHead === supervisor.zonalHead
+                                        );
+                                        const supCoverage = supervisor.total > 0 ? (supervisor.covered / supervisor.total) * 100 : 0;
+                                        const isSupHigh = supCoverage >= 90;
+                                        const isSupLow = supCoverage < 75;
+
+                                        return (
+                                            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden w-[800px] mx-auto">
+                                                {/* Replicating the professional card header */}
+                                                <div className="bg-gray-100 p-8 border-4 border-green-600 shadow-lg">
+                                                    <div className="grid grid-cols-3 items-center mb-6 pb-4 border-b-2 border-green-500 gap-4">
+                                                        <div className="flex items-center justify-start">
+                                                            <img src="/nagar-nigam-logo.png" alt="Logo" className="h-20 w-auto" />
+                                                        </div>
+                                                        <div className="text-center">
+                                                            <h1 className="text-xl font-bold text-gray-900">Coverage Report</h1>
+                                                            <p className="text-sm text-gray-600">Official Analysis Dashboard</p>
+                                                        </div>
+                                                        <div className="flex justify-end">
+                                                            <img src="/NatureGreen_Logo.png" alt="Logo" className="h-20 w-auto" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-center mb-6 pb-4 border-b-2 border-green-500">
+                                                        <span className="text-gray-500 text-xs font-bold uppercase tracking-[0.2em] mb-2 block">Manager / Zonal Head</span>
+                                                        <h2 className="text-2xl font-black text-gray-900 tracking-wider">{supervisor.zonalHead}</h2>
+                                                    </div>
+                                                    <div className="text-center mb-6 pb-4 border-b-2 border-green-500">
+                                                        <span className="text-gray-500 text-xs font-bold uppercase tracking-[0.2em] mb-2 block">Field Supervisor</span>
+                                                        <h3 className="text-3xl font-black text-gray-900 tracking-wider transition-all">{supervisor.supervisorName}</h3>
+                                                    </div>
+                                                    <div className="flex items-center justify-center gap-12 text-center">
+                                                        <div>
+                                                            <span className="block text-xs text-gray-500 font-bold uppercase mb-1">Total POI</span>
+                                                            <span className="text-3xl font-black text-gray-900">{supervisor.total}</span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="block text-xs text-gray-500 font-bold uppercase mb-1">Covered</span>
+                                                            <span className="text-3xl font-black text-green-600">{supervisor.covered}</span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="block text-xs text-gray-500 font-bold uppercase mb-1">Percentage</span>
+                                                            <span className={`text-3xl font-black ${isSupHigh ? 'text-green-600' : isSupLow ? 'text-red-600' : 'text-yellow-600'}`}>
+                                                                {supCoverage.toFixed(1)}%
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="p-4">
+                                                    <table className="w-full text-base border-collapse">
+                                                        <thead className="bg-green-600 text-white">
+                                                            <tr>
+                                                                <th className="p-3 border border-gray-300 font-bold">Ward Name</th>
+                                                                <th className="p-3 border border-gray-300 font-bold">Route</th>
+                                                                <th className="p-3 border border-gray-300 font-bold text-center">Total</th>
+                                                                <th className="p-3 border border-gray-300 font-bold text-center">Covered</th>
+                                                                <th className="p-3 border border-gray-300 font-bold text-center">Coverage %</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {supervisorWards.map((w, idx) => (
+                                                                <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-green-50/30'}>
+                                                                    <td className="p-3 border border-gray-200 font-bold text-gray-800">{w.wardName}</td>
+                                                                    <td className="p-3 border border-gray-200 text-gray-600 italic">{w.routeName}</td>
+                                                                    <td className="p-3 border border-gray-200 text-center font-mono font-bold">{w.total}</td>
+                                                                    <td className="p-3 border border-gray-200 text-center font-mono font-bold text-green-600">{w.covered}</td>
+                                                                    <td className="p-3 border border-gray-200 text-center font-black">
+                                                                        {(w.total > 0 ? (w.covered / w.total * 100) : 0).toFixed(1)}%
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Summary Cards - Only on Dashboard */}
                     {viewType === 'dashboard' && (
                         <div id="coverage-report-container" className="space-y-6 mb-8">
@@ -637,6 +806,7 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                     </div>
                                 </div>
                             </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <div className="bg-white rounded-xl shadow-sm p-6 border border-blue-200 hover:shadow-md transition-shadow">
                                     <div className="flex justify-between items-start">
@@ -956,6 +1126,112 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                     )}
 
                     <div id="coverage-report-container" className="space-y-6">
+                        {/* Bot Status Panel */}
+                        {isAutoSharing && (
+                            <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 mb-6 shadow-sm animate-in slide-in-from-top duration-300">
+                                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center animate-pulse">
+                                            <Bot className="w-6 h-6 text-green-600" />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="font-bold text-green-900">WhatsApp Sharing Bot Active</h4>
+                                                {isAutoPlaying && (
+                                                    <span className="bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded animate-pulse">AUTO-PILOT ON</span>
+                                                )}
+                                            </div>
+                                            <p className="text-sm text-green-700">
+                                                Current: <span className="font-bold underline">{filteredStats[currentShareIndex]?.supervisorName}</span> ({currentShareIndex + 1} of {filteredStats.length})
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                        {/* Auto-Pilot Toggle */}
+                                        <button
+                                            onClick={() => setIsAutoPlaying(!isAutoPlaying)}
+                                            className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-xs border-2 transition-all ${isAutoPlaying
+                                                ? 'bg-red-50 border-red-200 text-red-600'
+                                                : 'bg-white border-green-200 text-green-600'
+                                                }`}
+                                        >
+                                            {isAutoPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                                            {isAutoPlaying ? 'Stop Auto-Pilot' : 'Start Auto-Pilot'}
+                                        </button>
+
+                                        <button
+                                            onClick={() => {
+                                                if (currentShareIndex < filteredStats.length - 1) {
+                                                    setCurrentShareIndex(prev => prev + 1);
+                                                } else {
+                                                    setIsAutoSharing(false);
+                                                    setIsAutoPlaying(false);
+                                                    setCurrentShareIndex(0);
+                                                }
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 font-semibold text-xs transition-colors"
+                                            title="Skip this supervisor"
+                                        >
+                                            <SkipForward className="w-3 h-3" />
+                                            Skip
+                                        </button>
+
+                                        <button
+                                            onClick={() => {
+                                                setIsAutoSharing(false);
+                                                setIsAutoPlaying(false);
+                                                setCurrentShareIndex(0);
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-2 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 font-semibold text-xs transition-colors"
+                                        >
+                                            <StopCircle className="w-3 h-3" />
+                                            Stop Bot
+                                        </button>
+
+                                        {!isAutoPlaying && (
+                                            <button
+                                                onClick={handleAutoShare}
+                                                disabled={loading}
+                                                className="flex items-center gap-2 px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold text-sm shadow-md hover:shadow-lg transform active:scale-95 transition-all animate-bounce-subtle disabled:opacity-50"
+                                            >
+                                                {loading ? (
+                                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                    <Camera className="w-4 h-4" />
+                                                )}
+                                                {loading ? 'Capturing...' : 'Capture & Share'}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 flex items-center gap-4">
+                                    <div className="flex-1 bg-white/50 rounded-full h-2 overflow-hidden border border-green-100">
+                                        <div
+                                            className="bg-green-500 h-full transition-all duration-500"
+                                            style={{ width: `${((currentShareIndex) / filteredStats.length) * 100}%` }}
+                                        ></div>
+                                    </div>
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-[10px] font-bold text-green-600 uppercase tracking-tighter">
+                                            {Math.round(((currentShareIndex) / filteredStats.length) * 100)}% Complete
+                                        </span>
+                                        <span className="text-[8px] text-gray-500 font-semibold">Press SPACE to share next manually</span>
+                                    </div>
+                                </div>
+
+                                <div className="mt-2 flex flex-col gap-1">
+                                    <div className="text-[10px] text-red-600 font-bold flex items-center gap-1 animate-pulse">
+                                        <AlertCircle className="w-3 h-3" />
+                                        CRITICAL: Click Address Bar &gt; Pop-ups &gt; "Always allow" to make Auto-Pilot work!
+                                    </div>
+                                    <div className="text-[9px] text-green-600 font-medium opacity-75">
+                                        Bot will capture, download, and open WhatsApp every 3.5 seconds.
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         {/* Filter Controls & Table Actions */}
                         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm" data-html2canvas-ignore="true">
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
@@ -1055,6 +1331,14 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                         Upload New
                                     </button>
                                     <button
+                                        onClick={() => setIsAutoSharing(true)}
+                                        disabled={loading || stats.length === 0}
+                                        className="flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition-colors shadow-sm disabled:opacity-50"
+                                    >
+                                        <Bot className="w-4 h-4" />
+                                        WhatsApp Bot
+                                    </button>
+                                    <button
                                         onClick={exportCompletePerformancePDF}
                                         disabled={loading || stats.length === 0}
                                         className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors shadow-sm disabled:opacity-50"
@@ -1123,13 +1407,25 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                                     <td className="p-3 border border-gray-300 text-center font-mono font-semibold text-green-700">{row.covered.toLocaleString()}</td>
                                                     <td className="p-3 border border-gray-300 text-center font-mono font-semibold text-red-600">{row.notCovered.toLocaleString()}</td>
                                                     <td className="p-3 border border-gray-300 text-center">
-                                                        <div className="flex items-center justify-end gap-2">
-                                                            <span className={`font-bold ${isHigh ? 'text-green-600' : isLow ? 'text-red-600' : 'text-yellow-600'}`}>
-                                                                {coverage.toFixed(1)}%
-                                                            </span>
-                                                            {isHigh ? <TrendingUp className="w-4 h-4 text-green-500" /> :
-                                                                isLow ? <AlertCircle className="w-4 h-4 text-red-500" /> :
-                                                                    <TrendingDown className="w-4 h-4 text-yellow-500" />}
+                                                        <div className="flex items-center justify-between gap-2 px-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`font-bold ${isHigh ? 'text-green-600' : isLow ? 'text-red-600' : 'text-yellow-600'}`}>
+                                                                    {coverage.toFixed(1)}%
+                                                                </span>
+                                                                {isHigh ? <TrendingUp className="w-4 h-4 text-green-500" /> :
+                                                                    isLow ? <AlertCircle className="w-4 h-4 text-red-500" /> :
+                                                                        <TrendingDown className="w-4 h-4 text-yellow-500" />}
+                                                            </div>
+                                                            <button
+                                                                onClick={() => {
+                                                                    const text = `📊 *Coverage Summary*\n\n🏆 *Supervisor:* ${row.supervisorName}\n🏢 *Zone:* ${row.zonalHead}\n📍 *Total POI:* ${row.total}\n✅ *Covered:* ${row.covered}\n❌ *Pending:* ${row.notCovered}\n📈 *Achieved:* ${coverage.toFixed(1)}%\n\n_Generated from QR Analysis Tool_`;
+                                                                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                                                                }}
+                                                                title="Share to WhatsApp"
+                                                                className="p-1.5 text-green-600 hover:bg-green-50 rounded-full transition-colors flex-shrink-0"
+                                                            >
+                                                                <MessageCircle className="w-4 h-4" />
+                                                            </button>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -1252,14 +1548,24 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                                     </div>
                                                 </div>
 
-                                                {/* Export Button */}
-                                                <div className="flex justify-center" data-html2canvas-ignore="true">
+                                                {/* Export & Share Buttons */}
+                                                <div className="flex justify-center gap-3" data-html2canvas-ignore="true">
                                                     <button
                                                         onClick={() => exportToJPEG(`supervisor-card-${sIndex}`, `${supervisor.supervisorName}_Coverage_Report`)}
                                                         className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm text-sm font-medium"
                                                     >
                                                         <ImageIcon className="w-4 h-4" />
                                                         Export as JPEG
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            const text = `🚩 *POI Coverage Report*\n\n🏆 *Supervisor:* ${supervisor.supervisorName}\n🏢 *Zone:* ${supervisor.zonalHead}\n📍 *Total Wards:* ${supervisor.wardCount}\n📍 *Total POI:* ${supervisor.total}\n✅ *Covered:* ${supervisor.covered}\n❌ *Pending:* ${supervisor.notCovered}\n📊 *Coverage:* ${supCoverage.toFixed(1)}%\n\n_Generated from QR Analysis Tool_`;
+                                                            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                                                        }}
+                                                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm text-sm font-medium"
+                                                    >
+                                                        <MessageCircle className="w-4 h-4" />
+                                                        Share to WhatsApp
                                                     </button>
                                                 </div>
                                             </div>

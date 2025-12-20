@@ -8,14 +8,15 @@ import { SupervisorZonalMapping } from './components/SupervisorZonalMapping';
 import { UndergroundReport } from './components/UndergroundReport';
 import { ZonalUndergroundReport } from './components/ZonalUndergroundReport';
 import { CoverageReport } from './components/CoverageReport';
+import { Sidebar, type AppSection, type ViewMode } from './components/Sidebar';
 import { parseFile, processData, type ReportRecord, type SummaryStats } from './utils/dataProcessor';
-import { FileDown, Loader2, RefreshCw, Calendar, BarChart3, LayoutDashboard } from 'lucide-react';
+import { Loader2, RefreshCw, Calendar, Menu } from 'lucide-react';
 import { clsx } from 'clsx';
 import masterDataJson from './data/masterData.json';
 import supervisorDataJson from './data/supervisorData.json';
 
 function App() {
-  const [appSection, setAppSection] = useState<'daily' | 'coverage'>('daily');
+  const [appSection, setAppSection] = useState<AppSection>('daily');
 
   // Daily Report State
   const [scannedFile, setScannedFile] = useState<File | null>(null);
@@ -23,7 +24,7 @@ function App() {
   const [stats, setStats] = useState<SummaryStats | null>(null);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('All');
-  const [viewMode, setViewMode] = useState<'detailed' | 'zonal' | 'beforeAfter' | 'mapping' | 'underground' | 'zonalUnderground'>('detailed');
+  const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +70,7 @@ function App() {
 
       setReportData(report);
       setStats(stats);
+      setViewMode('dashboard');
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
@@ -98,61 +100,52 @@ function App() {
     setAvailableDates([]);
     setSelectedDate('All');
     setError(null);
+    setViewMode('dashboard');
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <div className="bg-blue-600 p-2 rounded-lg">
-                <FileDown className="w-5 h-5 text-white" />
-              </div>
-              <h1 className="text-xl font-bold text-gray-900">QR Report Generator</h1>
-            </div>
+  const currentTitle = appSection === 'coverage' ? 'Coverage Analysis' :
+    !stats && viewMode !== 'mapping' ? 'Upload Data' :
+      viewMode === 'dashboard' ? 'Dashboard Overview' :
+        viewMode === 'detailed' ? 'Detailed Report' :
+          viewMode === 'zonal' ? 'Zonal Summary' :
+            viewMode === 'beforeAfter' ? 'Before & After Report' :
+              viewMode === 'mapping' ? 'Supervisor Mapping' :
+                viewMode === 'underground' ? 'Underground Dustbins' :
+                  viewMode === 'zonalUnderground' ? 'Zonal Underground Summary' : 'Report';
 
-            {/* Main Navigation */}
-            <div className="hidden md:flex bg-gray-100 rounded-lg p-1 ml-6">
-              <button
-                onClick={() => setAppSection('daily')}
-                className={clsx(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-                  appSection === 'daily'
-                    ? "bg-white text-blue-600 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
-                )}
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                Daily Summary
-              </button>
-              <button
-                onClick={() => setAppSection('coverage')}
-                className={clsx(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-                  appSection === 'coverage'
-                    ? "bg-white text-blue-600 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
-                )}
-              >
-                <BarChart3 className="w-4 h-4" />
-                Coverage Analysis
-              </button>
-            </div>
+  return (
+    <div className="flex h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
+
+      <Sidebar
+        currentSection={appSection}
+        currentView={viewMode}
+        onNavigate={(sec, view) => {
+          setAppSection(sec);
+          if (view) setViewMode(view);
+        }}
+        statsAvailable={!!stats}
+      />
+
+      <main className="flex-1 ml-64 flex flex-col h-screen relative">
+        {/* Top Header */}
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0 z-10 shadow-sm">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-bold text-gray-800 tracking-tight">
+              {currentTitle}
+            </h2>
           </div>
 
           <div className="flex items-center gap-4">
             {appSection === 'daily' && stats && (
               <>
-                <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1.5 border border-gray-200">
                   <div className="px-2 text-gray-500">
                     <Calendar className="w-4 h-4" />
                   </div>
                   <select
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="bg-transparent border-none text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer py-1 pr-8"
+                    className="bg-transparent border-none text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer py-0.5 pr-8 outline-none"
                   >
                     {availableDates.map(date => (
                       <option key={date} value={date}>{date === 'All' ? 'All Dates' : date}</option>
@@ -161,7 +154,7 @@ function App() {
                 </div>
                 <button
                   onClick={handleReset}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                 >
                   <RefreshCw className="w-4 h-4" />
                   Reset
@@ -169,145 +162,95 @@ function App() {
               </>
             )}
           </div>
-        </div>
-      </header>
+        </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {appSection === 'coverage' ? (
-          <CoverageReport />
-        ) : (
-          /* Daily Report Content */
-          !stats ? (
-            <div className="max-w-3xl mx-auto">
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Upload Data Files</h2>
-                <p className="text-gray-500 mb-8">
-                  Upload the Scanned Data to generate the report.
-                  <br />
-                  <span className="text-sm text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded mt-2 inline-block">
-                    Note: Master QR List and Supervisor Mapping are pre-loaded.
-                  </span>
-                </p>
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-8 scroll-smooth">
+          <div className="max-w-7xl mx-auto animate-in fade-in duration-500">
 
-                <div className="space-y-6">
-                  <FileUpload
-                    label="1. Scanned Data (BulkCollectionScan.csv)"
-                    file={scannedFile}
-                    onFileSelect={setScannedFile}
-                    required
-                  />
-                </div>
+            {appSection === 'coverage' ? (
+              <CoverageReport />
+            ) : (
+              <>
+                {/* Daily Report Logic */}
+                {!stats && viewMode !== 'mapping' ? (
+                  /* Upload Screen */
+                  <div className="max-w-2xl mx-auto mt-10">
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
+                      <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Menu className="w-8 h-8 text-blue-600" />
+                      </div>
+                      <h2 className="text-2xl font-bold text-gray-900 mb-2">Initialize Daily Report</h2>
+                      <p className="text-gray-500 mb-8 max-w-md mx-auto">
+                        Upload the Bulk Collection Scan CSV file to generate the interactive dashboard and detailed reports.
+                      </p>
 
-                {error && (
-                  <div className="mt-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2">
-                    <span className="font-bold">Error:</span> {error}
+                      <div className="space-y-6 text-left">
+                        <FileUpload
+                          label="Scanned Data (BulkCollectionScan.csv)"
+                          file={scannedFile}
+                          onFileSelect={setScannedFile}
+                          required
+                        />
+                      </div>
+
+                      {error && (
+                        <div className="mt-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2 text-left">
+                          <span className="font-bold">Error:</span> {error}
+                        </div>
+                      )}
+
+                      <div className="mt-8">
+                        <button
+                          onClick={handleProcess}
+                          disabled={!scannedFile || loading}
+                          className={clsx(
+                            "w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium text-white transition-all shadow-sm",
+                            !scannedFile || loading
+                              ? "bg-gray-300 cursor-not-allowed"
+                              : "bg-blue-600 hover:bg-blue-700 hover:shadow-md active:transform active:scale-95"
+                          )}
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              Processing Data...
+                            </>
+                          ) : (
+                            <>
+                              Generate Dashboard
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      <p className="mt-4 text-xs text-gray-400">
+                        Checking Master Data & Supervisor Mapping automatically.
+                      </p>
+                    </div>
                   </div>
+                ) : (
+                  /* Views */
+                  <>
+                    {viewMode === 'dashboard' && stats && <Dashboard stats={stats} />}
+
+                    {viewMode === 'detailed' && <ReportTable data={reportData} />}
+
+                    {viewMode === 'zonal' && <ZonalReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />}
+
+                    {viewMode === 'beforeAfter' && <BeforeAfterReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />}
+
+                    {viewMode === 'mapping' && <SupervisorZonalMapping />}
+
+                    {viewMode === 'underground' && <UndergroundReport data={reportData} />}
+
+                    {viewMode === 'zonalUnderground' && <ZonalUndergroundReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />}
+                  </>
                 )}
+              </>
+            )}
 
-                <div className="mt-8 flex justify-end">
-                  <button
-                    onClick={handleProcess}
-                    disabled={!scannedFile || loading}
-                    className={clsx(
-                      "flex items-center gap-2 px-6 py-3 rounded-lg font-medium text-white transition-all shadow-sm",
-                      !scannedFile || loading
-                        ? "bg-gray-300 cursor-not-allowed"
-                        : "bg-blue-600 hover:bg-blue-700 hover:shadow-md active:transform active:scale-95"
-                    )}
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        Generate Report
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-8 animate-fade-in">
-              <Dashboard stats={stats} />
-
-              <div className="flex justify-center mb-6">
-                <div className="bg-gray-100 p-1 rounded-lg inline-flex flex-wrap justify-center gap-1">
-                  <button
-                    onClick={() => setViewMode('detailed')}
-                    className={clsx(
-                      "px-4 py-2 rounded-md text-sm font-medium transition-all",
-                      viewMode === 'detailed' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                    )}
-                  >
-                    Detailed Report
-                  </button>
-                  <button
-                    onClick={() => setViewMode('zonal')}
-                    className={clsx(
-                      "px-4 py-2 rounded-md text-sm font-medium transition-all",
-                      viewMode === 'zonal' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                    )}
-                  >
-                    Zonal Summary
-                  </button>
-                  <button
-                    onClick={() => setViewMode('beforeAfter')}
-                    className={clsx(
-                      "px-4 py-2 rounded-md text-sm font-medium transition-all",
-                      viewMode === 'beforeAfter' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                    )}
-                  >
-                    Before/After Report
-                  </button>
-                  <button
-                    onClick={() => setViewMode('mapping')}
-                    className={clsx(
-                      "px-4 py-2 rounded-md text-sm font-medium transition-all",
-                      viewMode === 'mapping' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                    )}
-                  >
-                    Mapping
-                  </button>
-                  <button
-                    onClick={() => setViewMode('underground')}
-                    className={clsx(
-                      "px-4 py-2 rounded-md text-sm font-medium transition-all",
-                      viewMode === 'underground' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                    )}
-                  >
-                    Underground Dustbin
-                  </button>
-                  <button
-                    onClick={() => setViewMode('zonalUnderground')}
-                    className={clsx(
-                      "px-4 py-2 rounded-md text-sm font-medium transition-all",
-                      viewMode === 'zonalUnderground' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                    )}
-                  >
-                    Zonal Underground
-                  </button>
-                </div>
-              </div>
-
-              {viewMode === 'detailed' ? (
-                <ReportTable data={reportData} />
-              ) : viewMode === 'zonal' ? (
-                <ZonalReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />
-              ) : viewMode === 'beforeAfter' ? (
-                <BeforeAfterReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />
-              ) : viewMode === 'mapping' ? (
-                <SupervisorZonalMapping />
-              ) : viewMode === 'underground' ? (
-                <UndergroundReport data={reportData} />
-              ) : (
-                <ZonalUndergroundReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />
-              )}
-            </div>
-          )
-        )}
+          </div>
+        </div>
       </main>
     </div>
   );

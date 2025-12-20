@@ -1,20 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import Papa from 'papaparse';
-import { Upload, Download, TrendingUp, TrendingDown, CheckCircle, AlertCircle, MapPin } from 'lucide-react';
+import { Upload, Download, TrendingUp, TrendingDown, CheckCircle, AlertCircle, MapPin, Image as ImageIcon, FileText } from 'lucide-react';
 import supervisorDataJson from '../data/supervisorData.json';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { exportToJPEG } from '../utils/exporter';
 import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    Legend,
     ResponsiveContainer,
     PieChart,
     Pie,
-    Cell
+    Cell,
+    Tooltip,
+    Legend
 } from 'recharts';
 
 interface POIRow {
@@ -56,12 +54,44 @@ interface WardStats {
     vehicles: string[];
 }
 
-export const CoverageReport: React.FC = () => {
+interface CoverageReportProps {
+    initialMode?: 'dashboard' | 'supervisor' | 'ward' | 'mapping' | 'all';
+}
+
+const getBase64ImageFromURL = (url: string) => {
+    return new Promise<string>((resolve, reject) => {
+        const img = new Image();
+        img.setAttribute("crossOrigin", "anonymous");
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+                ctx.drawImage(img, 0, 0);
+                const dataURL = canvas.toDataURL("image/png");
+                resolve(dataURL);
+            } else {
+                reject(new Error("Could not get canvas context"));
+            }
+        };
+        img.onerror = (error) => reject(error);
+        img.src = url;
+    });
+};
+
+export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'dashboard' }) => {
     const [stats, setStats] = useState<AggregatedStats[]>([]);
     const [wardStats, setWardStats] = useState<WardStats[]>([]);
     const [loading, setLoading] = useState(false);
     const [fileName, setFileName] = useState<string>('');
-    const [viewType, setViewType] = useState<'supervisor' | 'ward'>('supervisor');
+    const [viewType, setViewType] = useState<'dashboard' | 'supervisor' | 'ward' | 'mapping' | 'all'>(initialMode);
+
+    // Sync view with prop when sidebar link is clicked
+    React.useEffect(() => {
+        if (initialMode) setViewType(initialMode);
+    }, [initialMode]);
+
     const [selectedZone, setSelectedZone] = useState('All');
     const [selectedSupervisor, setSelectedSupervisor] = useState('All');
     const [selectedWard, setSelectedWard] = useState('All');
@@ -283,7 +313,7 @@ export const CoverageReport: React.FC = () => {
             "Supervisor": item.supervisorName,
             "Wards Count": item.wardCount,
             "Assigned Vehicles": item.vehicles.join(", "),
-            "Total Points": item.total,
+            "Total POI": item.total,
             "Covered": item.covered,
             "Not Covered": item.notCovered,
             "Coverage %": item.total > 0 ? ((item.covered / item.total) * 100).toFixed(2) + '%' : '0%'
@@ -298,7 +328,7 @@ export const CoverageReport: React.FC = () => {
             "Ward": item.wardName,
             "Route Name": item.routeName,
             "Assigned Vehicles": item.vehicles.join(", "),
-            "Total Points": item.total,
+            "Total POI": item.total,
             "Covered": item.covered,
             "Not Covered": item.notCovered,
             "Coverage %": item.total > 0 ? ((item.covered / item.total) * 100).toFixed(2) + '%' : '0%'
@@ -307,6 +337,221 @@ export const CoverageReport: React.FC = () => {
         XLSX.utils.book_append_sheet(wb, wsWard, "Ward & Route Wise");
 
         XLSX.writeFile(wb, "Coverage_Report.xlsx");
+    };
+
+    const exportToZonalPDF = () => {
+        const doc = new jsPDF();
+
+        // Group by Zonal Head
+        const zonalSummary = stats.reduce((acc, curr) => {
+            if (!acc[curr.zonalHead]) {
+                acc[curr.zonalHead] = {
+                    total: 0,
+                    covered: 0,
+                    notCovered: 0,
+                    supervisorCount: 0
+                };
+            }
+            acc[curr.zonalHead].total += curr.total;
+            acc[curr.zonalHead].covered += curr.covered;
+            acc[curr.zonalHead].notCovered += curr.notCovered;
+            acc[curr.zonalHead].supervisorCount++;
+            return acc;
+        }, {} as Record<string, any>);
+
+        const tableColumn = ["Zonal Head", "Supervisors", "Total POI", "Covered", "Not Covered", "Coverage %"];
+        const tableRows = Object.entries(zonalSummary).sort((a, b) => a[0].localeCompare(b[0])).map(([head, data]) => [
+            head,
+            data.supervisorCount,
+            data.total.toLocaleString(),
+            data.covered.toLocaleString(),
+            data.notCovered.toLocaleString(),
+            (data.total > 0 ? (data.covered / data.total * 100).toFixed(2) : '0') + '%'
+        ]);
+
+        doc.setFontSize(18);
+        doc.text("POI Coverage Zonal Summary Report", 14, 20);
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
+
+        autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: 35,
+            theme: 'striped',
+            headStyles: { fillColor: [22, 163, 74], halign: 'center' },
+            columnStyles: {
+                0: { fontStyle: 'bold' },
+                1: { halign: 'center' },
+                2: { halign: 'center' },
+                3: { halign: 'center' },
+                4: { halign: 'center' },
+                5: { halign: 'center', fontStyle: 'bold' }
+            },
+            didParseCell: (data) => {
+                if (data.section === 'body' && data.column.index === 5) {
+                    const rowRaw = data.cell.raw as string;
+                    const val = parseFloat(rowRaw.replace('%', ''));
+                    if (val >= 90) data.cell.styles.textColor = [22, 101, 52];
+                    else if (val < 75) data.cell.styles.textColor = [153, 27, 27];
+                }
+            }
+        });
+
+        doc.save("Zonal_Coverage_Report.pdf");
+    };
+
+    const exportCompletePerformancePDF = async () => {
+        if (filteredStats.length === 0) return;
+        setLoading(true);
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+
+        try {
+            // Load logos
+            const logoLeft = await getBase64ImageFromURL('/nagar-nigam-logo.png').catch(() => null);
+            const logoRight = await getBase64ImageFromURL('/NatureGreen_Logo.png').catch(() => null);
+
+            for (let i = 0; i < filteredStats.length; i++) {
+                const supervisor = filteredStats[i];
+                const supervisorWards = filteredWardStats.filter(w =>
+                    w.supervisorName === supervisor.supervisorName &&
+                    w.zonalHead === supervisor.zonalHead
+                );
+
+                if (supervisorWards.length === 0) continue;
+
+                if (i > 0) doc.addPage();
+
+                // 1. Draw Outer Border (Green)
+                doc.setDrawColor(22, 163, 74);
+                doc.setLineWidth(1.5);
+                doc.rect(5, 5, pageWidth - 10, pageHeight - 10);
+
+                // 2. Logos Section
+                if (logoLeft) doc.addImage(logoLeft, 'PNG', 10, 10, 30, 15);
+                if (logoRight) doc.addImage(logoRight, 'PNG', pageWidth - 40, 10, 30, 15);
+
+                // 3. Header Title
+                doc.setFontSize(16);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(31, 41, 55);
+                doc.text("Coverage Report", pageWidth / 2, 18, { align: 'center' });
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(75, 85, 99);
+                doc.text("Point of Interest Analysis", pageWidth / 2, 23, { align: 'center' });
+
+                // 4. DESIGNATION SECTIONS
+                doc.setDrawColor(22, 163, 74);
+                doc.setLineWidth(0.5);
+
+                // Zonal Head
+                doc.line(10, 35, pageWidth - 10, 35);
+                doc.setFontSize(7);
+                doc.setTextColor(107, 114, 128);
+                doc.text("ZONAL HEAD", pageWidth / 2, 40, { align: 'center' });
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(17, 24, 39);
+                doc.text(supervisor.zonalHead, pageWidth / 2, 47, { align: 'center' });
+
+                // Supervisor
+                doc.line(10, 52, pageWidth - 10, 52);
+                doc.setFontSize(7);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(107, 114, 128);
+                doc.text("SUPERVISOR", pageWidth / 2, 57, { align: 'center' });
+                doc.setFontSize(18);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(17, 24, 39);
+                doc.text(supervisor.supervisorName, pageWidth / 2, 65, { align: 'center' });
+
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(55, 65, 81);
+                doc.text(`Vehicles: ${supervisor.vehicles.join(", ")}`, pageWidth / 2, 71, { align: 'center' });
+
+                // 5. STATS ROW
+                doc.line(10, 76, pageWidth - 10, 76);
+                const statsY = 82;
+
+                doc.setFontSize(7);
+                doc.setTextColor(107, 114, 128);
+                doc.text("WARDS", pageWidth / 2 - 45, statsY, { align: 'center' });
+                doc.text("TOTAL POI", pageWidth / 2, statsY, { align: 'center' });
+                doc.text("COVERAGE", pageWidth / 2 + 45, statsY, { align: 'center' });
+
+                doc.setFontSize(13);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(17, 24, 39);
+                doc.text(String(supervisor.wardCount), pageWidth / 2 - 45, statsY + 7, { align: 'center' });
+                doc.text(supervisor.total.toLocaleString(), pageWidth / 2, statsY + 7, { align: 'center' });
+
+                const cov = supervisor.total > 0 ? (supervisor.covered / supervisor.total * 100).toFixed(1) : '0';
+                doc.setTextColor(22, 163, 74);
+                doc.text(`${cov}%`, pageWidth / 2 + 45, statsY + 7, { align: 'center' });
+
+                // 6. WARD TABLE
+                const tableColumn = ["Ward Name", "Route Name", "Vehicles", "Total", "Covered", "Not Covered", "Coverage %"];
+                const tableRows = supervisorWards.map(w => [
+                    w.wardName,
+                    w.routeName,
+                    w.vehicles.join(", "),
+                    w.total.toLocaleString(),
+                    w.covered.toLocaleString(),
+                    w.notCovered.toLocaleString(),
+                    (w.total > 0 ? (w.covered / w.total * 100).toFixed(1) : '0') + '%'
+                ]);
+
+                autoTable(doc, {
+                    head: [tableColumn],
+                    body: tableRows,
+                    startY: 95,
+                    margin: { left: 10, right: 10, bottom: 15 },
+                    theme: 'grid',
+                    headStyles: {
+                        fillColor: [22, 163, 74],
+                        textColor: [255, 255, 255],
+                        halign: 'center',
+                        fontSize: 8,
+                        fontStyle: 'bold'
+                    },
+                    styles: {
+                        fontSize: 7.5,
+                        halign: 'center',
+                        cellPadding: 2,
+                        minCellHeight: 8
+                    },
+                    columnStyles: {
+                        0: { halign: 'center', fontStyle: 'bold', cellWidth: 30 },
+                        1: { halign: 'center', cellWidth: 20 },
+                        2: { halign: 'center', cellWidth: 45 },
+                        6: { fontStyle: 'bold' }
+                    },
+                    didDrawPage: (data) => {
+                        // Add page number to footer
+                        doc.setFontSize(8);
+                        doc.setTextColor(156, 163, 175);
+                        doc.text(
+                            `Page ${doc.internal.getNumberOfPages()}`,
+                            pageWidth / 2,
+                            pageHeight - 7,
+                            { align: 'center' }
+                        );
+                    }
+                });
+            }
+
+            doc.save(`Complete_Coverage_Report_${new Date().toLocaleDateString()}.pdf`);
+        } catch (err) {
+            console.error("Complete PDF generation failed:", err);
+            alert("Error generating complete PDF. Please try again.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -346,192 +591,455 @@ export const CoverageReport: React.FC = () => {
 
             {stats.length > 0 && (
                 <>
-                    {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="bg-white rounded-xl shadow-sm p-6 border border-blue-200 hover:shadow-md transition-shadow">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-500">Total Points</p>
-                                    <h3 className="text-2xl font-bold text-gray-900 mt-1">{chartData.total.toLocaleString()}</h3>
-                                </div>
-                                <div className="p-2 bg-blue-50 rounded-lg">
-                                    <MapPin className="w-5 h-5 text-blue-600" />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="bg-white rounded-xl shadow-sm p-6 border border-green-200 hover:shadow-md transition-shadow">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-500">Covered Points</p>
-                                    <h3 className="text-2xl font-bold text-gray-900 mt-1">{chartData.covered.toLocaleString()}</h3>
-                                </div>
-                                <div className="p-2 bg-green-50 rounded-lg">
-                                    <CheckCircle className="w-5 h-5 text-green-600" />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="bg-white rounded-xl shadow-sm p-6 border border-red-200 hover:shadow-md transition-shadow">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-500">Not Covered</p>
-                                    <h3 className="text-2xl font-bold text-gray-900 mt-1">{chartData.notCovered.toLocaleString()}</h3>
-                                </div>
-                                <div className="p-2 bg-red-50 rounded-lg">
-                                    <AlertCircle className="w-5 h-5 text-red-600" />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="bg-white rounded-xl shadow-sm p-6 border border-purple-200 hover:shadow-md transition-shadow">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-500">Overall Coverage</p>
-                                    <h3 className="text-2xl font-bold text-gray-900 mt-1">{chartData.coverage}%</h3>
-                                </div>
-                                <div className="p-2 bg-purple-50 rounded-lg">
-                                    <TrendingUp className="w-5 h-5 text-purple-600" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    {/* Summary Cards - Only on Dashboard */}
+                    {viewType === 'dashboard' && (
+                        <div id="coverage-report-container" className="space-y-6 mb-8">
+                            {/* Professional Logo Header */}
+                            <div className="bg-white rounded-xl shadow-lg border-2 border-green-100 p-6">
+                                <div className="grid grid-cols-3 items-center gap-6">
+                                    {/* Left Side - Nagar Nigam Logo */}
+                                    <div className="flex flex-col items-center sm:items-start">
+                                        <img
+                                            src="/nagar-nigam-logo.png"
+                                            alt="Nagar Nigam Logo"
+                                            className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
+                                        />
+                                        <p className="hidden sm:block text-[10px] font-bold text-blue-800 mt-2 uppercase tracking-tight text-center sm:text-left">
+                                            Nagar Nigam<br />Mathura-Vrindavan
+                                        </p>
+                                    </div>
 
-                    {/* Report Content */}
-                    <div className="space-y-6">
+                                    {/* Center - Title Section */}
+                                    <div className="text-center flex flex-col items-center justify-center">
+                                        <div className="bg-green-50 px-4 py-1 rounded-full mb-3">
+                                            <span className="text-[10px] font-bold text-green-600 uppercase tracking-[0.2em]">POI Coverage Report</span>
+                                        </div>
+                                        <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-gray-900 tracking-tight leading-none mb-2">
+                                            POI COVERAGE<br />
+                                            <span className="text-green-600">ANALYTICS</span>
+                                        </h1>
+                                        <div className="h-1 w-20 bg-green-600 rounded-full mb-2"></div>
+                                        <p className="text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-widest">
+                                            Point of Interest Monitoring
+                                        </p>
+                                    </div>
 
-                        {/* Charts Section */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Bar Chart */}
-                            <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                                <h3 className="text-lg font-bold text-gray-800 mb-6">Zonal Coverage Performance</h3>
-                                <div className="h-[350px] w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart
-                                            data={chartData.barChartData}
-                                            margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                                            <XAxis
-                                                dataKey="name"
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tick={{ fill: '#6b7280', fontSize: 12 }}
-                                                dy={10}
-                                            />
-                                            <YAxis
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tick={{ fill: '#6b7280', fontSize: 12 }}
-                                            />
-                                            <Tooltip
-                                                cursor={{ fill: '#f3f4f6' }}
-                                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                            />
-                                            <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                            <Bar dataKey="Covered" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={40} />
-                                            <Bar dataKey="NotCovered" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={40} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                    {/* Right Side - Nature Green Logo */}
+                                    <div className="flex flex-col items-center sm:items-end">
+                                        <img
+                                            src="/NatureGreen_Logo.png"
+                                            alt="Nature Green Logo"
+                                            className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
+                                        />
+                                        <p className="hidden sm:block text-[10px] font-bold text-green-700 mt-2 uppercase tracking-tight text-center sm:text-right">
+                                            Nature Green<br />Waste Management
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div className="bg-white rounded-xl shadow-sm p-6 border border-blue-200 hover:shadow-md transition-shadow">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-500">Total POI</p>
+                                            <h3 className="text-2xl font-bold text-gray-900 mt-1">{chartData.total.toLocaleString()}</h3>
+                                            <p className="text-[10px] text-gray-400 font-semibold mt-1 uppercase">Across All Zones</p>
+                                        </div>
+                                        <div className="p-2 bg-blue-50 rounded-lg">
+                                            <MapPin className="w-5 h-5 text-blue-600" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="bg-white rounded-xl shadow-sm p-6 border border-green-200 hover:shadow-md transition-shadow">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-500">Covered POI</p>
+                                            <h3 className="text-2xl font-bold text-gray-900 mt-1">{chartData.covered.toLocaleString()}</h3>
+                                            <p className="text-[10px] text-green-600 font-bold mt-1 uppercase flex items-center gap-1">
+                                                <TrendingUp className="w-3 h-3" />
+                                                {chartData.coverage}% Achieved
+                                            </p>
+                                        </div>
+                                        <div className="p-2 bg-green-50 rounded-lg">
+                                            <CheckCircle className="w-5 h-5 text-green-600" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="bg-white rounded-xl shadow-sm p-6 border border-red-200 hover:shadow-md transition-shadow">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-500">Not Covered</p>
+                                            <h3 className="text-2xl font-bold text-gray-900 mt-1">{chartData.notCovered.toLocaleString()}</h3>
+                                            <p className="text-[10px] text-red-600 font-bold mt-1 uppercase flex items-center gap-1">
+                                                <AlertCircle className="w-3 h-3" />
+                                                {100 - chartData.coverage}% Remaining
+                                            </p>
+                                        </div>
+                                        <div className="p-2 bg-red-50 rounded-lg">
+                                            <AlertCircle className="w-5 h-5 text-red-600" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="bg-white rounded-xl shadow-sm p-6 border border-purple-200 hover:shadow-md transition-shadow">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-500">Overall Coverage</p>
+                                            <h3 className="text-2xl font-bold text-gray-900 mt-1">{chartData.coverage}%</h3>
+                                            <p className="text-[10px] text-purple-600 font-bold mt-1 uppercase">
+                                                {chartData.covered.toLocaleString()} Points Scanned
+                                            </p>
+                                        </div>
+                                        <div className="p-2 bg-purple-50 rounded-lg">
+                                            <TrendingUp className="w-5 h-5 text-purple-600" />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Pie Chart */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col">
-                                <h3 className="text-lg font-bold text-gray-800 mb-2">Overall Coverage</h3>
-                                <div className="flex-1 min-h-[300px] relative">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie
-                                                data={chartData.pieChartData}
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius={70}
-                                                outerRadius={100}
-                                                paddingAngle={5}
-                                                dataKey="value"
-                                                stroke="none"
-                                            >
-                                                {chartData.pieChartData.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip />
-                                            <Legend verticalAlign="bottom" height={36} />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                    {/* Centered Percentage */}
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none mb-8">
-                                        <div className="text-center">
-                                            <span className="block text-3xl font-bold text-gray-800">{chartData.coverage}%</span>
-                                            <span className="text-xs text-gray-500 uppercase font-semibold">Covered</span>
+                            {/* Zonal Coverage Performance - Split View */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* Covered POIs Chart */}
+                                <div className="bg-white rounded-xl shadow-sm border-2 border-green-500 p-6">
+                                    <div className="h-[400px] w-full relative">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart margin={{ top: 5, right: 30, bottom: 5, left: 30 }}>
+                                                <Pie
+                                                    data={chartData.barChartData.map((item) => ({
+                                                        name: item.name,
+                                                        value: item.Covered,
+                                                        total: item.Total,
+                                                        coverage: item.Total > 0 ? ((item.Covered / item.Total) * 100).toFixed(1) : '0'
+                                                    }))}
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    innerRadius={70}
+                                                    outerRadius={110}
+                                                    paddingAngle={3}
+                                                    dataKey="value"
+                                                    label={(props: any) => {
+                                                        const { cx, cy, midAngle, outerRadius, name, value, coverage, index } = props;
+                                                        const RADIAN = Math.PI / 180;
+                                                        const radius = outerRadius + 30;
+                                                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                                        const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4'];
+                                                        const color = colors[index % colors.length];
+
+                                                        return (
+                                                            <text
+                                                                x={x}
+                                                                y={y}
+                                                                fill={color}
+                                                                textAnchor={x > cx ? 'start' : 'end'}
+                                                                dominantBaseline="central"
+                                                                fontSize="12"
+                                                                fontWeight="600"
+                                                            >
+                                                                <tspan x={x} dy="0">{name}:</tspan>
+                                                                <tspan x={x} dy="14">{value} ({coverage}%)</tspan>
+                                                            </text>
+                                                        );
+                                                    }}
+                                                    labelLine={true}
+                                                >
+                                                    {chartData.barChartData.map((_entry, index) => {
+                                                        const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4'];
+                                                        return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                                                    })}
+                                                </Pie>
+                                                <Tooltip
+                                                    formatter={(_value: any, _name: any, props: any) => [
+                                                        `${props.payload?.value || 0} POIs (${props.payload?.coverage || '0'}%)`,
+                                                        'Covered'
+                                                    ]}
+                                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                                />
+                                                <Legend
+                                                    verticalAlign="bottom"
+                                                    height={36}
+                                                />
+                                                <text
+                                                    x="50%"
+                                                    y="46%"
+                                                    textAnchor="middle"
+                                                    dominantBaseline="middle"
+                                                    style={{ fontSize: '18px', fontWeight: 'bold', fill: '#15803d' }}
+                                                >
+                                                    Covered
+                                                </text>
+                                                <text
+                                                    x="50%"
+                                                    y="54%"
+                                                    textAnchor="middle"
+                                                    dominantBaseline="middle"
+                                                    style={{ fontSize: '14px', fontWeight: '600', fill: '#16a34a' }}
+                                                >
+                                                    by Zonals
+                                                </text>
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+
+                                {/* Not Covered (Left) POIs Chart */}
+                                <div className="bg-white rounded-xl shadow-sm border-2 border-red-500 p-6">
+                                    <div className="h-[400px] w-full relative">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart margin={{ top: 5, right: 30, bottom: 5, left: 30 }}>
+                                                <Pie
+                                                    data={chartData.barChartData.map((item) => ({
+                                                        name: item.name,
+                                                        value: item.NotCovered,
+                                                        total: item.Total,
+                                                        percentage: item.Total > 0 ? (((item.Total - item.Covered) / item.Total) * 100).toFixed(1) : '0'
+                                                    }))}
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    innerRadius={70}
+                                                    outerRadius={110}
+                                                    paddingAngle={3}
+                                                    dataKey="value"
+                                                    label={(props: any) => {
+                                                        const { cx, cy, midAngle, outerRadius, name, value, percentage, index } = props;
+                                                        const RADIAN = Math.PI / 180;
+                                                        const radius = outerRadius + 30;
+                                                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                                        const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4'];
+                                                        const color = colors[index % colors.length];
+
+                                                        return (
+                                                            <text
+                                                                x={x}
+                                                                y={y}
+                                                                fill={color}
+                                                                textAnchor={x > cx ? 'start' : 'end'}
+                                                                dominantBaseline="central"
+                                                                fontSize="12"
+                                                                fontWeight="600"
+                                                            >
+                                                                <tspan x={x} dy="0">{name}:</tspan>
+                                                                <tspan x={x} dy="14">{value} ({percentage}%)</tspan>
+                                                            </text>
+                                                        );
+                                                    }}
+                                                    labelLine={true}
+                                                >
+                                                    {chartData.barChartData.map((_entry, index) => {
+                                                        const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4'];
+                                                        return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                                                    })}
+                                                </Pie>
+                                                <Tooltip
+                                                    formatter={(_value: any, _name: any, props: any) => [
+                                                        `${props.payload?.value || 0} POIs (${props.payload?.percentage || '0'}%)`,
+                                                        'Not Covered'
+                                                    ]}
+                                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                                />
+                                                <Legend
+                                                    verticalAlign="bottom"
+                                                    height={36}
+                                                />
+                                                <text
+                                                    x="50%"
+                                                    y="46%"
+                                                    textAnchor="middle"
+                                                    dominantBaseline="middle"
+                                                    style={{ fontSize: '18px', fontWeight: 'bold', fill: '#b91c1c' }}
+                                                >
+                                                    Left
+                                                </text>
+                                                <text
+                                                    x="50%"
+                                                    y="54%"
+                                                    textAnchor="middle"
+                                                    dominantBaseline="middle"
+                                                    style={{ fontSize: '14px', fontWeight: '600', fill: '#dc2626' }}
+                                                >
+                                                    by Zonals
+                                                </text>
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Overall Coverage Chart with Detailed Stats */}
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                <div className="flex flex-col md:flex-row items-center gap-8">
+                                    {/* Left Side: Chart */}
+                                    <div className="w-full md:w-1/2">
+                                        <h3 className="text-lg font-bold text-gray-800 mb-4">Overall Coverage Status</h3>
+                                        <div className="h-[300px] w-full relative">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie
+                                                        data={chartData.pieChartData}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={75}
+                                                        outerRadius={105}
+                                                        paddingAngle={5}
+                                                        dataKey="value"
+                                                        stroke="none"
+                                                    >
+                                                        {chartData.pieChartData.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip
+                                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                                                    />
+                                                    <Legend verticalAlign="bottom" height={36} />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                            {/* Centered Percentage */}
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none mb-8">
+                                                <div className="text-center">
+                                                    <span className="block text-4xl font-black text-gray-900 leading-none">{chartData.coverage}%</span>
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Total Progress</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Right Side: Detailed Breakdown */}
+                                    <div className="w-full md:w-1/2 space-y-4">
+                                        <div className="grid grid-cols-1 gap-3">
+                                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-sm font-semibold text-gray-600">Total Points of Interest</span>
+                                                    <MapPin className="w-4 h-4 text-gray-400" />
+                                                </div>
+                                                <div className="text-2xl font-bold text-gray-900">{chartData.total.toLocaleString()}</div>
+                                                <div className="mt-2 w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                                    <div className="bg-gray-400 h-full w-full"></div>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-green-50 rounded-xl p-4 border border-green-100">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-sm font-semibold text-green-700">Successfully Covered</span>
+                                                    <CheckCircle className="w-4 h-4 text-green-500" />
+                                                </div>
+                                                <div className="text-2xl font-bold text-green-900">{chartData.covered.toLocaleString()}</div>
+                                                <div className="mt-2 w-full bg-green-200 rounded-full h-1.5 overflow-hidden">
+                                                    <div className="bg-green-600 h-full transition-all duration-1000" style={{ width: `${chartData.coverage}%` }}></div>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-red-50 rounded-xl p-4 border border-red-100">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-sm font-semibold text-red-700">Points Remaining (Left)</span>
+                                                    <AlertCircle className="w-4 h-4 text-red-500" />
+                                                </div>
+                                                <div className="text-2xl font-bold text-red-900">{chartData.notCovered.toLocaleString()}</div>
+                                                <div className="mt-2 w-full bg-red-200 rounded-full h-1.5 overflow-hidden">
+                                                    <div className="bg-red-600 h-full transition-all duration-1000" style={{ width: `${100 - chartData.coverage}%` }}></div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className={`rounded-lg p-3 text-center text-sm font-bold uppercase tracking-wider ${chartData.coverage >= 90 ? 'bg-green-100 text-green-700' :
+                                            chartData.coverage >= 75 ? 'bg-yellow-100 text-yellow-700' :
+                                                'bg-red-100 text-red-700'
+                                            }`}>
+                                            {chartData.coverage >= 90 ? 'Excellent Performance' :
+                                                chartData.coverage >= 75 ? 'Satisfactory Progress' :
+                                                    'Needs Immediate Attention'}
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    )}
 
+                    <div id="coverage-report-container" className="space-y-6">
                         {/* Filter Controls & Table Actions */}
-                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm" data-html2canvas-ignore="true">
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Zonal Head</label>
-                                    <select
-                                        className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        value={selectedZone}
-                                        onChange={(e) => {
-                                            setSelectedZone(e.target.value);
-                                            setSelectedSupervisor('All');
-                                            setSelectedWard('All');
-                                        }}
-                                    >
-                                        {zones.map(z => <option key={z} value={z}>{z}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Supervisor</label>
-                                    <select
-                                        className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        value={selectedSupervisor}
-                                        onChange={(e) => {
-                                            setSelectedSupervisor(e.target.value);
-                                            setSelectedWard('All');
-                                        }}
-                                    >
-                                        {supervisors.map(s => <option key={s} value={s}>{s}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Ward Number</label>
-                                    <select
-                                        className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        value={selectedWard}
-                                        onChange={(e) => setSelectedWard(e.target.value)}
-                                    >
-                                        {wards.map(w => <option key={w} value={w}>{w}</option>)}
-                                    </select>
-                                </div>
+                                {viewType !== 'mapping' && (
+                                    <>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Zonal Head</label>
+                                            <select
+                                                className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                value={selectedZone}
+                                                onChange={(e) => {
+                                                    setSelectedZone(e.target.value);
+                                                    setSelectedSupervisor('All');
+                                                    setSelectedWard('All');
+                                                }}
+                                            >
+                                                {zones.map(z => <option key={z} value={z}>{z}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Supervisor</label>
+                                            <select
+                                                className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                value={selectedSupervisor}
+                                                onChange={(e) => {
+                                                    setSelectedSupervisor(e.target.value);
+                                                    setSelectedWard('All');
+                                                }}
+                                            >
+                                                {supervisors.map(s => <option key={s} value={s}>{s}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Ward Number</label>
+                                            <select
+                                                className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                value={selectedWard}
+                                                onChange={(e) => setSelectedWard(e.target.value)}
+                                            >
+                                                {wards.map(w => <option key={w} value={w}>{w}</option>)}
+                                            </select>
+                                        </div>
+                                    </>
+                                )}
+                                {viewType === 'mapping' && (
+                                    <div className="col-span-3">
+                                        <p className="text-sm text-gray-500 italic">Showing master supervisor-ward mapping data.</p>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t border-gray-100">
-                                <div className="flex bg-gray-100 p-1 rounded-lg">
-                                    <button
-                                        onClick={() => setViewType('supervisor')}
-                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewType === 'supervisor'
-                                            ? 'bg-white text-blue-600 shadow-sm'
-                                            : 'text-gray-600 hover:text-gray-900'
-                                            }`}
-                                    >
-                                        Supervisor Wise
-                                    </button>
-                                    <button
-                                        onClick={() => setViewType('ward')}
-                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewType === 'ward'
-                                            ? 'bg-white text-blue-600 shadow-sm'
-                                            : 'text-gray-600 hover:text-gray-900'
-                                            }`}
-                                    >
-                                        Ward Wise
-                                    </button>
-                                </div>
-                                <div className="flex items-center gap-2">
+                                {!initialMode && (
+                                    <div className="flex bg-gray-100 p-1 rounded-lg">
+                                        <button
+                                            onClick={() => setViewType('supervisor')}
+                                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewType === 'supervisor'
+                                                ? 'bg-white text-blue-600 shadow-sm'
+                                                : 'text-gray-600 hover:text-gray-900'
+                                                }`}
+                                        >
+                                            Supervisor Wise
+                                        </button>
+                                        <button
+                                            onClick={() => setViewType('ward')}
+                                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewType === 'ward'
+                                                ? 'bg-white text-blue-600 shadow-sm'
+                                                : 'text-gray-600 hover:text-gray-900'
+                                                }`}
+                                        >
+                                            Ward Wise
+                                        </button>
+                                        <button
+                                            onClick={() => setViewType('mapping')}
+                                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewType === 'mapping'
+                                                ? 'bg-white text-blue-600 shadow-sm'
+                                                : 'text-gray-600 hover:text-gray-900'
+                                                }`}
+                                        >
+                                            Mapping
+                                        </button>
+                                    </div>
+                                )}
+                                <div className={`${!initialMode ? 'w-full flex justify-end' : 'w-full'} flex items-center justify-end gap-2`}>
                                     <button
                                         onClick={() => {
                                             setStats([]);
@@ -547,18 +1055,40 @@ export const CoverageReport: React.FC = () => {
                                         Upload New
                                     </button>
                                     <button
+                                        onClick={exportCompletePerformancePDF}
+                                        disabled={loading || stats.length === 0}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors shadow-sm disabled:opacity-50"
+                                    >
+                                        <FileText className="w-4 h-4" />
+                                        {loading ? 'Generating...' : 'Export Complete PDF'}
+                                    </button>
+                                    <button
+                                        onClick={exportToZonalPDF}
+                                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm"
+                                    >
+                                        <FileText className="w-4 h-4" />
+                                        Export Zonal PDF
+                                    </button>
+                                    <button
                                         onClick={exportToExcel}
                                         className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm"
                                     >
                                         <Download className="w-4 h-4" />
                                         Export Excel
                                     </button>
+                                    <button
+                                        onClick={() => exportToJPEG('coverage-report-container', 'Coverage_Analysis')}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                                    >
+                                        <ImageIcon className="w-4 h-4" />
+                                        Export JPEG
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Tables */}
-                        {viewType === 'supervisor' ? (
+                        {/* Table Sections */}
+                        {viewType === 'supervisor' && (
                             <div className="overflow-x-auto rounded-lg border-2 border-gray-300 shadow-sm">
                                 <table className="w-full text-sm border-collapse">
                                     <thead className="bg-blue-600 text-white">
@@ -567,7 +1097,7 @@ export const CoverageReport: React.FC = () => {
                                             <th className="p-3 border border-gray-300 font-semibold text-center">Supervisor Name</th>
                                             <th className="p-3 border border-gray-300 font-semibold text-center">Wards(Count)</th>
                                             <th className="p-3 border border-gray-300 font-semibold text-center">Assigned Vehicles</th>
-                                            <th className="p-3 border border-gray-300 font-semibold text-center">Total Points</th>
+                                            <th className="p-3 border border-gray-300 font-semibold text-center">Total POI</th>
                                             <th className="p-3 border border-gray-300 font-semibold text-center">Covered</th>
                                             <th className="p-3 border border-gray-300 font-semibold text-center">Not Covered</th>
                                             <th className="p-3 border border-gray-300 font-semibold text-center">Coverage %</th>
@@ -608,10 +1138,46 @@ export const CoverageReport: React.FC = () => {
                                     </tbody>
                                 </table>
                             </div>
-                        ) : (
+                        )}
+
+                        {viewType === 'mapping' && (
+                            <div className="overflow-x-auto rounded-lg border-2 border-gray-300 shadow-sm">
+                                <table className="w-full text-sm border-collapse">
+                                    <thead className="bg-slate-800 text-white">
+                                        <tr>
+                                            <th className="p-3 border border-gray-600 font-semibold text-center">Ward No</th>
+                                            <th className="p-3 border border-gray-600 font-semibold text-center">Ward Name</th>
+                                            <th className="p-3 border border-gray-600 font-semibold text-center">Supervisor</th>
+                                            <th className="p-3 border border-gray-600 font-semibold text-center">Zonal Head</th>
+                                            <th className="p-3 border border-gray-600 font-semibold text-center">Manager</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {supervisorDataJson.map((row, index) => (
+                                            <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-slate-50 transition-colors`}>
+                                                <td className="p-3 border border-gray-300 text-center font-medium text-gray-900">{row["Ward No"]}</td>
+                                                <td className="p-3 border border-gray-300 text-center text-gray-800">{row["Ward Name"]}</td>
+                                                <td className="p-3 border border-gray-300 text-center text-gray-700">{row.Supervisor}</td>
+                                                <td className="p-3 border border-gray-300 text-center text-gray-700">
+                                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
+                                                        {row["Zonal Head"]}
+                                                    </span>
+                                                </td>
+                                                <td className="p-3 border border-gray-300 text-center text-gray-600">{row.Manager}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {(viewType === 'ward' || viewType === 'all') && (
                             <div className="space-y-8">
                                 {filteredStats.map((supervisor, sIndex) => {
-                                    const supervisorWards = filteredWardStats.filter(w => w.supervisorName === supervisor.supervisorName);
+                                    const supervisorWards = filteredWardStats.filter(w =>
+                                        w.supervisorName === supervisor.supervisorName &&
+                                        w.zonalHead === supervisor.zonalHead
+                                    );
                                     if (supervisorWards.length === 0) return null;
 
                                     const supCoverage = supervisor.total > 0 ? (supervisor.covered / supervisor.total) * 100 : 0;
@@ -619,35 +1185,82 @@ export const CoverageReport: React.FC = () => {
                                     const isSupLow = supCoverage < 75;
 
                                     return (
-                                        <div key={sIndex} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                                        <div key={sIndex} id={`supervisor-card-${sIndex}`} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
                                             {/* Supervisor Header */}
-                                            <div className="bg-gray-50 p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <h3 className="text-lg font-bold text-gray-900">{supervisor.supervisorName}</h3>
-                                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
-                                                            {supervisor.zonalHead}
-                                                        </span>
+                                            <div className="bg-gray-100 p-5 border-4 border-green-600 shadow-lg">
+                                                {/* Logos Section */}
+                                                <div className="grid grid-cols-3 items-center mb-4 pb-3 border-b-2 border-green-500 gap-4">
+                                                    {/* Left Side - Logo */}
+                                                    <div className="flex items-center justify-start">
+                                                        <img
+                                                            src="/nagar-nigam-logo.png"
+                                                            alt="Nagar Nigam Logo"
+                                                            className="h-16 w-auto object-contain"
+                                                        />
                                                     </div>
-                                                    <p className="text-sm text-gray-500 mt-1">
+
+                                                    {/* Center - Title */}
+                                                    <div className="text-center">
+                                                        <h1 className="text-lg font-bold text-gray-900">Coverage Report</h1>
+                                                        <p className="text-xs text-gray-600">Point of Interest Analysis</p>
+                                                    </div>
+
+                                                    {/* Right Side - Logo */}
+                                                    <div className="flex justify-end">
+                                                        <img
+                                                            src="/NatureGreen_Logo.png"
+                                                            alt="Nature Green Logo"
+                                                            className="h-16 w-auto object-contain"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Top Section - Zonal Head (Centered) */}
+                                                <div className="text-center mb-4 pb-3 border-b-2 border-green-500">
+                                                    <div className="mb-1">
+                                                        <span className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Zonal Head</span>
+                                                    </div>
+                                                    <h2 className="text-xl font-bold text-gray-900 tracking-wide">{supervisor.zonalHead}</h2>
+                                                </div>
+
+                                                {/* Middle Section - Supervisor (Centered) */}
+                                                <div className="text-center mb-4 pb-3 border-b-2 border-green-500">
+                                                    <div className="mb-1">
+                                                        <span className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Supervisor</span>
+                                                    </div>
+                                                    <h3 className="text-2xl font-bold text-gray-900 tracking-wide mb-2">{supervisor.supervisorName}</h3>
+                                                    <p className="text-sm text-gray-700 font-medium">
                                                         Vehicles: {supervisor.vehicles.join(", ")}
                                                     </p>
                                                 </div>
-                                                <div className="flex items-center gap-6 text-sm">
-                                                    <div className="text-gray-600">
-                                                        <span className="block text-xs text-gray-400 uppercase">Wards</span>
-                                                        <span className="font-semibold">{supervisor.wardCount}</span>
+
+                                                {/* Bottom Section - Stats */}
+                                                <div className="flex items-center justify-center gap-8 text-sm mb-4">
+                                                    <div className="text-center">
+                                                        <span className="block text-xs text-gray-600 uppercase font-semibold mb-1">Wards</span>
+                                                        <span className="font-bold text-lg text-gray-900">{supervisor.wardCount}</span>
                                                     </div>
-                                                    <div className="text-gray-600 text-right">
-                                                        <span className="block text-xs text-gray-400 uppercase">Total Points</span>
-                                                        <span className="font-mono">{supervisor.total}</span>
+                                                    <div className="text-center">
+                                                        <span className="block text-xs text-gray-600 uppercase font-semibold mb-1">Total POI</span>
+                                                        <span className="font-mono font-bold text-lg text-gray-900">{supervisor.total}</span>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <span className="block text-xs text-gray-400 uppercase">Coverage</span>
-                                                        <div className={`flex items-center gap-1 font-bold ${isSupHigh ? 'text-green-600' : isSupLow ? 'text-red-600' : 'text-yellow-600'}`}>
+                                                    <div className="text-center">
+                                                        <span className="block text-xs text-gray-600 uppercase font-semibold mb-1">Coverage</span>
+                                                        <div className={`font-bold text-lg ${isSupHigh ? 'text-green-600' : isSupLow ? 'text-red-600' : 'text-yellow-600'}`}>
                                                             {supCoverage.toFixed(1)}%
                                                         </div>
                                                     </div>
+                                                </div>
+
+                                                {/* Export Button */}
+                                                <div className="flex justify-center" data-html2canvas-ignore="true">
+                                                    <button
+                                                        onClick={() => exportToJPEG(`supervisor-card-${sIndex}`, `${supervisor.supervisorName}_Coverage_Report`)}
+                                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm text-sm font-medium"
+                                                    >
+                                                        <ImageIcon className="w-4 h-4" />
+                                                        Export as JPEG
+                                                    </button>
                                                 </div>
                                             </div>
 
@@ -659,7 +1272,7 @@ export const CoverageReport: React.FC = () => {
                                                             <th className="p-2.5 border border-gray-300 font-semibold text-center">Ward Name</th>
                                                             <th className="p-2.5 border border-gray-300 font-semibold text-center">Route Name</th>
                                                             <th className="p-2.5 border border-gray-300 font-semibold text-center">Assigned Vehicles</th>
-                                                            <th className="p-2.5 border border-gray-300 font-semibold text-center">Total</th>
+                                                            <th className="p-2.5 border border-gray-300 font-semibold text-center">Total POI</th>
                                                             <th className="p-2.5 border border-gray-300 font-semibold text-center">Covered</th>
                                                             <th className="p-2.5 border border-gray-300 font-semibold text-center">Not Covered</th>
                                                             <th className="p-2.5 border border-gray-300 font-semibold text-center">Coverage %</th>

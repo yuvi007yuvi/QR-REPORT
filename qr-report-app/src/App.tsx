@@ -103,15 +103,18 @@ function App() {
     setViewMode('dashboard');
   };
 
-  const currentTitle = appSection === 'coverage' ? 'Coverage Analysis' :
-    !stats && viewMode !== 'mapping' ? 'Upload Data' :
-      viewMode === 'dashboard' ? 'Dashboard Overview' :
-        viewMode === 'detailed' ? 'Detailed Report' :
-          viewMode === 'zonal' ? 'Zonal Summary' :
-            viewMode === 'beforeAfter' ? 'Before & After Report' :
-              viewMode === 'mapping' ? 'Supervisor Mapping' :
-                viewMode === 'underground' ? 'Underground Dustbins' :
-                  viewMode === 'zonalUnderground' ? 'Zonal Underground Summary' : 'Report';
+  const currentTitle =
+    viewMode === 'dashboard' ? 'Quick Dashboard' :
+      viewMode === 'detailed' ? 'Detailed Daily Report' :
+        viewMode === 'zonal' ? 'Zonal Daily Summary' :
+          viewMode === 'beforeAfter' ? 'Photo Evidence Report' :
+            viewMode === 'mapping' ? 'Daily Supervisor Mapping' :
+              viewMode === 'underground' ? 'Underground Dustbin Status' :
+                viewMode === 'zonalUnderground' ? 'Zonal Dustbin Summary' :
+                  viewMode === 'coverage-dashboard' ? 'POI Coverage Dashboard' :
+                    viewMode === 'coverage-supervisor' ? 'Supervisor POI Analysis' :
+                      viewMode === 'coverage-ward' ? 'Ward POI Analysis' :
+                        viewMode === 'coverage-mapping' ? 'POI Mapping' : 'Reports Buddy';
 
   return (
     <div className="flex h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
@@ -169,7 +172,11 @@ function App() {
           <div className="max-w-7xl mx-auto animate-in fade-in duration-500">
 
             {appSection === 'coverage' ? (
-              <CoverageReport />
+              <CoverageReport initialMode={
+                viewMode === 'coverage-supervisor' ? 'supervisor' :
+                  viewMode === 'coverage-ward' ? 'ward' :
+                    viewMode === 'coverage-mapping' ? 'mapping' : 'dashboard'
+              } />
             ) : (
               <>
                 {/* Daily Report Logic */}

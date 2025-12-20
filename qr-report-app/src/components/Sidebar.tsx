@@ -12,7 +12,18 @@ import {
 import { clsx } from 'clsx';
 
 export type AppSection = 'daily' | 'coverage';
-export type ViewMode = 'dashboard' | 'detailed' | 'zonal' | 'beforeAfter' | 'mapping' | 'underground' | 'zonalUnderground';
+export type ViewMode =
+    | 'dashboard'
+    | 'detailed'
+    | 'zonal'
+    | 'beforeAfter'
+    | 'mapping'
+    | 'underground'
+    | 'zonalUnderground'
+    | 'coverage-dashboard'
+    | 'coverage-supervisor'
+    | 'coverage-ward'
+    | 'coverage-mapping';
 
 interface SidebarProps {
     currentSection: AppSection;
@@ -30,23 +41,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     const navItems = [
         {
-            title: 'Daily Reports',
+            title: 'Daily Performance',
             section: 'daily' as AppSection,
             items: [
-                { label: 'Dashboard', view: 'dashboard' as ViewMode, icon: LayoutDashboard },
-                { label: 'Detailed Report', view: 'detailed' as ViewMode, icon: FileText },
+                { label: 'Quick Dashboard', view: 'dashboard' as ViewMode, icon: LayoutDashboard },
+                { label: 'Detailed Table', view: 'detailed' as ViewMode, icon: FileText },
                 { label: 'Zonal Summary', view: 'zonal' as ViewMode, icon: MapIcon },
-                { label: 'Before/After', view: 'beforeAfter' as ViewMode, icon: ArrowLeftRight },
+                { label: 'Photo Evidence', view: 'beforeAfter' as ViewMode, icon: ArrowLeftRight },
                 { label: 'Underground Bins', view: 'underground' as ViewMode, icon: Trash2 },
-                { label: 'Zonal Underground', view: 'zonalUnderground' as ViewMode, icon: Trash2 },
-                { label: 'Mapping', view: 'mapping' as ViewMode, icon: MapPin },
+                { label: 'Zonal Dustbins', view: 'zonalUnderground' as ViewMode, icon: BarChart3 },
+                { label: 'Daily Mapping', view: 'mapping' as ViewMode, icon: MapPin },
             ]
         },
         {
-            title: 'Analysis',
+            title: 'Coverage Analysis (POI)',
             section: 'coverage' as AppSection,
             items: [
-                { label: 'Coverage Analysis', view: '' as any, icon: BarChart3 } // View not relevant for coverage currently
+                { label: 'Coverage Dashboard', view: 'coverage-dashboard' as ViewMode, icon: LayoutDashboard },
+                { label: 'Supervisor Coverage', view: 'coverage-supervisor' as ViewMode, icon: FileText },
+                { label: 'Ward Coverage', view: 'coverage-ward' as ViewMode, icon: MapIcon },
+                { label: 'Coverage Mapping', view: 'coverage-mapping' as ViewMode, icon: MapPin },
             ]
         }
     ];

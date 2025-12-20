@@ -531,12 +531,12 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                         2: { halign: 'center', cellWidth: 45 },
                         6: { fontStyle: 'bold' }
                     },
-                    didDrawPage: (data) => {
+                    didDrawPage: () => {
                         // Add page number to footer
                         doc.setFontSize(8);
                         doc.setTextColor(156, 163, 175);
                         doc.text(
-                            `Page ${doc.internal.getNumberOfPages()}`,
+                            `Page ${doc.getNumberOfPages()}`,
                             pageWidth / 2,
                             pageHeight - 7,
                             { align: 'center' }

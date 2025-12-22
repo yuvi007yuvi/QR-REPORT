@@ -14,7 +14,7 @@ export const exportToPDF = (data: ReportRecord[], title: string = 'QR Scanned Re
     const doc = new jsPDF();
 
     const tableColumn = ["QR ID", "Ward", "Zone", "Assigned To", "Status", "Scanned By", "Scan Time"];
-    const tableRows: any[] = [];
+    const tableRows: string[][] = [];
 
     data.forEach((row) => {
         const rowData = [

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     LayoutDashboard,
     FileText,
@@ -45,12 +45,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
 
     // Automatically expand the section that contains the current view
-    useEffect(() => {
+    if (!expandedSections[currentSection]) {
         setExpandedSections(prev => ({
             ...prev,
             [currentSection]: true
         }));
-    }, [currentSection]);
+    }
+
 
     const toggleSection = (section: string) => {
         setExpandedSections(prev => ({

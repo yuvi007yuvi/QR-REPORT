@@ -227,7 +227,9 @@ export const processData = (
 
         const parseMinutes = (timeStr: string): number => {
             const [time, modifier] = timeStr.split(' ');
-            let [hours, minutes] = time.split(':').map(Number);
+            const timeParts = time.split(':').map(Number);
+            let hours = timeParts[0];
+            const minutes = timeParts[1];
 
             if (hours === 12) {
                 hours = 0;

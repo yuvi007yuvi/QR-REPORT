@@ -11,6 +11,9 @@ import {
     ChevronUp
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
+import natureGreenLogo from '../assets/NatureGreen_Logo.png';
+
 
 export type AppSection = 'daily' | 'coverage';
 export type ViewMode =
@@ -92,8 +95,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="h-20 flex items-center px-6 border-b border-gray-100 bg-gray-50/50 backdrop-blur-md">
                 <div className="flex items-center gap-3">
                     <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
-                        <img src="/nagar-nigam-logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+                        <img src={nagarNigamLogo} alt="Logo" className="w-8 h-8 object-contain" />
                     </div>
+
                     <div className="flex flex-col">
                         <span className="text-sm font-black tracking-tighter text-gray-900 leading-none">REPORTS</span>
                         <span className="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">BUDDY PRO</span>
@@ -166,12 +170,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="p-4 space-y-4 bg-gray-50/80 border-t border-gray-100">
                 <div className="grid grid-cols-2 gap-3 mb-4">
                     <div className="bg-white p-2 rounded-xl border border-gray-200 flex items-center justify-center shadow-sm">
-                        <img src="/nagar-nigam-logo.png" alt="Nagar Nigam" className="h-10 w-auto object-contain drop-shadow-sm" />
+                        <img src={nagarNigamLogo} alt="Nagar Nigam" className="h-10 w-auto object-contain drop-shadow-sm" />
                     </div>
                     <div className="bg-white p-2 rounded-xl border border-gray-200 flex items-center justify-center shadow-sm">
-                        <img src="/NatureGreen_Logo.png" alt="Nature Green" className="h-10 w-auto object-contain drop-shadow-sm" />
+                        <img src={natureGreenLogo} alt="Nature Green" className="h-10 w-auto object-contain drop-shadow-sm" />
                     </div>
                 </div>
+
 
                 <div className="flex items-center gap-3 px-3 py-3 rounded-2xl bg-white border border-gray-200 shadow-sm">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-sm font-black text-white shadow-md shadow-blue-500/20">

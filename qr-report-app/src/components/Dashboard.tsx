@@ -10,6 +10,9 @@ import {
     MessageCircle
 } from 'lucide-react';
 import { exportToJPEG } from '../utils/exporter';
+import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
+import natureGreenLogo from '../assets/NatureGreen_Logo.png';
+
 import {
     BarChart,
     Bar,
@@ -104,10 +107,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                         {/* Left Side - Nagar Nigam Logo */}
                         <div className="flex flex-col items-center sm:items-start">
                             <img
-                                src="/nagar-nigam-logo.png"
+                                src={nagarNigamLogo}
                                 alt="Nagar Nigam Logo"
                                 className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
                             />
+
                             <p className="hidden sm:block text-[10px] font-bold text-blue-800 mt-2 uppercase tracking-tight text-center sm:text-left">
                                 Nagar Nigam<br />Mathura-Vrindavan
                             </p>
@@ -131,10 +135,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                         {/* Right Side - Nature Green Logo */}
                         <div className="flex flex-col items-center sm:items-end">
                             <img
-                                src="/NatureGreen_Logo.png"
+                                src={natureGreenLogo}
                                 alt="Nature Green Logo"
                                 className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
                             />
+
                             <p className="hidden sm:block text-[10px] font-bold text-green-700 mt-2 uppercase tracking-tight text-center sm:text-right">
                                 Nature Green<br />Waste Management
                             </p>

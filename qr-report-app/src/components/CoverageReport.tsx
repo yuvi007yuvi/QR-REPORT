@@ -6,6 +6,9 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { exportToJPEG } from '../utils/exporter';
+import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
+import natureGreenLogo from '../assets/NatureGreen_Logo.png';
+
 import {
     ResponsiveContainer,
     PieChart,
@@ -441,8 +444,9 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
 
         try {
             // Load logos
-            const logoLeft = await getBase64ImageFromURL('/nagar-nigam-logo.png').catch(() => null);
-            const logoRight = await getBase64ImageFromURL('/NatureGreen_Logo.png').catch(() => null);
+            const logoLeft = await getBase64ImageFromURL(nagarNigamLogo).catch(() => null);
+            const logoRight = await getBase64ImageFromURL(natureGreenLogo).catch(() => null);
+
 
             for (let i = 0; i < filteredStats.length; i++) {
                 const supervisor = filteredStats[i];
@@ -691,15 +695,17 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                                 <div className="bg-gray-100 p-8 border-4 border-green-600 shadow-lg">
                                                     <div className="grid grid-cols-3 items-center mb-6 pb-4 border-b-2 border-green-500 gap-4">
                                                         <div className="flex items-center justify-start">
-                                                            <img src="/nagar-nigam-logo.png" alt="Logo" className="h-20 w-auto" />
+                                                            <img src={nagarNigamLogo} alt="Logo" className="h-20 w-auto" />
                                                         </div>
+
                                                         <div className="text-center">
                                                             <h1 className="text-xl font-bold text-gray-900">Coverage Report</h1>
                                                             <p className="text-sm text-gray-600">Official Analysis Dashboard</p>
                                                         </div>
                                                         <div className="flex justify-end">
-                                                            <img src="/NatureGreen_Logo.png" alt="Logo" className="h-20 w-auto" />
+                                                            <img src={natureGreenLogo} alt="Logo" className="h-20 w-auto" />
                                                         </div>
+
                                                     </div>
                                                     <div className="text-center mb-6 pb-4 border-b-2 border-green-500">
                                                         <span className="text-gray-500 text-xs font-bold uppercase tracking-[0.2em] mb-2 block">Manager / Zonal Head</span>
@@ -769,10 +775,11 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                     {/* Left Side - Nagar Nigam Logo */}
                                     <div className="flex flex-col items-center sm:items-start">
                                         <img
-                                            src="/nagar-nigam-logo.png"
+                                            src={nagarNigamLogo}
                                             alt="Nagar Nigam Logo"
                                             className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
                                         />
+
                                         <p className="hidden sm:block text-[10px] font-bold text-blue-800 mt-2 uppercase tracking-tight text-center sm:text-left">
                                             Nagar Nigam<br />Mathura-Vrindavan
                                         </p>
@@ -796,10 +803,11 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                     {/* Right Side - Nature Green Logo */}
                                     <div className="flex flex-col items-center sm:items-end">
                                         <img
-                                            src="/NatureGreen_Logo.png"
+                                            src={natureGreenLogo}
                                             alt="Nature Green Logo"
                                             className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
                                         />
+
                                         <p className="hidden sm:block text-[10px] font-bold text-green-700 mt-2 uppercase tracking-tight text-center sm:text-right">
                                             Nature Green<br />Waste Management
                                         </p>
@@ -1489,11 +1497,12 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                                     {/* Left Side - Logo */}
                                                     <div className="flex items-center justify-start">
                                                         <img
-                                                            src="/nagar-nigam-logo.png"
+                                                            src={nagarNigamLogo}
                                                             alt="Nagar Nigam Logo"
                                                             className="h-16 w-auto object-contain"
                                                         />
                                                     </div>
+
 
                                                     {/* Center - Title */}
                                                     <div className="text-center">
@@ -1504,11 +1513,12 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                                     {/* Right Side - Logo */}
                                                     <div className="flex justify-end">
                                                         <img
-                                                            src="/NatureGreen_Logo.png"
+                                                            src={natureGreenLogo}
                                                             alt="Nature Green Logo"
                                                             className="h-16 w-auto object-contain"
                                                         />
                                                     </div>
+
                                                 </div>
 
                                                 {/* Top Section - Zonal Head (Centered) */}

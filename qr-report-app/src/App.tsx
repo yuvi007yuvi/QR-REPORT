@@ -8,6 +8,7 @@ import { SupervisorZonalMapping } from './components/SupervisorZonalMapping';
 import { UndergroundReport } from './components/UndergroundReport';
 import { ZonalUndergroundReport } from './components/ZonalUndergroundReport';
 import { CoverageReport } from './components/CoverageReport';
+import { KYCSurveyChecker } from './components/KYCSurveyChecker';
 import { Sidebar, type AppSection, type ViewMode } from './components/Sidebar';
 import { parseFile, processData, type ReportRecord, type SummaryStats } from './utils/dataProcessor';
 import { Loader2, RefreshCw, Calendar, Menu } from 'lucide-react';
@@ -179,6 +180,8 @@ function App() {
                     viewMode === 'coverage-all-wards' ? 'all-wards' :
                       viewMode === 'coverage-mapping' ? 'mapping' : 'dashboard'
               } />
+            ) : appSection === 'kyc' ? (
+              <KYCSurveyChecker />
             ) : (
               <>
                 {/* Daily Report Logic */}

@@ -15,7 +15,7 @@ import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import natureGreenLogo from '../assets/NatureGreen_Logo.png';
 
 
-export type AppSection = 'daily' | 'coverage';
+export type AppSection = 'daily' | 'coverage' | 'kyc';
 export type ViewMode =
     | 'dashboard'
     | 'detailed'
@@ -28,7 +28,8 @@ export type ViewMode =
     | 'coverage-supervisor'
     | 'coverage-ward'
     | 'coverage-all-wards'
-    | 'coverage-mapping';
+    | 'coverage-mapping'
+    | 'kyc-survey';
 
 interface SidebarProps {
     currentSection: AppSection;
@@ -45,7 +46,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
         daily: true,
-        coverage: true
+        coverage: true,
+        kyc: true
     });
 
     // Automatically expand the section that contains the current view
@@ -87,6 +89,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 { label: 'Ward Detail Coverage', view: 'coverage-ward' as ViewMode, icon: MapIcon },
                 { label: 'All Wards Coverage', view: 'coverage-all-wards' as ViewMode, icon: BarChart3 },
                 { label: 'Coverage Mapping', view: 'coverage-mapping' as ViewMode, icon: MapPin },
+            ]
+        },
+        {
+            title: 'KYC Survey Management',
+            section: 'kyc' as AppSection,
+            items: [
+                { label: 'KYC Survey Checker', view: 'kyc-survey' as ViewMode, icon: LayoutDashboard },
             ]
         }
     ];

@@ -260,24 +260,6 @@ export const KYCSurveyChecker: React.FC = () => {
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 bg-slate-50 min-h-screen">
-            {/* Professional Logos Header */}
-            <div className="max-w-7xl mx-auto mb-8 bg-white rounded-2xl border-b border-indigo-100 p-6 shadow-sm flex items-center justify-between">
-                <div className="flex flex-col items-center gap-1">
-                    <img src={nagarNigamLogo} alt="Nagar Nigam" className="h-12 w-auto object-contain" />
-                    <span className="text-[10px] font-black text-blue-800 uppercase leading-none">Nagar Nigam Mathura</span>
-                </div>
-
-                <div className="text-center group">
-                    <h1 className="text-2xl font-black text-slate-900 leading-none">KYC SURVEY</h1>
-                    <div className="h-0.5 w-12 bg-indigo-500 mx-auto mt-2 rounded-full"></div>
-                </div>
-
-                <div className="flex flex-col items-center gap-1">
-                    <img src={natureGreenLogo} alt="Nature Green" className="h-12 w-auto object-contain" />
-                    <span className="text-[10px] font-black text-green-700 uppercase leading-none">Nature Green Waste</span>
-                </div>
-            </div>
-
             {/* Title Section */}
             <div className="max-w-7xl mx-auto mb-8">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -320,6 +302,29 @@ export const KYCSurveyChecker: React.FC = () => {
             </div>
 
             <div id="kyc-checker-container" className="max-w-7xl mx-auto space-y-8">
+                {/* Professional Logos Header */}
+                <div className="bg-white rounded-2xl border-b border-indigo-100 p-6 shadow-sm flex items-center justify-between">
+                    <div className="flex flex-col items-center gap-1">
+                        <img src={nagarNigamLogo} alt="Nagar Nigam" className="h-12 w-auto object-contain" />
+                        <span className="text-[10px] font-black text-blue-800 uppercase leading-none">Nagar Nigam Mathura</span>
+                    </div>
+
+                    <div className="text-center group">
+                        <h1 className="text-2xl font-black text-slate-900 leading-none">KYC SURVEY</h1>
+                        {selectedZonal !== 'All' && (
+                            <p className="text-sm font-bold text-indigo-600 mt-1 uppercase tracking-wide">
+                                Zonal: {selectedZonal}
+                            </p>
+                        )}
+                        <div className="h-0.5 w-12 bg-indigo-500 mx-auto mt-2 rounded-full"></div>
+                    </div>
+
+                    <div className="flex flex-col items-center gap-1">
+                        <img src={natureGreenLogo} alt="Nature Green" className="h-12 w-auto object-contain" />
+                        <span className="text-[10px] font-black text-green-700 uppercase leading-none">Nature Green Waste</span>
+                    </div>
+                </div>
+
                 {/* Status Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
                     <div className="bg-white p-6 rounded-2xl shadow-md border border-slate-100 flex items-center gap-5">
@@ -429,58 +434,42 @@ export const KYCSurveyChecker: React.FC = () => {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white">
-                                    <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest border-r border-white/10 text-center w-12">SN</th>
-                                    <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest border-r border-white/10">Employee ID</th>
-                                    <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest border-r border-white/10">Supervisor / Surveyor</th>
-                                    <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest border-r border-white/10 text-center">Dept</th>
-                                    <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest border-r border-white/10">Mobile No</th>
-                                    <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest border-r border-white/10">Zonal Head</th>
-                                    <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest border-r border-white/10">Wards</th>
-                                    <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-center">KYC Done</th>
+                                    <th className="px-4 py-4 text-xs font-black uppercase tracking-widest border-r border-white/10 text-center w-12">SN</th>
+                                    <th className="px-4 py-4 text-xs font-black uppercase tracking-widest border-r border-white/10 text-center">Employee ID</th>
+                                    <th className="px-4 py-4 text-xs font-black uppercase tracking-widest border-r border-white/10 text-center">Supervisor / Surveyor</th>
+                                    <th className="px-4 py-4 text-xs font-black uppercase tracking-widest border-r border-white/10 text-center">Dept</th>
+                                    <th className="px-4 py-4 text-xs font-black uppercase tracking-widest border-r border-white/10 text-center">Mobile No</th>
+                                    <th className="px-4 py-4 text-xs font-black uppercase tracking-widest border-r border-white/10 text-center">Zonal Head</th>
+                                    <th className="px-4 py-4 text-xs font-black uppercase tracking-widest border-r border-white/10 text-center">Wards</th>
+                                    <th className="px-4 py-4 text-xs font-black uppercase tracking-widest text-center">KYC Done</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white">
                                 {matchedResults.length > 0 ? (
                                     matchedResults.map((row, idx) => {
-                                        const zonalColors: Record<string, string> = {
-                                            'BHARAT': 'bg-blue-100/40',
-                                            'GIRISH': 'bg-purple-100/40',
-                                            'NISHANT': 'bg-orange-100/40',
-                                            'PANKAJ': 'bg-emerald-100/40',
-                                            'RANVEER': 'bg-rose-100/40',
-                                            'SURESH / ALOK': 'bg-cyan-100/40'
-                                        };
-
-                                        const rowBgColor = zonalColors[row.zonal] || 'bg-slate-50/30';
-
                                         return (
-                                            <tr key={idx} className={`hover:bg-indigo-100/50 transition-colors border-b border-slate-200 ${idx % 2 === 0 ? rowBgColor : 'bg-white'}`}>
-                                                <td className="px-4 py-3 text-slate-500 font-bold border-r border-slate-200 text-center text-xs">{idx + 1}</td>
-                                                <td className="px-4 py-3 text-[11px] font-black text-slate-600 font-mono border-r border-slate-200">{row.empId}</td>
-                                                <td className="px-4 py-3 border-r border-slate-200">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-7 h-7 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded flex items-center justify-center text-white font-black text-[10px] shadow-sm">
-                                                            {row.name.charAt(0)}
-                                                        </div>
-                                                        <span className="font-black text-slate-800 text-xs whitespace-nowrap uppercase">{row.name}</span>
-                                                    </div>
+                                            <tr key={idx} className="hover:bg-slate-50 transition-colors border-b border-slate-200">
+                                                <td className="px-4 py-3 text-slate-600 font-bold border-r border-slate-200 text-center text-sm">{idx + 1}</td>
+                                                <td className="px-4 py-3 text-sm font-bold text-slate-700 font-mono border-r border-slate-200 text-center">{row.empId}</td>
+                                                <td className="px-4 py-3 border-r border-slate-200 text-center">
+                                                    <span className="font-bold text-slate-800 text-sm uppercase">{row.name}</span>
                                                 </td>
                                                 <td className="px-4 py-3 text-center border-r border-slate-200">
-                                                    <span className="text-xs font-black text-slate-700 uppercase">
+                                                    <span className="text-sm font-bold text-slate-700 uppercase">
                                                         {row.department}
                                                     </span>
                                                 </td>
-                                                <td className="px-4 py-3 text-[11px] font-bold text-slate-600 border-r border-slate-200 font-mono">{row.mobile}</td>
-                                                <td className="px-4 py-3 border-r border-slate-200">
-                                                    <span className="text-xs font-black text-slate-700 uppercase">
+                                                <td className="px-4 py-3 text-sm font-bold text-slate-700 border-r border-slate-200 text-center">{row.mobile}</td>
+                                                <td className="px-4 py-3 border-r border-slate-200 text-center">
+                                                    <span className="text-sm font-bold text-slate-700 uppercase">
                                                         {row.zonal}
                                                     </span>
                                                 </td>
-                                                <td className="px-4 py-3 text-[10px] font-bold text-slate-500 border-r border-slate-200">{row.ward}</td>
+                                                <td className="px-4 py-3 text-sm font-bold text-slate-600 border-r border-slate-200 text-center">{row.ward}</td>
                                                 <td className="px-4 py-3 text-center">
-                                                    <div className={`inline-block px-4 py-2 rounded-lg font-black text-base min-w-[50px] shadow-md ${row.kycCount > 0 ? 'bg-gradient-to-r from-green-500 to-green-600 text-white' : 'bg-gradient-to-r from-red-500 to-red-600 text-white'}`}>
+                                                    <span className={`font-bold text-base ${row.kycCount > 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                         {row.kycCount}
-                                                    </div>
+                                                    </span>
                                                 </td>
                                             </tr>
                                         );

@@ -28,6 +28,15 @@ export interface SummaryStats {
     scannedPercentage: number;
     zoneStats: Record<string, { total: number; scanned: number; pending: number }>;
     zonalHeadStats: Record<string, { total: number; scanned: number; pending: number }>;
+    wardStats: Array<{
+        ward: string;
+        supervisor: string;
+        zonalHead: string;
+        total: number;
+        scanned: number;
+        pending: number;
+        percentage: number;
+    }>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -392,6 +401,37 @@ export const processData = (
         if (r.status === 'Pending') zonalHeadStats[head].pending++;
     });
 
+    // Ward Stats
+    const wardPerformanceMap = new Map<string, { total: number; scanned: number; pending: number; supervisor: string; zonalHead: string }>();
+
+    report.forEach((r) => {
+        if (r.status === 'Unknown') return;
+        const wardLabel = r.ward || 'Unknown';
+        if (!wardPerformanceMap.has(wardLabel)) {
+            wardPerformanceMap.set(wardLabel, {
+                total: 0,
+                scanned: 0,
+                pending: 0,
+                supervisor: r.assignedTo,
+                zonalHead: r.zonalHead
+            });
+        }
+        const stats = wardPerformanceMap.get(wardLabel)!;
+        stats.total++;
+        if (r.status === 'Scanned') stats.scanned++;
+        if (r.status === 'Pending') stats.pending++;
+    });
+
+    const wardStats = Array.from(wardPerformanceMap.entries()).map(([ward, data]) => ({
+        ward,
+        supervisor: data.supervisor,
+        zonalHead: data.zonalHead,
+        total: data.total,
+        scanned: data.scanned,
+        pending: data.pending,
+        percentage: data.total > 0 ? Math.round((data.scanned / data.total) * 100) : 0
+    })).sort((a, b) => b.percentage - a.percentage);
+
     return {
         report,
         stats: {
@@ -402,6 +442,7 @@ export const processData = (
             scannedPercentage,
             zoneStats,
             zonalHeadStats,
+            wardStats
         },
         availableDates
     };

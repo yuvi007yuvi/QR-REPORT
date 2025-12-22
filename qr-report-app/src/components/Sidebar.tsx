@@ -27,6 +27,7 @@ export type ViewMode =
     | 'coverage-dashboard'
     | 'coverage-supervisor'
     | 'coverage-ward'
+    | 'coverage-all-wards'
     | 'coverage-mapping';
 
 interface SidebarProps {
@@ -83,7 +84,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             items: [
                 { label: 'Coverage Dashboard', view: 'coverage-dashboard' as ViewMode, icon: LayoutDashboard },
                 { label: 'Supervisor Coverage', view: 'coverage-supervisor' as ViewMode, icon: FileText },
-                { label: 'Ward Coverage', view: 'coverage-ward' as ViewMode, icon: MapIcon },
+                { label: 'Ward Detail Coverage', view: 'coverage-ward' as ViewMode, icon: MapIcon },
+                { label: 'All Wards Coverage', view: 'coverage-all-wards' as ViewMode, icon: BarChart3 },
                 { label: 'Coverage Mapping', view: 'coverage-mapping' as ViewMode, icon: MapPin },
             ]
         }

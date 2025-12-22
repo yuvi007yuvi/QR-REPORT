@@ -57,8 +57,19 @@ interface WardStats {
     vehicles: string[];
 }
 
+interface WardSummaryStats {
+    wardNumber: string;
+    wardName: string;
+    supervisorName: string;
+    zonalHead: string;
+    total: number;
+    covered: number;
+    notCovered: number;
+    routeCount: number;
+}
+
 interface CoverageReportProps {
-    initialMode?: 'dashboard' | 'supervisor' | 'ward' | 'mapping' | 'all';
+    initialMode?: 'dashboard' | 'supervisor' | 'ward' | 'mapping' | 'all' | 'all-wards';
 }
 
 const getBase64ImageFromURL = (url: string) => {
@@ -86,9 +97,10 @@ const getBase64ImageFromURL = (url: string) => {
 export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'dashboard' }) => {
     const [stats, setStats] = useState<AggregatedStats[]>([]);
     const [wardStats, setWardStats] = useState<WardStats[]>([]);
+    const [wardSummaryStats, setWardSummaryStats] = useState<WardSummaryStats[]>([]);
     const [loading, setLoading] = useState(false);
     const [fileName, setFileName] = useState<string>('');
-    const [viewType, setViewType] = useState<'dashboard' | 'supervisor' | 'ward' | 'mapping' | 'all'>(initialMode);
+    const [viewType, setViewType] = useState<'dashboard' | 'supervisor' | 'ward' | 'mapping' | 'all' | 'all-wards'>(initialMode);
 
     // Sync view with prop when sidebar link is clicked
     React.useEffect(() => {
@@ -117,6 +129,40 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
         });
         return lookup;
     }, []);
+
+    const headerInfo = useMemo(() => {
+        const zone = selectedZone !== 'All' ? selectedZone : '';
+        if (viewType === 'ward' || viewType === 'all') {
+            return {
+                badge: zone ? `${zone} Report` : 'POI Coverage Report',
+                mainLine: zone ? `${zone.toUpperCase()} ZONAL` : 'WARD WISE',
+                highlightLine: 'WARD WISE PERFORMANCE',
+                subText: 'Point of Interest Monitoring & Performance Analysis'
+            };
+        }
+        if (viewType === 'all-wards') {
+            return {
+                badge: zone ? `${zone} Summary` : 'Official Summary',
+                mainLine: 'ALL WARDS',
+                highlightLine: 'POI COVERAGE SUMMARY',
+                subText: 'Consolidated Ward Performance Analysis'
+            };
+        }
+        if (viewType === 'supervisor') {
+            return {
+                badge: zone ? `${zone} Performance` : 'Supervisor Report',
+                mainLine: 'SUPERVISOR',
+                highlightLine: 'COVERAGE',
+                subText: 'Performance Analysis by Group'
+            };
+        }
+        return {
+            badge: zone ? `${zone} Report` : 'POI Coverage Report',
+            mainLine: 'POI COVERAGE',
+            highlightLine: 'ANALYTICS',
+            subText: 'Point of Interest Monitoring & Analytics'
+        };
+    }, [viewType, selectedZone]);
 
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -217,6 +263,28 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
             }
         });
 
+        // --- All Wards Summary Aggregation ---
+        const summaryMap = new Map<string, WardSummaryStats>();
+        Array.from(wardMap.values()).forEach(ws => {
+            if (!summaryMap.has(ws.wardNumber)) {
+                summaryMap.set(ws.wardNumber, {
+                    wardNumber: ws.wardNumber,
+                    wardName: ws.wardName,
+                    supervisorName: ws.supervisorName,
+                    zonalHead: ws.zonalHead,
+                    total: 0,
+                    covered: 0,
+                    notCovered: 0,
+                    routeCount: 0
+                });
+            }
+            const summary = summaryMap.get(ws.wardNumber)!;
+            summary.total += ws.total;
+            summary.covered += ws.covered;
+            summary.notCovered += ws.notCovered;
+            summary.routeCount++;
+        });
+
         // Convert Maps to Arrays and Sort
         const sortedSupervisorStats = Array.from(supervisorMap.values()).sort((a, b) => {
             if (a.zonalHead !== b.zonalHead) {
@@ -235,8 +303,13 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
             return a.routeName.localeCompare(b.routeName);
         });
 
+        const sortedSummaryStats = Array.from(summaryMap.values()).sort((a, b) => {
+            return Number(a.wardNumber) - Number(b.wardNumber);
+        });
+
         setStats(sortedSupervisorStats);
         setWardStats(sortedWardStats);
+        setWardSummaryStats(sortedSummaryStats);
     };
 
     // --- Filters & Derived Data ---
@@ -297,6 +370,15 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
             return true;
         });
     }, [wardStats, selectedZone, selectedSupervisor, selectedWard]);
+
+    const filteredSummaryStats = useMemo(() => {
+        return wardSummaryStats.filter(item => {
+            if (selectedZone !== 'All' && item.zonalHead !== selectedZone) return false;
+            if (selectedSupervisor !== 'All' && item.supervisorName !== selectedSupervisor) return false;
+            if (selectedWard !== 'All' && item.wardNumber !== selectedWard) return false;
+            return true;
+        });
+    }, [wardSummaryStats, selectedZone, selectedSupervisor, selectedWard]);
 
     // --- Chart Data Preparation ---
     const chartData = useMemo(() => {
@@ -1133,7 +1215,134 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                         </div>
                     )}
 
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+                        {/* Covered by Supervisor Chart */}
+                        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                            <h3 className="text-xl font-bold text-gray-800 mb-2">Covered by Supervisors</h3>
+                            <div className="h-[450px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
+                                        <Pie
+                                            data={filteredStats.sort((a, b) => b.covered - a.covered).slice(0, 10) as any[]}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={70}
+                                            outerRadius={100}
+                                            paddingAngle={3}
+                                            dataKey="covered"
+                                            nameKey="supervisorName"
+                                            label={(props: any) => {
+                                                const { cx, cy, midAngle, outerRadius, name, value } = props;
+                                                const RADIAN = Math.PI / 180;
+                                                const radius = outerRadius + 25;
+                                                const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                                const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                                return (
+                                                    <text x={x} y={y} fill="#4b5563" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="10" fontWeight="bold">
+                                                        {name} ({value})
+                                                    </text>
+                                                );
+                                            }}
+                                            labelLine={true}
+                                        >
+                                            {filteredStats.map((_entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#6366f1'][index % 8]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                        <text x="50%" y="48%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: '18px', fontWeight: 'bold', fill: '#16a34a' }}>Covered</text>
+                                        <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: '12px', fontWeight: 'bold', fill: '#6b7280' }}>by Supervisors</text>
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* Pending by Supervisor Chart */}
+                        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                            <h3 className="text-xl font-bold text-gray-800 mb-2">Pending by Supervisors</h3>
+                            <div className="h-[450px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
+                                        <Pie
+                                            data={filteredStats.sort((a, b) => b.notCovered - a.notCovered).slice(0, 10) as any[]}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={70}
+                                            outerRadius={100}
+                                            paddingAngle={3}
+                                            dataKey="notCovered"
+                                            nameKey="supervisorName"
+                                            label={(props: any) => {
+                                                const { cx, cy, midAngle, outerRadius, name, value } = props;
+                                                const RADIAN = Math.PI / 180;
+                                                const radius = outerRadius + 25;
+                                                const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                                const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                                return (
+                                                    <text x={x} y={y} fill="#4b5563" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="10" fontWeight="bold">
+                                                        {name} ({value})
+                                                    </text>
+                                                );
+                                            }}
+                                            labelLine={true}
+                                        >
+                                            {filteredStats.map((_entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#6366f1'][index % 8]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                        <text x="50%" y="48%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: '18px', fontWeight: 'bold', fill: '#dc2626' }}>Pending</text>
+                                        <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: '12px', fontWeight: 'bold', fill: '#6b7280' }}>by Supervisors</text>
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="coverage-report-container" className="space-y-6">
+                        {/* Professional Logo Header */}
+                        <div className="bg-white rounded-xl shadow-lg border-2 border-green-100 p-6 mb-8">
+                            <div className="grid grid-cols-3 items-center gap-6">
+                                {/* Left Side - Nagar Nigam Logo */}
+                                <div className="flex flex-col items-center sm:items-start">
+                                    <img
+                                        src={nagarNigamLogo}
+                                        alt="Nagar Nigam Logo"
+                                        className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
+                                    />
+                                    <p className="hidden sm:block text-[10px] font-bold text-blue-800 mt-2 uppercase tracking-tight text-center sm:text-left">
+                                        Nagar Nigam<br />Mathura-Vrindavan
+                                    </p>
+                                </div>
+
+                                {/* Center - Title Section */}
+                                <div className="text-center flex flex-col items-center justify-center">
+                                    <div className="bg-green-50 px-4 py-1 rounded-full mb-3">
+                                        <span className="text-[10px] font-bold text-green-600 uppercase tracking-[0.2em]">{headerInfo.badge}</span>
+                                    </div>
+                                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-gray-900 tracking-tight leading-none mb-2">
+                                        {headerInfo.mainLine}<br />
+                                        <span className="text-green-600">{headerInfo.highlightLine}</span>
+                                    </h1>
+                                    <div className="h-1 w-24 bg-green-500 rounded-full mb-2"></div>
+                                    <p className="text-xs sm:text-[11px] font-bold text-gray-500 uppercase tracking-[0.2em]">
+                                        {headerInfo.subText}
+                                    </p>
+                                </div>
+
+                                {/* Right Side - Nature Green Logo */}
+                                <div className="flex flex-col items-center sm:items-end">
+                                    <img
+                                        src={natureGreenLogo}
+                                        alt="Nature Green Logo"
+                                        className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
+                                    />
+                                    <p className="hidden sm:block text-[10px] font-bold text-green-700 mt-2 uppercase tracking-tight text-center sm:text-right">
+                                        NATURE GREEN<br />WASTE MANAGEMENT
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                         {/* Bot Status Panel */}
                         {isAutoSharing && (
                             <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 mb-6 shadow-sm animate-in slide-in-from-top duration-300">
@@ -1321,6 +1530,15 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                         >
                                             Mapping
                                         </button>
+                                        <button
+                                            onClick={() => setViewType('all-wards')}
+                                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewType === 'all-wards'
+                                                ? 'bg-white text-blue-600 shadow-sm'
+                                                : 'text-gray-600 hover:text-gray-900'
+                                                }`}
+                                        >
+                                            All Wards Summary
+                                        </button>
                                     </div>
                                 )}
                                 <div className={`${!initialMode ? 'w-full flex justify-end' : 'w-full'} flex items-center justify-end gap-2`}>
@@ -1385,6 +1603,7 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                 <table className="w-full text-sm border-collapse">
                                     <thead className="bg-blue-600 text-white">
                                         <tr>
+                                            <th className="p-3 border border-gray-300 font-semibold text-center">Sr. No.</th>
                                             <th className="p-3 border border-gray-300 font-semibold text-center">Zonal Head</th>
                                             <th className="p-3 border border-gray-300 font-semibold text-center">Supervisor Name</th>
                                             <th className="p-3 border border-gray-300 font-semibold text-center">Wards(Count)</th>
@@ -1403,6 +1622,7 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
 
                                             return (
                                                 <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
+                                                    <td className="p-3 border border-gray-300 text-center text-gray-700 font-medium">{index + 1}</td>
                                                     <td className="p-3 border border-gray-300 font-medium text-gray-900 text-center">{row.zonalHead}</td>
                                                     <td className="p-3 border border-gray-300 font-semibold text-gray-800 text-center">{row.supervisorName}</td>
                                                     <td className="p-3 border border-gray-300 text-center text-gray-700 font-medium">
@@ -1449,6 +1669,7 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                 <table className="w-full text-sm border-collapse">
                                     <thead className="bg-slate-800 text-white">
                                         <tr>
+                                            <th className="p-3 border border-gray-600 font-semibold text-center">Sr. No.</th>
                                             <th className="p-3 border border-gray-600 font-semibold text-center">Ward No</th>
                                             <th className="p-3 border border-gray-600 font-semibold text-center">Ward Name</th>
                                             <th className="p-3 border border-gray-600 font-semibold text-center">Supervisor</th>
@@ -1459,6 +1680,7 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                     <tbody>
                                         {supervisorDataJson.map((row, index) => (
                                             <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-slate-50 transition-colors`}>
+                                                <td className="p-3 border border-gray-300 text-center text-gray-700 font-medium">{index + 1}</td>
                                                 <td className="p-3 border border-gray-300 text-center font-medium text-gray-900">{row["Ward No"]}</td>
                                                 <td className="p-3 border border-gray-300 text-center text-gray-800">{row["Ward Name"]}</td>
                                                 <td className="p-3 border border-gray-300 text-center text-gray-700">{row.Supervisor}</td>
@@ -1472,6 +1694,134 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                         ))}
                                     </tbody>
                                 </table>
+                            </div>
+                        )}
+
+                        {viewType === 'all-wards' && (
+                            <div className="space-y-6">
+                                {/* Top Performing Wards Cards */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Top 5 Wards */}
+                                    <div className="bg-white rounded-xl shadow-md border-t-4 border-green-500 overflow-hidden">
+                                        <div className="bg-green-50 px-4 py-3 border-b border-green-100 flex items-center justify-between">
+                                            <h3 className="font-bold text-green-800 flex items-center gap-2">
+                                                <TrendingUp className="w-5 h-5" />
+                                                Top 5 Performing Wards
+                                            </h3>
+                                        </div>
+                                        <div className="p-4">
+                                            <div className="space-y-3">
+                                                {[...filteredSummaryStats]
+                                                    .sort((a, b) => (b.total > 0 ? b.covered / b.total : 0) - (a.total > 0 ? a.covered / a.total : 0))
+                                                    .slice(0, 5)
+                                                    .map((ward, idx) => {
+                                                        const pct = ward.total > 0 ? (ward.covered / ward.total) * 100 : 0;
+                                                        return (
+                                                            <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-100">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-6 h-6 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold">
+                                                                        #{idx + 1}
+                                                                    </div>
+                                                                    <span className="font-bold text-gray-800">{ward.wardName}</span>
+                                                                </div>
+                                                                <span className="font-black text-green-600">{pct.toFixed(1)}%</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Low 5 Wards */}
+                                    <div className="bg-white rounded-xl shadow-md border-t-4 border-red-500 overflow-hidden">
+                                        <div className="bg-red-50 px-4 py-3 border-b border-red-100 flex items-center justify-between">
+                                            <h3 className="font-bold text-red-800 flex items-center gap-2">
+                                                <AlertCircle className="w-5 h-5" />
+                                                Low 5 Performing Wards
+                                            </h3>
+                                        </div>
+                                        <div className="p-4">
+                                            <div className="space-y-3">
+                                                {[...filteredSummaryStats]
+                                                    .filter(w => w.total > 0)
+                                                    .sort((a, b) => (a.covered / a.total) - (b.covered / b.total))
+                                                    .slice(0, 5)
+                                                    .map((ward, idx) => {
+                                                        const pct = ward.total > 0 ? (ward.covered / ward.total) * 100 : 0;
+                                                        return (
+                                                            <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-100">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-6 h-6 rounded-full bg-red-100 text-red-700 flex items-center justify-center text-xs font-bold">
+                                                                        #{idx + 1}
+                                                                    </div>
+                                                                    <span className="font-bold text-gray-800">{ward.wardName}</span>
+                                                                </div>
+                                                                <span className="font-black text-red-600">{pct.toFixed(1)}%</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="overflow-x-auto rounded-lg border-2 border-gray-300 shadow-sm">
+                                    <table className="w-full text-sm border-collapse">
+                                        <thead className="bg-indigo-600 text-white">
+                                            <tr>
+                                                <th className="p-3 border border-gray-300 font-semibold text-center">Sr. No.</th>
+                                                <th className="p-3 border border-gray-300 font-semibold text-center">Ward Name</th>
+                                                <th className="p-3 border border-gray-300 font-semibold text-center">Routes</th>
+                                                <th className="p-3 border border-gray-300 font-semibold text-center">Supervisor</th>
+                                                <th className="p-3 border border-gray-300 font-semibold text-center">Zonal Head</th>
+                                                <th className="p-3 border border-gray-300 font-semibold text-center">Total POI</th>
+                                                <th className="p-3 border border-gray-300 font-semibold text-center">Covered</th>
+                                                <th className="p-3 border border-gray-300 font-semibold text-center">Not Covered</th>
+                                                <th className="p-3 border border-gray-300 font-semibold text-center">Coverage %</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {[...filteredSummaryStats].sort((a, b) => {
+                                                const covA = a.total > 0 ? a.covered / a.total : 0;
+                                                const covB = b.total > 0 ? b.covered / b.total : 0;
+                                                return covB - covA;
+                                            }).map((row, index) => {
+                                                const coverage = row.total > 0 ? (row.covered / row.total) * 100 : 0;
+                                                const isHigh = coverage >= 90;
+                                                const isLow = coverage < 75;
+
+                                                return (
+                                                    <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-indigo-50 transition-colors`}>
+                                                        <td className="p-3 border border-gray-300 text-center text-gray-700 font-medium">{index + 1}</td>
+                                                        <td className="p-3 border border-gray-300 font-bold text-gray-900">{row.wardName}</td>
+                                                        <td className="p-3 border border-gray-300 text-gray-600 text-xs italic text-center">
+                                                            {row.routeCount} Routes
+                                                        </td>
+                                                        <td className="p-3 border border-gray-300 font-medium text-gray-800 text-center">{row.supervisorName}</td>
+                                                        <td className="p-3 border border-gray-300 text-center text-gray-700">
+                                                            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-bold border border-blue-100 uppercase">
+                                                                {row.zonalHead}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-3 border border-gray-300 text-center font-mono text-gray-700">{row.total.toLocaleString()}</td>
+                                                        <td className="p-3 border border-gray-300 text-center font-mono font-semibold text-green-700">{row.covered.toLocaleString()}</td>
+                                                        <td className="p-3 border border-gray-300 text-center font-mono font-semibold text-red-600">{row.notCovered.toLocaleString()}</td>
+                                                        <td className="p-3 border border-gray-300 text-center">
+                                                            <div className="flex items-center justify-center gap-2">
+                                                                <span className={`font-black ${isHigh ? 'text-green-600' : isLow ? 'text-red-600' : 'text-yellow-600'}`}>
+                                                                    {coverage.toFixed(1)}%
+                                                                </span>
+                                                                {isHigh ? <TrendingUp className="w-4 h-4 text-green-500" /> :
+                                                                    isLow ? <AlertCircle className="w-4 h-4 text-red-500" /> :
+                                                                        <TrendingDown className="w-4 h-4 text-yellow-500" />}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         )}
 
@@ -1491,69 +1841,50 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                     return (
                                         <div key={sIndex} id={`supervisor-card-${sIndex}`} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
                                             {/* Supervisor Header */}
-                                            <div className="bg-gray-100 p-5 border-4 border-green-600 shadow-lg">
-                                                {/* Logos Section */}
-                                                <div className="grid grid-cols-3 items-center mb-4 pb-3 border-b-2 border-green-500 gap-4">
-                                                    {/* Left Side - Logo */}
-                                                    <div className="flex items-center justify-start">
-                                                        <img
-                                                            src={nagarNigamLogo}
-                                                            alt="Nagar Nigam Logo"
-                                                            className="h-16 w-auto object-contain"
-                                                        />
+                                            {/* Supervisor Header - New Professional Style */}
+                                            <div className="bg-white p-6 border-b-2 border-green-500">
+                                                <div className="grid grid-cols-3 items-center gap-4">
+                                                    {/* Left Logo */}
+                                                    <div className="flex flex-col items-center sm:items-start">
+                                                        <img src={nagarNigamLogo} alt="Nagar Nigam" className="h-14 w-auto object-contain" />
+                                                        <p className="hidden sm:block text-[8px] font-bold text-blue-800 mt-1 uppercase">Nagar Nigam Mathura</p>
                                                     </div>
 
-
-                                                    {/* Center - Title */}
+                                                    {/* Center Title */}
                                                     <div className="text-center">
-                                                        <h1 className="text-lg font-bold text-gray-900">Coverage Report</h1>
-                                                        <p className="text-xs text-gray-600">Point of Interest Analysis</p>
+                                                        <div className="bg-green-50 px-3 py-0.5 rounded-full inline-block mb-1 border border-green-100">
+                                                            <span className="text-[9px] font-bold text-green-700 uppercase tracking-wider">{supervisor.zonalHead} Report</span>
+                                                        </div>
+                                                        <h2 className="text-xl font-black text-gray-900 leading-tight">
+                                                            WARD WISE<br />
+                                                            <span className="text-green-600 uppercase">PERFORMANCE</span>
+                                                        </h2>
+                                                        <div className="h-0.5 w-12 bg-green-500 mx-auto mt-1"></div>
                                                     </div>
 
-                                                    {/* Right Side - Logo */}
-                                                    <div className="flex justify-end">
-                                                        <img
-                                                            src={natureGreenLogo}
-                                                            alt="Nature Green Logo"
-                                                            className="h-16 w-auto object-contain"
-                                                        />
+                                                    {/* Right Logo */}
+                                                    <div className="flex flex-col items-center sm:items-end">
+                                                        <img src={natureGreenLogo} alt="Nature Green" className="h-14 w-auto object-contain" />
+                                                        <p className="hidden sm:block text-[8px] font-bold text-green-700 mt-1 uppercase text-right">Nature Green Waste</p>
                                                     </div>
-
                                                 </div>
 
-                                                {/* Top Section - Zonal Head (Centered) */}
-                                                <div className="text-center mb-4 pb-3 border-b-2 border-green-500">
-                                                    <div className="mb-1">
-                                                        <span className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Zonal Head</span>
+                                                <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-4">
+                                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                        <span className="text-[10px] text-gray-500 uppercase font-bold block mb-1">Supervisor</span>
+                                                        <span className="text-lg font-bold text-gray-900">{supervisor.supervisorName}</span>
+                                                        <div className="text-[10px] text-gray-500 mt-1 font-medium">Vehicles: {supervisor.vehicles.join(", ")}</div>
                                                     </div>
-                                                    <h2 className="text-xl font-bold text-gray-900 tracking-wide">{supervisor.zonalHead}</h2>
-                                                </div>
-
-                                                {/* Middle Section - Supervisor (Centered) */}
-                                                <div className="text-center mb-4 pb-3 border-b-2 border-green-500">
-                                                    <div className="mb-1">
-                                                        <span className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Supervisor</span>
-                                                    </div>
-                                                    <h3 className="text-2xl font-bold text-gray-900 tracking-wide mb-2">{supervisor.supervisorName}</h3>
-                                                    <p className="text-sm text-gray-700 font-medium">
-                                                        Vehicles: {supervisor.vehicles.join(", ")}
-                                                    </p>
-                                                </div>
-
-                                                {/* Bottom Section - Stats */}
-                                                <div className="flex items-center justify-center gap-8 text-sm mb-4">
-                                                    <div className="text-center">
-                                                        <span className="block text-xs text-gray-600 uppercase font-semibold mb-1">Wards</span>
-                                                        <span className="font-bold text-lg text-gray-900">{supervisor.wardCount}</span>
-                                                    </div>
-                                                    <div className="text-center">
-                                                        <span className="block text-xs text-gray-600 uppercase font-semibold mb-1">Total POI</span>
-                                                        <span className="font-mono font-bold text-lg text-gray-900">{supervisor.total}</span>
-                                                    </div>
-                                                    <div className="text-center">
-                                                        <span className="block text-xs text-gray-600 uppercase font-semibold mb-1">Coverage</span>
-                                                        <div className={`font-bold text-lg ${isSupHigh ? 'text-green-600' : isSupLow ? 'text-red-600' : 'text-yellow-600'}`}>
-                                                            {supCoverage.toFixed(1)}%
+                                                    <div className="flex items-center justify-around gap-2">
+                                                        <div className="text-center">
+                                                            <span className="text-[10px] text-gray-500 uppercase font-bold block">Total POI</span>
+                                                            <span className="text-lg font-black text-gray-900">{supervisor.total}</span>
+                                                        </div>
+                                                        <div className="text-center">
+                                                            <span className="text-[10px] text-gray-500 uppercase font-bold block">Coverage</span>
+                                                            <span className={`text-lg font-black ${isSupHigh ? 'text-green-600' : isSupLow ? 'text-red-600' : 'text-yellow-600'}`}>
+                                                                {supCoverage.toFixed(1)}%
+                                                            </span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1585,6 +1916,7 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                                 <table className="w-full text-sm border-collapse">
                                                     <thead className="bg-green-600 text-white">
                                                         <tr>
+                                                            <th className="p-2.5 border border-gray-300 font-semibold text-center text-[10px] uppercase tracking-wider">Sr. No.</th>
                                                             <th className="p-2.5 border border-gray-300 font-semibold text-center">Ward Name</th>
                                                             <th className="p-2.5 border border-gray-300 font-semibold text-center">Route Name</th>
                                                             <th className="p-2.5 border border-gray-300 font-semibold text-center">Assigned Vehicles</th>
@@ -1602,6 +1934,7 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
 
                                                             return (
                                                                 <tr key={wIndex} className={`${wIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-green-50 transition-colors`}>
+                                                                    <td className="p-2.5 border border-gray-300 text-center text-gray-700 font-medium">{wIndex + 1}</td>
                                                                     <td className="p-2.5 border border-gray-300 font-medium text-gray-800 text-center">{ward.wardName}</td>
                                                                     <td className="p-2.5 border border-gray-300 text-gray-700 text-center">{ward.routeName}</td>
                                                                     <td className="p-2.5 border border-gray-300 text-gray-600 text-xs text-center">{ward.vehicles.join(", ")}</td>
@@ -1626,7 +1959,8 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                         )}
                     </div>
                 </>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 };

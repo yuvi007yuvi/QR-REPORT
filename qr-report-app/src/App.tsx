@@ -114,7 +114,8 @@ function App() {
                   viewMode === 'coverage-dashboard' ? 'POI Coverage Dashboard' :
                     viewMode === 'coverage-supervisor' ? 'Supervisor POI Analysis' :
                       viewMode === 'coverage-ward' ? 'Ward POI Analysis' :
-                        viewMode === 'coverage-mapping' ? 'POI Mapping' : 'Reports Buddy';
+                        viewMode === 'coverage-all-wards' ? 'All Wards POI Summary' :
+                          viewMode === 'coverage-mapping' ? 'POI Mapping' : 'Reports Buddy';
 
   return (
     <div className="flex h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
@@ -175,7 +176,8 @@ function App() {
               <CoverageReport initialMode={
                 viewMode === 'coverage-supervisor' ? 'supervisor' :
                   viewMode === 'coverage-ward' ? 'ward' :
-                    viewMode === 'coverage-mapping' ? 'mapping' : 'dashboard'
+                    viewMode === 'coverage-all-wards' ? 'all-wards' :
+                      viewMode === 'coverage-mapping' ? 'mapping' : 'dashboard'
               } />
             ) : (
               <>

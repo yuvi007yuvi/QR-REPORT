@@ -7,7 +7,6 @@ import {
     Trash2,
     ArrowLeftRight,
     MapPin,
-    ChevronRight,
     ChevronDown,
     ChevronUp
 } from 'lucide-react';

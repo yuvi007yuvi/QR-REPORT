@@ -143,7 +143,7 @@ function App() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
               aria-label="Toggle sidebar"
             >
               <Menu className="w-5 h-5 text-gray-600" />

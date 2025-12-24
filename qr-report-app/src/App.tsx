@@ -29,6 +29,7 @@ function App() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Keep track of raw scanned data to re-filter without re-parsing
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -129,12 +130,24 @@ function App() {
           if (view) setViewMode(view);
         }}
         statsAvailable={!!stats}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
-      <main className="flex-1 ml-64 flex flex-col h-screen relative">
+      <main className={clsx(
+        "flex-1 flex flex-col h-screen relative transition-all duration-300",
+        sidebarOpen ? "lg:ml-64" : "ml-0"
+      )}>
         {/* Top Header */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0 z-10 shadow-sm">
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Toggle sidebar"
+            >
+              <Menu className="w-5 h-5 text-gray-600" />
+            </button>
             <h2 className="text-xl font-bold text-gray-800 tracking-tight">
               {currentTitle}
             </h2>

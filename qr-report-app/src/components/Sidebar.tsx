@@ -8,7 +8,8 @@ import {
     ArrowLeftRight,
     MapPin,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    X
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
@@ -36,13 +37,17 @@ interface SidebarProps {
     currentView: ViewMode;
     onNavigate: (section: AppSection, view: ViewMode) => void;
     statsAvailable: boolean;
+    isOpen: boolean;
+    onClose: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
     currentSection,
     currentView,
     onNavigate,
-    statsAvailable
+    statsAvailable,
+    isOpen,
+    onClose
 }) => {
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
         daily: true,
@@ -101,112 +106,135 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ];
 
     return (
-        <aside className="fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 text-gray-900 flex flex-col z-50 transition-all duration-300 shadow-sm">
-            {/* Logo Area */}
-            <div className="h-20 flex items-center px-6 border-b border-gray-100 bg-gray-50/50 backdrop-blur-md">
-                <div className="flex items-center gap-3">
-                    <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
-                        <img src={nagarNigamLogo} alt="Logo" className="w-8 h-8 object-contain" />
-                    </div>
+        <>
+            {/* Overlay for mobile */}
+            {isOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                    onClick={onClose}
+                />
+            )}
 
-                    <div className="flex flex-col">
-                        <span className="text-sm font-black tracking-tighter text-gray-900 leading-none">REPORTS</span>
-                        <span className="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">BUDDY PRO</span>
-                    </div>
-                </div>
-            </div>
+            <aside className={clsx(
+                "fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 text-gray-900 flex flex-col z-50 transition-transform duration-300 shadow-lg",
+                isOpen ? "translate-x-0" : "-translate-x-full"
+            )}>
 
-            {/* Navigation */}
-            <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-4 scrollbar-hide">
-                {navItems.map((group, idx) => {
-                    const isExpanded = expandedSections[group.section];
-                    return (
-                        <div key={idx} className="space-y-1">
-                            <button
-                                onClick={() => toggleSection(group.section)}
-                                className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] hover:text-gray-600 transition-colors"
-                            >
-                                <span>{group.title}</span>
-                                {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                            </button>
-
-                            {isExpanded && (
-                                <div className="space-y-1 animate-in slide-in-from-top-1 duration-200">
-                                    {group.items.map((item, itemIdx) => {
-                                        const isActive =
-                                            currentSection === group.section &&
-                                            (group.section === 'daily' ? currentView === item.view : currentView === item.view);
-
-                                        const isDisabled = group.section === 'daily' && !statsAvailable && item.view !== 'dashboard' && item.view !== 'mapping';
-
-                                        return (
-                                            <button
-                                                key={itemIdx}
-                                                onClick={() => {
-                                                    if (!isDisabled) {
-                                                        onNavigate(group.section, item.view);
-                                                    }
-                                                }}
-                                                disabled={isDisabled}
-                                                className={clsx(
-                                                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 group relative",
-                                                    isActive
-                                                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/40 translate-x-1"
-                                                        : isDisabled
-                                                            ? "text-gray-300 cursor-not-allowed opacity-50"
-                                                            : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
-                                                )}
-                                            >
-                                                <div className={clsx(
-                                                    "p-1.5 rounded-lg transition-colors",
-                                                    isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500 group-hover:bg-blue-50 group-hover:text-blue-600"
-                                                )}>
-                                                    <item.icon className="w-4 h-4" />
-                                                </div>
-                                                <span className="flex-1 text-left tracking-tight">{item.label}</span>
-                                                {isActive && (
-                                                    <div className="w-1 h-4 bg-white rounded-full shadow-sm" />
-                                                )}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
+                {/* Logo Area */}
+                <div className="h-20 flex items-center justify-between px-6 border-b border-gray-100 bg-gray-50/50 backdrop-blur-md">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
+                            <img src={nagarNigamLogo} alt="Logo" className="w-8 h-8 object-contain" />
                         </div>
-                    );
-                })}
-            </nav>
 
-            {/* Branding Logos Footer Area */}
-            <div className="p-4 space-y-4 bg-gray-50/80 border-t border-gray-100">
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="bg-white p-2 rounded-xl border border-gray-200 flex items-center justify-center shadow-sm">
-                        <img src={nagarNigamLogo} alt="Nagar Nigam" className="h-10 w-auto object-contain drop-shadow-sm" />
-                    </div>
-                    <div className="bg-white p-2 rounded-xl border border-gray-200 flex items-center justify-center shadow-sm">
-                        <img src={natureGreenLogo} alt="Nature Green" className="h-10 w-auto object-contain drop-shadow-sm" />
-                    </div>
-                </div>
-
-
-                <div className="flex items-center gap-3 px-3 py-3 rounded-2xl bg-white border border-gray-200 shadow-sm">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-sm font-black text-white shadow-md shadow-blue-500/20">
-                        AD
-                    </div>
-                    <div className="flex-1 overflow-hidden">
-                        <p className="text-xs font-black truncate text-gray-900 uppercase tracking-wider">Admin Portal</p>
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                            <p className="text-[10px] text-gray-500 font-bold truncate">System Active</p>
+                        <div className="flex flex-col">
+                            <span className="text-sm font-black tracking-tighter text-gray-900 leading-none">REPORTS</span>
+                            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">BUDDY PRO</span>
                         </div>
                     </div>
+
+                    {/* Close button for mobile */}
+                    <button
+                        onClick={onClose}
+                        className="lg:hidden p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                        aria-label="Close sidebar"
+                    >
+                        <X className="w-5 h-5 text-gray-600" />
+                    </button>
                 </div>
 
-                <p className="text-[8px] text-center text-gray-400 font-bold uppercase tracking-[0.2em] mt-2">
-                    Official Analytics System
-                </p>
-            </div>
-        </aside>
+                {/* Navigation */}
+                <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-4 scrollbar-hide">
+                    {navItems.map((group, idx) => {
+                        const isExpanded = expandedSections[group.section];
+                        return (
+                            <div key={idx} className="space-y-1">
+                                <button
+                                    onClick={() => toggleSection(group.section)}
+                                    className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] hover:text-gray-600 transition-colors"
+                                >
+                                    <span>{group.title}</span>
+                                    {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                </button>
+
+                                {isExpanded && (
+                                    <div className="space-y-1 animate-in slide-in-from-top-1 duration-200">
+                                        {group.items.map((item, itemIdx) => {
+                                            const isActive =
+                                                currentSection === group.section &&
+                                                (group.section === 'daily' ? currentView === item.view : currentView === item.view);
+
+                                            const isDisabled = group.section === 'daily' && !statsAvailable && item.view !== 'dashboard' && item.view !== 'mapping';
+
+                                            return (
+                                                <button
+                                                    key={itemIdx}
+                                                    onClick={() => {
+                                                        if (!isDisabled) {
+                                                            onNavigate(group.section, item.view);
+                                                        }
+                                                    }}
+                                                    disabled={isDisabled}
+                                                    className={clsx(
+                                                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 group relative",
+                                                        isActive
+                                                            ? "bg-blue-600 text-white shadow-lg shadow-blue-500/40 translate-x-1"
+                                                            : isDisabled
+                                                                ? "text-gray-300 cursor-not-allowed opacity-50"
+                                                                : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
+                                                    )}
+                                                >
+                                                    <div className={clsx(
+                                                        "p-1.5 rounded-lg transition-colors",
+                                                        isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500 group-hover:bg-blue-50 group-hover:text-blue-600"
+                                                    )}>
+                                                        <item.icon className="w-4 h-4" />
+                                                    </div>
+                                                    <span className="flex-1 text-left tracking-tight">{item.label}</span>
+                                                    {isActive && (
+                                                        <div className="w-1 h-4 bg-white rounded-full shadow-sm" />
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </nav>
+
+                {/* Branding Logos Footer Area */}
+                <div className="p-4 space-y-4 bg-gray-50/80 border-t border-gray-100">
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="bg-white p-2 rounded-xl border border-gray-200 flex items-center justify-center shadow-sm">
+                            <img src={nagarNigamLogo} alt="Nagar Nigam" className="h-10 w-auto object-contain drop-shadow-sm" />
+                        </div>
+                        <div className="bg-white p-2 rounded-xl border border-gray-200 flex items-center justify-center shadow-sm">
+                            <img src={natureGreenLogo} alt="Nature Green" className="h-10 w-auto object-contain drop-shadow-sm" />
+                        </div>
+                    </div>
+
+
+                    <div className="flex items-center gap-3 px-3 py-3 rounded-2xl bg-white border border-gray-200 shadow-sm">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-sm font-black text-white shadow-md shadow-blue-500/20">
+                            AD
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                            <p className="text-xs font-black truncate text-gray-900 uppercase tracking-wider">Admin Portal</p>
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                <p className="text-[10px] text-gray-500 font-bold truncate">System Active</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p className="text-[8px] text-center text-gray-400 font-bold uppercase tracking-[0.2em] mt-2">
+                        Official Analytics System
+                    </p>
+                </div>
+            </aside>
+        </>
     );
 };
 

@@ -9,6 +9,8 @@ import { UndergroundReport } from './components/UndergroundReport';
 import { ZonalUndergroundReport } from './components/ZonalUndergroundReport';
 import { CoverageReport } from './components/CoverageReport';
 import { KYCSurveyChecker } from './components/KYCSurveyChecker';
+import { KYCCalendarView } from './components/KYCCalendarView';
+import { WhatsAppReport } from './components/WhatsAppReport';
 import { Sidebar, type AppSection, type ViewMode } from './components/Sidebar';
 import { parseFile, processData, type ReportRecord, type SummaryStats } from './utils/dataProcessor';
 import { Loader2, RefreshCw, Calendar, Menu } from 'lucide-react';
@@ -117,7 +119,8 @@ function App() {
                     viewMode === 'coverage-supervisor' ? 'Supervisor POI Analysis' :
                       viewMode === 'coverage-ward' ? 'Ward POI Analysis' :
                         viewMode === 'coverage-all-wards' ? 'All Wards POI Summary' :
-                          viewMode === 'coverage-mapping' ? 'POI Mapping' : 'Reports Buddy';
+                          viewMode === 'coverage-mapping' ? 'POI Mapping' :
+                            viewMode === 'kyc-calendar' ? 'Daily KYC Calendar' : 'Reports Buddy';
 
   return (
     <div className="flex h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
@@ -143,7 +146,7 @@ function App() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               aria-label="Toggle sidebar"
             >
               <Menu className="w-5 h-5 text-gray-600" />
@@ -194,7 +197,8 @@ function App() {
                       viewMode === 'coverage-mapping' ? 'mapping' : 'dashboard'
               } />
             ) : appSection === 'kyc' ? (
-              <KYCSurveyChecker />
+              viewMode === 'kyc-calendar' ? <KYCCalendarView /> :
+                viewMode === 'whatsapp-report' ? <WhatsAppReport /> : <KYCSurveyChecker />
             ) : (
               <>
                 {/* Daily Report Logic */}

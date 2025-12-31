@@ -30,7 +30,9 @@ export type ViewMode =
     | 'coverage-ward'
     | 'coverage-all-wards'
     | 'coverage-mapping'
-    | 'kyc-survey';
+    | 'kyc-survey'
+    | 'kyc-calendar'
+    | 'whatsapp-report';
 
 interface SidebarProps {
     currentSection: AppSection;
@@ -101,6 +103,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             section: 'kyc' as AppSection,
             items: [
                 { label: 'KYC Survey Checker', view: 'kyc-survey' as ViewMode, icon: LayoutDashboard },
+                { label: 'KYC Daily Calendar', view: 'kyc-calendar' as ViewMode, icon: BarChart3 },
+                { label: 'Daily Target Report', view: 'whatsapp-report' as ViewMode, icon: FileText },
             ]
         }
     ];
@@ -117,8 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             <aside className={clsx(
                 "fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 text-gray-900 flex flex-col z-50 transition-transform duration-300 shadow-lg",
-                isOpen ? "translate-x-0" : "-translate-x-full",
-                "lg:translate-x-0"
+                isOpen ? "translate-x-0" : "-translate-x-full"
             )}>
 
                 {/* Logo Area */}

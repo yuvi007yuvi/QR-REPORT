@@ -143,6 +143,24 @@ export const WhatsAppReport: React.FC = () => {
         return { summary, grandTotal };
     }, [filteredReport, uniqueDepartments]);
 
+    const columnTotals = useMemo(() => {
+        const totals: Record<string, number> = {};
+        let allTotal = 0;
+
+        filteredDates.forEach(date => totals[date] = 0);
+
+        filteredReport.forEach((row: any) => {
+            filteredDates.forEach(date => {
+                if (row[date]) {
+                    totals[date] += row[date];
+                }
+            });
+            allTotal += row.total;
+        });
+
+        return { totals, allTotal };
+    }, [filteredReport, filteredDates]);
+
     const zoneSummary = useMemo(() => {
         const summary: Record<string, number> = {};
         uniqueZones.forEach(z => summary[z] = 0);
@@ -235,12 +253,26 @@ export const WhatsAppReport: React.FC = () => {
             dateColumnStyles[5 + index] = { cellWidth: 18, minCellWidth: 18, cellPadding: { top: 1, bottom: 1, left: 0.5, right: 0.5 } };
         });
 
+        const tableFoot = [
+            [
+                '',
+                '',
+                '',
+                'GRAND TOTAL',
+                '',
+                ...filteredDates.map(date => columnTotals.totals[date] || 0),
+                columnTotals.allTotal
+            ]
+        ];
+
         autoTable(doc, {
             head: tableHead,
             body: tableBody,
+            foot: tableFoot,
             startY: 40,
             theme: 'grid',
             headStyles: { fillColor: [41, 128, 185], textColor: 255, halign: 'center', lineWidth: 0.1, lineColor: [200, 200, 200] },
+            footStyles: { fillColor: [31, 41, 55], textColor: 255, fontStyle: 'bold', halign: 'center', lineWidth: 0.1, lineColor: [200, 200, 200] },
             styles: {
                 fontSize: 7,
                 cellPadding: 1,
@@ -623,6 +655,19 @@ export const WhatsAppReport: React.FC = () => {
                                     </tr>
                                 )}
                             </tbody>
+                            <tfoot className="bg-gray-800 text-white font-black sticky bottom-0 z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.2)]">
+                                <tr>
+                                    <td colSpan={4} className="px-4 py-3 text-right uppercase tracking-wider border border-gray-600">Grand Total</td>
+                                    {filteredDates.map(date => (
+                                        <td key={date} className="px-2 py-3 text-center border border-gray-600">
+                                            {columnTotals.totals[date] || 0}
+                                        </td>
+                                    ))}
+                                    <td className="px-4 py-3 text-center bg-emerald-600 border border-gray-600">
+                                        {columnTotals.allTotal}
+                                    </td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>

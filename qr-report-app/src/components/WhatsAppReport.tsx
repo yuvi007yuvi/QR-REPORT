@@ -467,6 +467,53 @@ export const WhatsAppReport: React.FC = () => {
                     ))}
                 </div>
 
+                {/* Date Wise Summary Section */}
+                {/* Date Wise Summary Section */}
+                {filteredDates.length > 0 && (
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+
+                        {/* Header */}
+                        <div className="p-5 border-b border-gray-200 bg-gradient-to-b from-gray-50 to-white flex flex-col items-center text-center gap-4">
+                            <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
+                                <div className="flex items-center gap-4">
+                                    <img src={NagarNigamLogo} alt="Logo" className="h-14 w-auto object-contain drop-shadow-sm" />
+                                    <div className="h-10 w-px bg-gray-300 hidden md:block"></div>
+                                </div>
+
+                                <div>
+                                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight leading-none">Mathura Vrindavan Nagar Nigam</h3>
+                                    <p className="text-sm text-emerald-600 font-extrabold tracking-widest uppercase mt-1.5">
+                                        KYC Date Wise Performance {selectedZone ? ` - ${selectedZone} ZONE` : ''}
+                                    </p>
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                    <div className="h-10 w-px bg-gray-300 hidden md:block"></div>
+                                    <img src={NatureGreenLogo} alt="Nature Green" className="h-16 w-auto object-contain drop-shadow-sm" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                                {filteredDates.map(date => (
+                                    <div key={date} className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm flex flex-col items-center justify-center hover:border-blue-300 transition-colors cursor-pointer group hover:shadow-md">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Calendar className="w-3 h-3 text-gray-600 group-hover:text-blue-500 transition-colors" />
+                                            <p className="text-xs font-extrabold text-gray-700 uppercase tracking-wide group-hover:text-blue-500 transition-colors">
+                                                {date.split('-').reverse().join('-')}
+                                            </p>
+                                        </div>
+                                        <h3 className="text-2xl font-black text-gray-800 mt-1 group-hover:text-blue-600 transition-colors">
+                                            {columnTotals.totals[date] || 0}
+                                        </h3>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Controls */}
                 <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">

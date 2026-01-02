@@ -143,6 +143,18 @@ export const WhatsAppReport: React.FC = () => {
         return { summary, grandTotal };
     }, [filteredReport, uniqueDepartments]);
 
+    const zoneSummary = useMemo(() => {
+        const summary: Record<string, number> = {};
+        uniqueZones.forEach(z => summary[z] = 0);
+
+        filteredReport.forEach((row: any) => {
+            if (summary[row.zone] !== undefined) {
+                summary[row.zone] += row.total;
+            }
+        });
+        return summary;
+    }, [filteredReport, uniqueZones]);
+
     const handleExportPDF = async () => {
         const doc = new jsPDF('l', 'mm', 'a4');
 
@@ -402,6 +414,21 @@ export const WhatsAppReport: React.FC = () => {
                                             'bg-orange-500'
                                         }`}
                                     style={{ width: `${departmentSummary.grandTotal ? ((departmentSummary.summary[dept] || 0) / departmentSummary.grandTotal * 100) : 0}%` }}
+                                />
+                            </div>
+                        </div>
+                    ))}
+
+                    {/* Zone Cards - Appended or separate? Let's append to grid but distinguish visually if needed, or just follow same pattern */}
+                    {uniqueZones.map(zone => (
+                        <div key={zone} className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-pink-50 rounded-bl-full -mr-8 -mt-8 z-0"></div>
+                            <p className="text-pink-400 text-xs font-bold uppercase tracking-wider relative z-10">{zone} Zone</p>
+                            <h3 className="text-2xl font-black text-gray-800 mt-1 relative z-10">{zoneSummary[zone] || 0}</h3>
+                            <div className="w-full bg-gray-100 h-1.5 rounded-full mt-3 overflow-hidden relative z-10">
+                                <div
+                                    className="h-full rounded-full bg-pink-500"
+                                    style={{ width: `${departmentSummary.grandTotal ? ((zoneSummary[zone] || 0) / departmentSummary.grandTotal * 100) : 0}%` }}
                                 />
                             </div>
                         </div>

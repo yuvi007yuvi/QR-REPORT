@@ -111,6 +111,22 @@ export const WhatsAppReport: React.FC = () => {
     const uniqueZones = useMemo(() => Array.from(new Set(MASTER_SUPERVISORS.map(s => s.zonal))).sort(), []);
     const uniqueDepartments = useMemo(() => Array.from(new Set(MASTER_SUPERVISORS.map(s => s.department))).sort(), []);
 
+    const filterTitle = useMemo(() => {
+        const parts = [];
+        if (selectedZone) parts.push(`Zone: ${selectedZone}`);
+
+        if (startDate || endDate) {
+            const start = startDate ? startDate.split('-').reverse().join('-') : 'Beginning';
+            const end = endDate ? endDate.split('-').reverse().join('-') : 'Today';
+            parts.push(`Period: ${start} to ${end}`);
+        } else {
+            const today = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+            parts.push(`Date: ${today}`);
+        }
+
+        return parts.length > 0 ? parts.join(' | ') : `Date: ${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}`;
+    }, [selectedZone, startDate, endDate]);
+
     const departmentSummary = useMemo(() => {
         const summary: Record<string, number> = {};
         let grandTotal = 0;
@@ -143,33 +159,54 @@ export const WhatsAppReport: React.FC = () => {
             const img1 = await loadImage(NagarNigamLogo);
             const img2 = await loadImage(NatureGreenLogo);
 
-            doc.addImage(img1, 'PNG', 14, 10, 25, 25);
-            doc.addImage(img2, 'PNG', 42, 12, 30, 20);
+            const pageWidth = doc.internal.pageSize.width;
 
+            // Calculate aspect ratios for logos
+            const logoHeight = 22;
+            const width1 = (img1.width / img1.height) * logoHeight;
+            const width2 = (img2.width / img2.height) * logoHeight;
+
+            // Logos - Balanced Left and Right
+            doc.addImage(img1, 'PNG', 15, 8, width1, logoHeight);
+            doc.addImage(img2, 'PNG', pageWidth - 15 - width2, 8, width2, logoHeight);
+
+            // Centered Header Text
             doc.setFontSize(18);
             doc.setTextColor(0, 0, 0);
-            doc.text('Mathura Vrindavan Nagar Nigam', 80, 20);
+            doc.text('Mathura Vrindavan Nagar Nigam', pageWidth / 2, 20, { align: 'center' });
 
             doc.setFontSize(12);
             doc.setTextColor(0, 100, 0);
-            doc.text('Daily KYC Target Monitoring Report', 80, 28);
+            doc.text('Daily KYC Target Monitoring Report', pageWidth / 2, 28, { align: 'center' });
 
-            doc.setFontSize(10);
-            doc.setTextColor(100, 100, 100);
-            doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 250, 20);
+            if (filterTitle) {
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text(filterTitle, pageWidth / 2, 35, { align: 'center' });
+            }
+
+            // Generated Timestamp (Bottom Right or tiny below)
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(`Generated on: ${new Date().toLocaleDateString()}`, pageWidth - 15, pageWidth - 10, { align: 'right' }); // Actually let's put it top right under logo or logic is fine. 
+            // Resetting text to avoid overlap, let's keep it simple.
 
         } catch (e) {
             console.warn("Could not load images for PDF", e);
             doc.setFontSize(18);
-            doc.text('Ward-wise Daily Target Matrix', 14, 20);
+            doc.text('Mathura Vrindavan Nagar Nigam', 148, 20, { align: 'center' });
+            if (filterTitle) {
+                doc.setFontSize(12);
+                doc.text(filterTitle, 148, 28, { align: 'center' });
+            }
         }
 
         const tableHead = [
-            ['S.No', 'Zone', 'Ward', 'Supervisor', 'Department', ...filteredDates.map(d => d.split('-')[2]), 'Total']
+            ['S.No', 'Zone', 'Ward', 'Supervisor', 'Department', ...filteredDates.map(d => d.split('-').reverse().join('-')), 'Total']
         ];
 
-        const tableBody = filteredReport.map((row: any) => [
-            row.sNo,
+        const tableBody = filteredReport.map((row: any, index: number) => [
+            (index + 1).toString(),
             row.zone,
             row.ward,
             row.supervisorName,
@@ -182,8 +219,8 @@ export const WhatsAppReport: React.FC = () => {
         const dateColumnStyles: any = {};
         filteredDates.forEach((_, index) => {
             // column index starts at 5 (S.No, Zone, Ward, Supervisor, Dept are 0-4)
-            // Use cellWidth: 5 (5mm) which fits 2 digits like '25' at font size 7 without wrapping if padding is small
-            dateColumnStyles[5 + index] = { cellWidth: 5, minCellWidth: 5, cellPadding: { top: 1, bottom: 1, left: 0.5, right: 0.5 } };
+            // Use cellWidth: 18 (18mm) to fit DD-MM-YYYY
+            dateColumnStyles[5 + index] = { cellWidth: 18, minCellWidth: 18, cellPadding: { top: 1, bottom: 1, left: 0.5, right: 0.5 } };
         });
 
         autoTable(doc, {
@@ -205,7 +242,7 @@ export const WhatsAppReport: React.FC = () => {
                 0: { cellWidth: 8 },  // S.No
                 1: { cellWidth: 15 }, // Zone
                 2: { cellWidth: 10 }, // Ward
-                3: { minCellWidth: 35, halign: 'left', cellWidth: 'auto' }, // Supervisor
+                3: { minCellWidth: 35, halign: 'center', cellWidth: 'auto' }, // Supervisor
                 4: { cellWidth: 12 }, // Dept
                 ...dateColumnStyles
             },
@@ -251,6 +288,7 @@ export const WhatsAppReport: React.FC = () => {
     };
 
     const reportRef = useRef<HTMLDivElement>(null);
+    const tableRef = useRef<HTMLDivElement>(null);
 
     const handleExportJPEG = async () => {
         if (!reportRef.current) return;
@@ -263,12 +301,32 @@ export const WhatsAppReport: React.FC = () => {
             });
 
             const link = document.createElement('a');
-            link.download = `daily-target-matrix-${new Date().toISOString().split('T')[0]}.jpeg`;
+            link.download = `daily-target-full-report-${new Date().toISOString().split('T')[0]}.jpeg`;
             link.href = dataUrl;
             link.click();
         } catch (error) {
             console.error('Error exporting JPEG:', error);
             alert('Failed to export JPEG.');
+        }
+    };
+
+    const handleExportTableJPEG = async () => {
+        if (!tableRef.current) return;
+
+        try {
+            const dataUrl = await toJpeg(tableRef.current, {
+                quality: 0.95,
+                backgroundColor: '#ffffff',
+                pixelRatio: 2
+            });
+
+            const link = document.createElement('a');
+            link.download = `daily-target-table-${new Date().toISOString().split('T')[0]}.jpeg`;
+            link.href = dataUrl;
+            link.click();
+        } catch (error) {
+            console.error('Error exporting Table JPEG:', error);
+            alert('Failed to export Table JPEG.');
         }
     };
 
@@ -288,6 +346,7 @@ export const WhatsAppReport: React.FC = () => {
                             <div>
                                 <h2 className="text-xl font-black text-gray-900 leading-tight uppercase tracking-tight">Mathura Vrindavan Nagar Nigam</h2>
                                 <p className="text-sm text-emerald-600 font-bold tracking-wide">Daily KYC Target Monitoring Report</p>
+                                <p className="text-xs text-gray-500 font-medium mt-1">{filterTitle}</p>
                             </div>
                         </div>
 
@@ -312,6 +371,14 @@ export const WhatsAppReport: React.FC = () => {
                             >
                                 <ImageIcon className="w-4 h-4" />
                                 Export JPEG
+                            </button>
+                            <button
+                                onClick={handleExportTableJPEG}
+                                disabled={filteredReport.length === 0}
+                                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <ImageIcon className="w-4 h-4" />
+                                Export Table Only
                             </button>
                         </div>
                     </div>
@@ -431,78 +498,106 @@ export const WhatsAppReport: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Table */}
-                <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm max-h-[600px]">
-                    <table className="w-full text-sm text-center text-gray-800 border-collapse border border-gray-400">
-                        <thead className="text-xs uppercase text-white sticky top-0 z-30 shadow-md">
-                            <tr>
-                                <th scope="col" className="px-4 py-4 border border-gray-400 bg-slate-700 sticky left-0 z-40">S.No</th>
-                                <th scope="col" className="px-4 py-4 border border-gray-400 bg-slate-700 sticky left-[60px] z-40">Zone Name</th>
-                                <th scope="col" className="px-4 py-4 border border-gray-400 bg-slate-700 sticky left-[160px] z-40">Ward No</th>
-                                <th scope="col" className="px-4 py-4 border border-gray-400 bg-slate-700 text-left sticky left-[240px] z-40 min-w-[200px]">Supervisor Name</th>
+                {/* Table Section */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden" ref={tableRef}>
+                    {/* Table Header */}
+                    <div className="p-5 border-b border-gray-200 bg-gradient-to-b from-gray-50 to-white flex flex-col items-center text-center gap-4">
+                        <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
+                            <div className="flex items-center gap-4">
+                                <img src={NagarNigamLogo} alt="Logo" className="h-14 w-auto object-contain drop-shadow-sm" />
+                                <div className="h-10 w-px bg-gray-300 hidden md:block"></div>
+                            </div>
 
-                                {filteredDates.map(date => (
-                                    <th key={date} scope="col" className="px-2 py-4 border border-gray-400 bg-blue-600 min-w-[40px] whitespace-nowrap">
-                                        {date.split('-')[2]}
+                            <div>
+                                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight leading-none">Mathura Vrindavan Nagar Nigam</h3>
+                                <p className="text-sm text-emerald-600 font-extrabold tracking-widest uppercase mt-1.5">Daily KYC Target Monitoring Report</p>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                                <div className="h-12 w-px bg-gray-300 hidden md:block"></div>
+                                <img src={NatureGreenLogo} alt="Nature Green" className="h-16 w-auto object-contain drop-shadow-sm" />
+                            </div>
+                        </div>
+
+                        <div className="inline-flex items-center gap-2 px-6 py-2 bg-gray-50 text-gray-700 rounded-md border border-gray-200 text-xs font-bold uppercase tracking-wider shadow-sm mt-2">
+                            <Calendar className="w-3 h-3 text-gray-500" />
+                            {filterTitle}
+                        </div>
+                    </div>
+
+                    {/* Table Container */}
+                    <div className="overflow-x-auto max-h-[600px]">
+                        <table className="w-full text-sm text-center text-gray-800 border-collapse border border-gray-400">
+                            <thead className="text-xs uppercase text-white sticky top-0 z-30 shadow-md">
+                                <tr>
+                                    <th scope="col" className="px-4 py-4 border border-gray-400 bg-slate-700 sticky left-0 z-40">S.No</th>
+                                    <th scope="col" className="px-4 py-4 border border-gray-400 bg-slate-700 sticky left-[60px] z-40">Zone Name</th>
+                                    <th scope="col" className="px-4 py-4 border border-gray-400 bg-slate-700 sticky left-[160px] z-40">Ward No</th>
+                                    <th scope="col" className="px-4 py-4 border border-gray-400 bg-slate-700 sticky left-[240px] z-40 min-w-[200px]">Supervisor Name</th>
+
+                                    {filteredDates.map(date => (
+                                        <th key={date} scope="col" className="px-2 py-4 border border-gray-400 bg-blue-600 min-w-[90px] whitespace-nowrap">
+                                            {date.split('-').reverse().join('-')}
+                                        </th>
+                                    ))}
+
+                                    <th scope="col" className="px-4 py-4 bg-emerald-700 font-extrabold text-white border border-gray-400 sticky right-0 z-30">
+                                        Total
                                     </th>
-                                ))}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {filteredReport.length > 0 ? (
+                                    filteredReport.map((row: any, index: number) => (
+                                        <tr key={index} className={`hover:bg-yellow-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                                            <td className="px-4 py-3 font-mono border border-gray-300 sticky left-0 bg-inherit">{index + 1}</td>
+                                            <td className="px-4 py-3 font-semibold text-gray-700 border border-gray-300 sticky left-[60px] bg-inherit">{row.zone}</td>
+                                            <td className="px-4 py-3 font-bold text-blue-800 border border-gray-300 sticky left-[160px] bg-inherit">{row.ward}</td>
+                                            <td className="px-4 py-3 font-semibold text-gray-900 border border-gray-300 sticky left-[240px] bg-inherit whitespace-nowrap flex items-center justify-center gap-2">
+                                                {row.supervisorName}
+                                                <span className={`text-[9px] px-1.5 py-0.5 rounded border ${row.department === 'UCC' ? 'bg-purple-50 text-purple-600 border-purple-200' :
+                                                    row.department === 'KYC Team' ? 'bg-indigo-50 text-indigo-600 border-indigo-200' :
+                                                        'bg-orange-50 text-orange-600 border-orange-200'
+                                                    }`}>
+                                                    {row.department}
+                                                </span>
+                                            </td>
 
-                                <th scope="col" className="px-4 py-4 bg-emerald-700 font-extrabold text-white border border-gray-400 sticky right-0 z-30">
-                                    Total
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                            {filteredReport.length > 0 ? (
-                                filteredReport.map((row: any, index: number) => (
-                                    <tr key={index} className={`hover:bg-yellow-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                                        <td className="px-4 py-3 font-mono border border-gray-300 sticky left-0 bg-inherit">{row.sNo}</td>
-                                        <td className="px-4 py-3 font-semibold text-gray-700 border border-gray-300 sticky left-[60px] bg-inherit">{row.zone}</td>
-                                        <td className="px-4 py-3 font-bold text-blue-800 border border-gray-300 sticky left-[160px] bg-inherit">{row.ward}</td>
-                                        <td className="px-4 py-3 font-semibold text-left text-gray-900 border border-gray-300 sticky left-[240px] bg-inherit whitespace-nowrap flex items-center gap-2">
-                                            {row.supervisorName}
-                                            <span className={`text-[9px] px-1.5 py-0.5 rounded border ${row.department === 'UCC' ? 'bg-purple-50 text-purple-600 border-purple-200' :
-                                                row.department === 'KYC Team' ? 'bg-indigo-50 text-indigo-600 border-indigo-200' :
-                                                    'bg-orange-50 text-orange-600 border-orange-200'
-                                                }`}>
-                                                {row.department}
-                                            </span>
-                                        </td>
+                                            {filteredDates.map(date => {
+                                                const count = row[date] || 0;
+                                                // Conditional color based on count
+                                                let cellClass = "bg-red-50 text-red-600 font-medium"; // Default zero (Red)
 
-                                        {filteredDates.map(date => {
-                                            const count = row[date] || 0;
-                                            // Conditional color based on count
-                                            let cellClass = "bg-red-50 text-red-600 font-medium"; // Default zero (Red)
+                                                if (count >= 20) cellClass = "text-emerald-700 font-black bg-emerald-100 ring-1 ring-inset ring-emerald-200"; // Green
+                                                else if (count >= 1) cellClass = "text-yellow-700 font-bold bg-yellow-50"; // Yellow
 
-                                            if (count >= 20) cellClass = "text-emerald-700 font-black bg-emerald-100 ring-1 ring-inset ring-emerald-200"; // Green
-                                            else if (count >= 1) cellClass = "text-yellow-700 font-bold bg-yellow-50"; // Yellow
+                                                return (
+                                                    <td key={date} className="px-2 py-3 border border-gray-300">
+                                                        <div className={`py-1 px-1 text-center rounded ${cellClass}`}>
+                                                            {count}
+                                                        </div>
+                                                    </td>
+                                                );
+                                            })}
 
-                                            return (
-                                                <td key={date} className="px-2 py-3 border border-gray-300">
-                                                    <div className={`py-1 px-1 text-center rounded ${cellClass}`}>
-                                                        {count}
-                                                    </div>
-                                                </td>
-                                            );
-                                        })}
-
-                                        <td className="px-4 py-3 font-black text-gray-900 bg-gray-100 border border-gray-300 sticky right-0 shadow-[-2px_0_5px_rgba(0,0,0,0.1)]">
-                                            {row.total}
+                                            <td className="px-4 py-3 font-black text-gray-900 bg-gray-100 border border-gray-300 sticky right-0 shadow-[-2px_0_5px_rgba(0,0,0,0.1)]">
+                                                {row.total}
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={4 + filteredDates.length + 1} className="px-6 py-12 text-center text-gray-400 bg-gray-50 border border-gray-200">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <p className="font-medium text-lg text-gray-500 mb-1">{fileName ? "No records found matching your search." : "Ready to Generate Report"}</p>
+                                                <p className="text-sm">Upload a CSV file above to populate the matrix.</p>
+                                            </div>
                                         </td>
                                     </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={4 + filteredDates.length + 1} className="px-6 py-12 text-center text-gray-400 bg-gray-50 border border-gray-200">
-                                        <div className="flex flex-col items-center justify-center">
-                                            <p className="font-medium text-lg text-gray-500 mb-1">{fileName ? "No records found matching your search." : "Ready to Generate Report"}</p>
-                                            <p className="text-sm">Upload a CSV file above to populate the matrix.</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
             </div>

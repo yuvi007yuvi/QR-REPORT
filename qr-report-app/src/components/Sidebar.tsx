@@ -132,8 +132,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </div>
 
                         <div className="flex flex-col">
-                            <span className="text-sm font-black tracking-tighter text-gray-900 leading-none">REPORTS</span>
-                            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">BUDDY PRO</span>
+                            <span className="text-sm font-extrabold tracking-tight text-gray-900 leading-none">REPORTS</span>
+                            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">BUDDY PRO</span>
                         </div>
                     </div>
 
@@ -155,7 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             <div key={idx} className="space-y-1">
                                 <button
                                     onClick={() => toggleSection(group.section)}
-                                    className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] hover:text-gray-600 transition-colors"
+                                    className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-gray-700 transition-colors"
                                 >
                                     <span>{group.title}</span>
                                     {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -180,7 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                                     }}
                                                     disabled={isDisabled}
                                                     className={clsx(
-                                                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 group relative",
+                                                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 group relative",
                                                         isActive
                                                             ? "bg-blue-600 text-white shadow-lg shadow-blue-500/40 translate-x-1"
                                                             : isDisabled

@@ -32,7 +32,9 @@ export type ViewMode =
     | 'coverage-mapping'
     | 'kyc-survey'
     | 'kyc-calendar'
-    | 'whatsapp-report';
+    | 'kyc-calendar'
+    | 'whatsapp-report'
+    | 'ward-household-status';
 
 interface SidebarProps {
     currentSection: AppSection;
@@ -105,6 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 { label: 'KYC Survey Checker', view: 'kyc-survey' as ViewMode, icon: LayoutDashboard },
                 { label: 'KYC Daily Calendar', view: 'kyc-calendar' as ViewMode, icon: BarChart3 },
                 { label: 'Daily Target Report', view: 'whatsapp-report' as ViewMode, icon: FileText },
+                { label: 'Ward Household Status', view: 'ward-household-status' as ViewMode, icon: MapIcon },
             ]
         }
     ];

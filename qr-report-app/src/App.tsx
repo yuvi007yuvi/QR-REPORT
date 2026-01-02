@@ -11,6 +11,7 @@ import { CoverageReport } from './components/CoverageReport';
 import { KYCSurveyChecker } from './components/KYCSurveyChecker';
 import { KYCCalendarView } from './components/KYCCalendarView';
 import { WhatsAppReport } from './components/WhatsAppReport';
+import { WardWiseReport } from './components/WardWiseReport';
 import { Sidebar, type AppSection, type ViewMode } from './components/Sidebar';
 import { parseFile, processData, type ReportRecord, type SummaryStats } from './utils/dataProcessor';
 import { Loader2, RefreshCw, Calendar, Menu } from 'lucide-react';
@@ -120,7 +121,8 @@ function App() {
                       viewMode === 'coverage-ward' ? 'Ward POI Analysis' :
                         viewMode === 'coverage-all-wards' ? 'All Wards POI Summary' :
                           viewMode === 'coverage-mapping' ? 'POI Mapping' :
-                            viewMode === 'kyc-calendar' ? 'Daily KYC Calendar' : 'Reports Buddy';
+                            viewMode === 'kyc-calendar' ? 'Daily KYC Calendar' :
+                              viewMode === 'ward-household-status' ? 'Ward Household Status' : 'Reports Buddy';
 
   return (
     <div className="flex h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
@@ -198,7 +200,8 @@ function App() {
               } />
             ) : appSection === 'kyc' ? (
               viewMode === 'kyc-calendar' ? <KYCCalendarView /> :
-                viewMode === 'whatsapp-report' ? <WhatsAppReport /> : <KYCSurveyChecker />
+                viewMode === 'whatsapp-report' ? <WhatsAppReport /> :
+                  viewMode === 'ward-household-status' ? <WardWiseReport /> : <KYCSurveyChecker />
             ) : (
               <>
                 {/* Daily Report Logic */}

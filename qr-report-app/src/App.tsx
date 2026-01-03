@@ -18,6 +18,8 @@ import { Loader2, RefreshCw, Calendar, Menu } from 'lucide-react';
 import { clsx } from 'clsx';
 import masterDataJson from './data/masterData.json';
 import supervisorDataJson from './data/supervisorData.json';
+import NagarNigamLogo from './assets/nagar-nigam-logo.png';
+import NatureGreenLogo from './assets/NatureGreen_Logo.png';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -142,8 +144,10 @@ function App() {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-full max-w-md text-center">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Menu className="w-8 h-8 text-blue-600" />
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <img src={NagarNigamLogo} alt="Nagar Nigam" className="h-16 w-auto object-contain" />
+            <div className="h-10 w-px bg-gray-200"></div>
+            <img src={NatureGreenLogo} alt="Nature Green" className="h-16 w-auto object-contain" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h2>
           <p className="text-gray-500 mb-8">Please enter the password to access the reports.</p>

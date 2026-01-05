@@ -10,6 +10,7 @@ import { ZonalUndergroundReport } from './components/ZonalUndergroundReport';
 import { CoverageReport } from './components/CoverageReport';
 import { KYCSurveyChecker } from './components/KYCSurveyChecker';
 import { KYCCalendarView } from './components/KYCCalendarView';
+import { QRStatusCalendar } from './components/QRStatusCalendar';
 import { WhatsAppReport } from './components/WhatsAppReport';
 import { WardWiseReport } from './components/WardWiseReport';
 import { Sidebar, type AppSection, type ViewMode } from './components/Sidebar';
@@ -138,7 +139,8 @@ function App() {
                         viewMode === 'coverage-all-wards' ? 'All Wards POI Summary' :
                           viewMode === 'coverage-mapping' ? 'POI Mapping' :
                             viewMode === 'kyc-calendar' ? 'Daily KYC Calendar' :
-                              viewMode === 'ward-household-status' ? 'Ward Household Status' : 'Reports Buddy';
+                              viewMode === 'qr-calendar' ? 'QR Status Calendar' :
+                                viewMode === 'ward-household-status' ? 'Ward Household Status' : 'Reports Buddy';
 
   if (!isAuthenticated) {
     return (
@@ -265,7 +267,7 @@ function App() {
             ) : (
               <>
                 {/* Daily Report Logic */}
-                {!stats && viewMode !== 'mapping' ? (
+                {!stats && viewMode !== 'mapping' && viewMode !== 'qr-calendar' ? (
                   /* Upload Screen */
                   <div className="max-w-2xl mx-auto mt-10">
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
@@ -336,6 +338,8 @@ function App() {
                     {viewMode === 'underground' && <UndergroundReport data={reportData} />}
 
                     {viewMode === 'zonalUnderground' && <ZonalUndergroundReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />}
+
+                    {viewMode === 'qr-calendar' && <QRStatusCalendar />}
                   </>
                 )}
               </>

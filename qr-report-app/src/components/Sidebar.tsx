@@ -9,7 +9,8 @@ import {
     MapPin,
     ChevronDown,
     ChevronUp,
-    X
+    X,
+    Calendar
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
@@ -32,8 +33,8 @@ export type ViewMode =
     | 'coverage-mapping'
     | 'kyc-survey'
     | 'kyc-calendar'
-    | 'kyc-calendar'
     | 'whatsapp-report'
+    | 'qr-calendar'
     | 'ward-household-status';
 
 interface SidebarProps {
@@ -87,6 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 { label: 'Underground Bins', view: 'underground' as ViewMode, icon: Trash2 },
                 { label: 'Zonal Dustbins', view: 'zonalUnderground' as ViewMode, icon: BarChart3 },
                 { label: 'Daily Mapping', view: 'mapping' as ViewMode, icon: MapPin },
+                { label: 'QR Calendar Report', view: 'qr-calendar' as ViewMode, icon: Calendar },
             ]
         },
         {

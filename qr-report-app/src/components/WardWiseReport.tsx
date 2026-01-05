@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Upload, Search, FileDown, FileImage } from 'lucide-react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { toJpeg } from 'html-to-image';
 import Papa from 'papaparse';
 import { WARD_TARGETS } from '../data/wardTargets';
@@ -168,7 +168,7 @@ export const WardWiseReport: React.FC = () => {
             console.error("Image Load Error", e);
         }
 
-        const headers = [['S.No', 'Ward No', 'Ward Name', 'Supervisor', 'Zone', 'Target', 'Done', 'Gap', 'Coverage (%)']];
+        const headers = [['S.No', 'Ward No', 'Ward Name', 'Supervisor', 'Zone', 'Target', 'Done', 'Gap', 'Coverage (%)', 'Status']];
         const data = filteredStats.map((row, index) => [
             index + 1,
             row.wardNo,
@@ -178,7 +178,8 @@ export const WardWiseReport: React.FC = () => {
             row.target,
             row.currentKyc,
             row.gap,
-            row.coverage.toFixed(2)
+            row.coverage.toFixed(2),
+            row.coverage >= 100 ? 'DONE' : 'Pending'
         ]);
 
         // Add Grand Total Row
@@ -187,10 +188,12 @@ export const WardWiseReport: React.FC = () => {
             totalTarget,
             totalKyc,
             totalTarget - totalKyc,
-            totalCoverage.toFixed(2)
+            totalTarget - totalKyc,
+            totalCoverage.toFixed(2),
+            ''
         ]);
 
-        (doc as any).autoTable({
+        autoTable(doc, {
             head: headers,
             body: data,
             startY: 45,
@@ -206,7 +209,8 @@ export const WardWiseReport: React.FC = () => {
                 5: { halign: 'center' },
                 6: { halign: 'center', fontStyle: 'bold', textColor: [0, 100, 0] },
                 7: { halign: 'center' },
-                8: { halign: 'center' }
+                8: { halign: 'center' },
+                9: { halign: 'center', fontStyle: 'bold', textColor: [0, 100, 0] }
             },
             didParseCell: (data: any) => {
                 if (data.section === 'body' && data.row.index === filteredStats.length) {

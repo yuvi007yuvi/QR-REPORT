@@ -51,10 +51,10 @@ export const MASTER_SUPERVISORS: SupervisorInfo[] = [
     { sNo: "38", empId: "MVSID1713", department: "UCC", name: "Vikash Singh", mobile: "8630537979", ward: "25", zonal: "SURESH / ALOK" },
     { sNo: "39", empId: "MVSID1951", department: "UCC", name: "Sushil Kumar", mobile: "8534878947", ward: "45", zonal: "SURESH / ALOK" },
     { sNo: "40", empId: "MVSID1697", department: "UCC", name: "Ravikumar", mobile: "8775095818", ward: "61", zonal: "SURESH / ALOK" },
-    { sNo: "41", empId: "MVSID2051", department: "KYC Team", name: "Devesh", mobile: "8859614126", ward: "N/A", zonal: "SURESH / ALOK" },
+    { sNo: "41", empId: "MVSID2051", department: "UCC", name: "Devesh", mobile: "8859614126", ward: "N/A", zonal: "SURESH / ALOK" },
     { sNo: "42", empId: "MVSID1694", department: "UCC", name: "Babita Bhardwaj", mobile: "8439676031", ward: "19", zonal: "SURESH / ALOK" },
     { sNo: "43", empId: "MVSID1868", department: "UCC", name: "Varsha Chauhan", mobile: "7668719749", ward: "54", zonal: "SURESH / ALOK" },
-    { sNo: "44", empId: "MVSID924", department: "KYC Team", name: "Hariom", mobile: "8077632507", ward: "NA", zonal: "SURESH / ALOK" },
+    { sNo: "44", empId: "MVSID924", department: "UCC", name: "Hariom", mobile: "8077632507", ward: "NA", zonal: "SURESH / ALOK" },
     // UCC DEPARTMENT - PANKAJ Zone
     { sNo: "45", empId: "MVSID928", department: "UCC", name: "Adarsh Singh", mobile: "8299205980", ward: "13", zonal: "PANKAJ" },
     { sNo: "46", empId: "MVSID944", department: "UCC", name: "Gajendra Chaudhary", mobile: "9759528676", ward: "34", zonal: "PANKAJ" },

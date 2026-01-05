@@ -114,6 +114,7 @@ export const WhatsAppReport: React.FC = () => {
     const filterTitle = useMemo(() => {
         const parts = [];
         if (selectedZone) parts.push(`Zone: ${selectedZone}`);
+        if (selectedDepartment) parts.push(`Dept: ${selectedDepartment}`);
 
         if (startDate || endDate) {
             const start = startDate ? startDate.split('-').reverse().join('-') : 'Beginning';
@@ -125,7 +126,7 @@ export const WhatsAppReport: React.FC = () => {
         }
 
         return parts.length > 0 ? parts.join(' | ') : `Date: ${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}`;
-    }, [selectedZone, startDate, endDate]);
+    }, [selectedZone, selectedDepartment, startDate, endDate]);
 
     const departmentSummary = useMemo(() => {
         const summary: Record<string, number> = {};
@@ -483,7 +484,10 @@ export const WhatsAppReport: React.FC = () => {
                                 <div>
                                     <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight leading-none">Mathura Vrindavan Nagar Nigam</h3>
                                     <p className="text-sm text-emerald-600 font-extrabold tracking-widest uppercase mt-1.5">
-                                        KYC Date Wise Performance {selectedZone ? ` - ${selectedZone} ZONE` : ''}
+                                        KYC Date Wise Performance
+                                    </p>
+                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wide mt-1">
+                                        {filterTitle}
                                     </p>
                                 </div>
 

@@ -1,23 +1,21 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
     LayoutDashboard,
-    FileText,
-    Map as MapIcon,
-    BarChart3,
-    Trash2,
-    ArrowLeftRight,
-    MapPin,
-    ChevronDown,
-    ChevronUp,
+    FileSpreadsheet,
+    Map,
+    MessageCircle,
+    Image as ImageIcon,
+    Calendar,
     X,
-    Calendar
+    ClipboardCheck,
+    Trash2,
+    Users,
+    MapPin
 } from 'lucide-react';
-import { clsx } from 'clsx';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
-import natureGreenLogo from '../assets/NatureGreen_Logo.png';
-
 
 export type AppSection = 'daily' | 'coverage' | 'kyc';
+
 export type ViewMode =
     | 'dashboard'
     | 'detailed'
@@ -31,16 +29,15 @@ export type ViewMode =
     | 'coverage-ward'
     | 'coverage-all-wards'
     | 'coverage-mapping'
-    | 'kyc-survey'
     | 'kyc-calendar'
     | 'whatsapp-report'
-    | 'qr-calendar'
-    | 'ward-household-status';
+    | 'ward-household-status'
+    | 'kyc-checker'; // Added for KYCSurveyChecker fallback
 
 interface SidebarProps {
     currentSection: AppSection;
     currentView: ViewMode;
-    onNavigate: (section: AppSection, view: ViewMode) => void;
+    onNavigate: (section: AppSection, view?: ViewMode) => void;
     statsAvailable: boolean;
     isOpen: boolean;
     onClose: () => void;
@@ -54,196 +51,138 @@ export const Sidebar: React.FC<SidebarProps> = ({
     isOpen,
     onClose
 }) => {
-    const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-        daily: true,
-        coverage: true,
-        kyc: true
-    });
 
-    // Automatically expand the section that contains the current view
-    if (!expandedSections[currentSection]) {
-        setExpandedSections(prev => ({
-            ...prev,
-            [currentSection]: true
-        }));
-    }
-
-
-    const toggleSection = (section: string) => {
-        setExpandedSections(prev => ({
-            ...prev,
-            [section]: !prev[section]
-        }));
+    // Helper to check if an item is active
+    const isActive = (section: AppSection, view?: ViewMode) => {
+        if (section !== currentSection) return false;
+        if (!view) return true; // Section match is enough if no view specified? 
+        return view === currentView;
     };
 
-    const navItems = [
-        {
-            title: 'Daily Performance',
-            section: 'daily' as AppSection,
-            items: [
-                { label: 'Quick Dashboard', view: 'dashboard' as ViewMode, icon: LayoutDashboard },
-                { label: 'Detailed Table', view: 'detailed' as ViewMode, icon: FileText },
-                { label: 'Zonal Summary', view: 'zonal' as ViewMode, icon: MapIcon },
-                { label: 'Photo Evidence', view: 'beforeAfter' as ViewMode, icon: ArrowLeftRight },
-                { label: 'Underground Bins', view: 'underground' as ViewMode, icon: Trash2 },
-                { label: 'Zonal Dustbins', view: 'zonalUnderground' as ViewMode, icon: BarChart3 },
-                { label: 'Daily Mapping', view: 'mapping' as ViewMode, icon: MapPin },
-                { label: 'QR Calendar Report', view: 'qr-calendar' as ViewMode, icon: Calendar },
-            ]
-        },
-        {
-            title: 'Coverage Analysis (POI)',
-            section: 'coverage' as AppSection,
-            items: [
-                { label: 'Coverage Dashboard', view: 'coverage-dashboard' as ViewMode, icon: LayoutDashboard },
-                { label: 'Supervisor Coverage', view: 'coverage-supervisor' as ViewMode, icon: FileText },
-                { label: 'Ward Detail Coverage', view: 'coverage-ward' as ViewMode, icon: MapIcon },
-                { label: 'All Wards Coverage', view: 'coverage-all-wards' as ViewMode, icon: BarChart3 },
-                { label: 'Coverage Mapping', view: 'coverage-mapping' as ViewMode, icon: MapPin },
-            ]
-        },
-        {
-            title: 'KYC Survey Management',
-            section: 'kyc' as AppSection,
-            items: [
-                { label: 'KYC Survey Checker', view: 'kyc-survey' as ViewMode, icon: LayoutDashboard },
-                { label: 'KYC Daily Calendar', view: 'kyc-calendar' as ViewMode, icon: BarChart3 },
-                { label: 'Daily Target Report', view: 'whatsapp-report' as ViewMode, icon: FileText },
-                { label: 'Ward Household Status', view: 'ward-household-status' as ViewMode, icon: MapIcon },
-            ]
-        }
-    ];
+    const renderMenuItem = (
+        label: string,
+        icon: React.ElementType,
+        section: AppSection,
+        view?: ViewMode,
+        disabled: boolean = false
+    ) => (
+        <button
+            onClick={() => {
+                if (!disabled) {
+                    onNavigate(section, view);
+                    if (window.innerWidth < 1024) onClose();
+                }
+            }}
+            disabled={disabled}
+            className={`
+                w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
+                ${isActive(section, view)
+                    ? 'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100'
+                    : disabled
+                        ? 'text-gray-300 cursor-not-allowed'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
+            `}
+        >
+            {React.createElement(icon, { size: 18, className: isActive(section, view) ? 'text-blue-600' : 'text-gray-400' })}
+            <span className="whitespace-nowrap">{label}</span>
+            {isActive(section, view) && (
+                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600" />
+            )}
+        </button>
+    );
 
     return (
         <>
-            {/* Overlay for mobile */}
+            {/* Mobile Overlay */}
             {isOpen && (
                 <div
-                    className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                    className="fixed inset-0 bg-black/50 z-20 lg:hidden backdrop-blur-sm transition-opacity"
                     onClick={onClose}
                 />
             )}
 
-            <aside className={clsx(
-                "fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 text-gray-900 flex flex-col z-50 transition-transform duration-300 shadow-lg",
-                isOpen ? "translate-x-0" : "-translate-x-full"
-            )}>
-
-                {/* Logo Area */}
-                <div className="h-20 flex items-center justify-between px-6 border-b border-gray-100 bg-gray-50/50 backdrop-blur-md">
+            {/* Sidebar Container */}
+            <div className={`
+                fixed lg:static inset-y-0 left-0 z-30
+                w-72 bg-white border-r border-gray-200 flex flex-col font-sans transition-transform duration-300 ease-in-out shadow-xl lg:shadow-none
+                ${isOpen ? 'translate-x-0' : '-translate-x-full lg:hidden'}
+            `}>
+                {/* Header */}
+                <div className="h-16 flex items-center justify-between px-6 border-b border-gray-100 shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
-                            <img src={nagarNigamLogo} alt="Logo" className="w-8 h-8 object-contain" />
-                        </div>
-
-                        <div className="flex flex-col">
-                            <span className="text-sm font-extrabold tracking-tight text-gray-900 leading-none">REPORTS</span>
-                            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">BUDDY PRO</span>
+                        <img
+                            src={nagarNigamLogo}
+                            alt="Logo"
+                            className="w-8 h-8 object-contain"
+                        />
+                        <div>
+                            <h1 className="font-bold text-gray-800 text-sm leading-tight uppercase tracking-tight">
+                                Reports Admin
+                            </h1>
+                            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Panel</p>
                         </div>
                     </div>
-
-                    {/* Close button for mobile */}
                     <button
                         onClick={onClose}
-                        className="lg:hidden p-2 hover:bg-gray-200 rounded-lg transition-colors"
-                        aria-label="Close sidebar"
+                        className="lg:hidden p-1 text-gray-400 hover:text-gray-600"
                     >
-                        <X className="w-5 h-5 text-gray-600" />
+                        <X size={20} />
                     </button>
                 </div>
 
-                {/* Navigation */}
-                <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-4 scrollbar-hide">
-                    {navItems.map((group, idx) => {
-                        const isExpanded = expandedSections[group.section];
-                        return (
-                            <div key={idx} className="space-y-1">
-                                <button
-                                    onClick={() => toggleSection(group.section)}
-                                    className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold text-gray-500 uppercase tracking-wider hover:text-gray-700 transition-colors"
-                                >
-                                    <span>{group.title}</span>
-                                    {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                                </button>
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto px-4 py-6 space-y-8">
 
-                                {isExpanded && (
-                                    <div className="space-y-1 animate-in slide-in-from-top-1 duration-200">
-                                        {group.items.map((item, itemIdx) => {
-                                            const isActive =
-                                                currentSection === group.section &&
-                                                (group.section === 'daily' ? currentView === item.view : currentView === item.view);
-
-                                            const isDisabled = group.section === 'daily' && !statsAvailable && item.view !== 'dashboard' && item.view !== 'mapping';
-
-                                            return (
-                                                <button
-                                                    key={itemIdx}
-                                                    onClick={() => {
-                                                        if (!isDisabled) {
-                                                            onNavigate(group.section, item.view);
-                                                        }
-                                                    }}
-                                                    disabled={isDisabled}
-                                                    className={clsx(
-                                                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 group relative",
-                                                        isActive
-                                                            ? "bg-blue-600 text-white shadow-lg shadow-blue-500/40 translate-x-1"
-                                                            : isDisabled
-                                                                ? "text-gray-300 cursor-not-allowed opacity-50"
-                                                                : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
-                                                    )}
-                                                >
-                                                    <div className={clsx(
-                                                        "p-1.5 rounded-lg transition-colors",
-                                                        isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500 group-hover:bg-blue-50 group-hover:text-blue-600"
-                                                    )}>
-                                                        <item.icon className="w-4 h-4" />
-                                                    </div>
-                                                    <span className="flex-1 text-left tracking-tight">{item.label}</span>
-                                                    {isActive && (
-                                                        <div className="w-1 h-4 bg-white rounded-full shadow-sm" />
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </nav>
-
-                {/* Branding Logos Footer Area */}
-                <div className="p-4 space-y-4 bg-gray-50/80 border-t border-gray-100">
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div className="bg-white p-2 rounded-xl border border-gray-200 flex items-center justify-center shadow-sm">
-                            <img src={nagarNigamLogo} alt="Nagar Nigam" className="h-10 w-auto object-contain drop-shadow-sm" />
+                    {/* Section: Daily Reports */}
+                    <div className="space-y-2">
+                        <div className="px-2 text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                            <Calendar size={12} />
+                            Daily Operations
                         </div>
-                        <div className="bg-white p-2 rounded-xl border border-gray-200 flex items-center justify-center shadow-sm">
-                            <img src={natureGreenLogo} alt="Nature Green" className="h-10 w-auto object-contain drop-shadow-sm" />
-                        </div>
+                        {renderMenuItem('Dashboard', LayoutDashboard, 'daily', 'dashboard', !statsAvailable)}
+                        {renderMenuItem('Detailed Report', FileSpreadsheet, 'daily', 'detailed', !statsAvailable)}
+                        {renderMenuItem('Zonal Summary', Map, 'daily', 'zonal', !statsAvailable)}
+                        {renderMenuItem('Photo Evidence (Before/After)', ImageIcon, 'daily', 'beforeAfter', !statsAvailable)}
+                        {renderMenuItem('Supervisor Mapping', Users, 'daily', 'mapping')}
+                        {renderMenuItem('Underground Dustbins', Trash2, 'daily', 'underground', !statsAvailable)}
+                        {renderMenuItem('Zonal Dustbins', Trash2, 'daily', 'zonalUnderground', !statsAvailable)}
                     </div>
 
-
-                    <div className="flex items-center gap-3 px-3 py-3 rounded-2xl bg-white border border-gray-200 shadow-sm">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-sm font-black text-white shadow-md shadow-blue-500/20">
-                            AD
+                    {/* Section: Coverage Analysis */}
+                    <div className="space-y-2">
+                        <div className="px-2 text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                            <MapPin size={12} />
+                            POI Coverage Analysis
                         </div>
-                        <div className="flex-1 overflow-hidden">
-                            <p className="text-xs font-black truncate text-gray-900 uppercase tracking-wider">Admin Portal</p>
-                            <div className="flex items-center gap-1.5">
-                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                                <p className="text-[10px] text-gray-500 font-bold truncate">System Active</p>
-                            </div>
-                        </div>
+                        {renderMenuItem('Coverage Dashboard', LayoutDashboard, 'coverage', 'coverage-dashboard')}
+                        {renderMenuItem('Supervisor Analysis', Users, 'coverage', 'coverage-supervisor')}
+                        {renderMenuItem('Ward Analysis', Map, 'coverage', 'coverage-ward')}
+                        {renderMenuItem('All Wards Summary', FileSpreadsheet, 'coverage', 'coverage-all-wards')}
+                        {renderMenuItem('POI Mapping', MapPin, 'coverage', 'coverage-mapping')}
                     </div>
 
-                    <p className="text-[8px] text-center text-gray-400 font-bold uppercase tracking-[0.2em] mt-2">
-                        Official Analytics System
-                    </p>
+                    {/* Section: KYC & Other */}
+                    <div className="space-y-2">
+                        <div className="px-2 text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                            <ClipboardCheck size={12} />
+                            KYC & Dept. Reports
+                        </div>
+                        {renderMenuItem('KYC Calendar', Calendar, 'kyc', 'kyc-calendar')}
+                        {renderMenuItem('KYC Checker', ClipboardCheck, 'kyc', 'kyc-checker')}
+                        {renderMenuItem('Ward Household Status', Users, 'kyc', 'ward-household-status')}
+                        {renderMenuItem('WhatsApp Reports', MessageCircle, 'kyc', 'whatsapp-report')}
+                    </div>
+
                 </div>
-            </aside>
+
+                {/* Footer */}
+                <div className="p-4 border-t border-gray-100 bg-gray-50 text-[10px] text-center text-gray-400">
+                    <p>Designed for Nature Green</p>
+                    <p className="font-mono mt-1">v2.4.0</p>
+                </div>
+            </div>
         </>
     );
 };
 
+export default Sidebar;

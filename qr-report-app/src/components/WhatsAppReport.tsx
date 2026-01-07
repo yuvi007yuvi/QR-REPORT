@@ -11,6 +11,7 @@ import NatureGreenLogo from '../assets/NatureGreen_Logo.png';
 export const WhatsAppReport: React.FC = () => {
     const [kycData, setKycData] = useState<any[]>([]);
     const [fileName, setFileName] = useState<string>('');
+    const [remarks, setRemarks] = useState<Record<string, string>>({});
 
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedZone, setSelectedZone] = useState<string>('');
@@ -73,6 +74,7 @@ export const WhatsAppReport: React.FC = () => {
                 zone: sup.zonal,
                 ward: sup.ward,
                 supervisorName: sup.name,
+                empId: sup.empId,
                 department: sup.department,
                 total: 0
             };
@@ -233,18 +235,25 @@ export const WhatsAppReport: React.FC = () => {
         }
 
         const tableHead = [
-            ['S.No', 'Zone', 'Ward', 'Supervisor', 'Department', ...filteredDates.map(d => d.split('-').reverse().join('-')), 'Total']
+            ['S.No', 'Zone', 'Ward', 'Supervisor', 'Department', ...filteredDates.map(d => d.split('-').reverse().join('-')), 'Total', 'Remark']
         ];
 
-        const tableBody = filteredReport.map((row: any, index: number) => [
-            (index + 1).toString(),
-            row.zone,
-            row.ward,
-            row.supervisorName,
-            row.department,
-            ...filteredDates.map(date => row[date] !== undefined ? row[date] : 0),
-            row.total
-        ]);
+        const DAILY_TARGET = 20;
+        const totalTarget = DAILY_TARGET * Math.max(1, filteredDates.length);
+
+        const tableBody = filteredReport.map((row: any, index: number) => {
+            const defaultRemark = row.total >= totalTarget ? 'Done' : 'Pending';
+            return [
+                (index + 1).toString(),
+                row.zone,
+                row.ward,
+                row.supervisorName,
+                row.department,
+                ...filteredDates.map(date => row[date] !== undefined ? row[date] : 0),
+                row.total,
+                remarks[row.empId] || defaultRemark
+            ];
+        });
 
         // Dynamic column styles for dates to ensure they don't wrap and are uniform
         const dateColumnStyles: any = {};
@@ -262,7 +271,8 @@ export const WhatsAppReport: React.FC = () => {
                 'GRAND TOTAL',
                 '',
                 ...filteredDates.map(date => columnTotals.totals[date] || 0),
-                columnTotals.allTotal
+                columnTotals.allTotal,
+                ''
             ]
         ];
 
@@ -289,7 +299,8 @@ export const WhatsAppReport: React.FC = () => {
                 2: { cellWidth: 10 }, // Ward
                 3: { minCellWidth: 35, halign: 'center', cellWidth: 'auto' }, // Supervisor
                 4: { cellWidth: 12 }, // Dept
-                ...dateColumnStyles
+                ...dateColumnStyles,
+                [5 + filteredDates.length + 1]: { cellWidth: 20 } // Remark column
             },
             didParseCell: (data) => {
                 const { section, column, cell } = data;
@@ -651,8 +662,11 @@ export const WhatsAppReport: React.FC = () => {
                                         </th>
                                     ))}
 
-                                    <th scope="col" className="px-4 py-4 bg-emerald-700 font-extrabold text-white border border-gray-400 sticky right-0 z-30">
+                                    <th scope="col" className="px-4 py-4 bg-emerald-700 font-extrabold text-white border border-gray-400 sticky right-[120px] z-30">
                                         Total
+                                    </th>
+                                    <th scope="col" className="px-4 py-4 bg-slate-700 font-extrabold text-white border border-gray-400 sticky right-0 z-30 min-w-[120px]">
+                                        Remark
                                     </th>
                                 </tr>
                             </thead>
@@ -690,8 +704,34 @@ export const WhatsAppReport: React.FC = () => {
                                                 );
                                             })}
 
-                                            <td className="px-4 py-3 font-black text-gray-900 bg-gray-100 border border-gray-300 sticky right-0 shadow-[-2px_0_5px_rgba(0,0,0,0.1)]">
+                                            <td className="px-4 py-3 font-black text-gray-900 bg-gray-100 border border-gray-300 sticky right-[120px] shadow-[-2px_0_5px_rgba(0,0,0,0.1)]">
                                                 {row.total}
+                                            </td>
+                                            <td className="px-2 py-3 border border-gray-300 sticky right-0 bg-white shadow-[-2px_0_5px_rgba(0,0,0,0.1)]">
+                                                {(() => {
+                                                    const DAILY_TARGET = 20;
+                                                    const totalTarget = DAILY_TARGET * Math.max(1, filteredDates.length);
+                                                    const defaultRemark = row.total >= totalTarget ? 'Done' : 'Pending';
+                                                    const currentRemark = remarks[row.empId] || defaultRemark;
+                                                    return (
+                                                        <select
+                                                            value={currentRemark}
+                                                            onChange={(e) => {
+                                                                setRemarks(prev => ({ ...prev, [row.empId]: e.target.value }));
+                                                            }}
+                                                            className={`w-full text-xs p-1 rounded border border-gray-300 focus:ring-1 focus:ring-blue-500 outline-none
+                                                                ${currentRemark === 'Done' ? 'bg-green-50 text-green-700 font-bold' :
+                                                                    currentRemark === 'Pending' ? 'bg-red-50 text-red-700 font-bold' :
+                                                                        currentRemark === 'Ward is Completed' ? 'bg-blue-50 text-blue-700 font-bold' : 'bg-white text-gray-800'
+                                                                }`}
+                                                        >
+                                                            <option value="">Select...</option>
+                                                            <option value="Done">Done</option>
+                                                            <option value="Pending">Pending</option>
+                                                            <option value="Ward is Completed">Ward is Completed</option>
+                                                        </select>
+                                                    );
+                                                })()}
                                             </td>
                                         </tr>
                                     ))
@@ -714,9 +754,10 @@ export const WhatsAppReport: React.FC = () => {
                                             {columnTotals.totals[date] || 0}
                                         </td>
                                     ))}
-                                    <td className="px-4 py-3 text-center bg-emerald-600 border border-gray-600">
+                                    <td className="px-4 py-3 text-center bg-emerald-600 border border-gray-600 sticky right-[120px]">
                                         {columnTotals.allTotal}
                                     </td>
+                                    <td className="px-4 py-3 border border-gray-600 sticky right-0 bg-gray-800"></td>
                                 </tr>
                             </tfoot>
                         </table>

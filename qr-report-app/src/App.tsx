@@ -10,10 +10,9 @@ import { ZonalUndergroundReport } from './components/ZonalUndergroundReport';
 import { CoverageReport } from './components/CoverageReport';
 import { KYCSurveyChecker } from './components/KYCSurveyChecker';
 import { KYCCalendarView } from './components/KYCCalendarView';
-import { QRStatusCalendar } from './components/QRStatusCalendar';
 import { WhatsAppReport } from './components/WhatsAppReport';
 import { WardWiseReport } from './components/WardWiseReport';
-import { Sidebar, type AppSection, type ViewMode } from './components/Sidebar';
+import Sidebar, { type AppSection, type ViewMode } from './components/Sidebar.tsx';
 import { parseFile, processData, type ReportRecord, type SummaryStats } from './utils/dataProcessor';
 import { Loader2, RefreshCw, Calendar, Menu } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -139,8 +138,7 @@ function App() {
                         viewMode === 'coverage-all-wards' ? 'All Wards POI Summary' :
                           viewMode === 'coverage-mapping' ? 'POI Mapping' :
                             viewMode === 'kyc-calendar' ? 'Daily KYC Calendar' :
-                              viewMode === 'qr-calendar' ? 'QR Status Calendar' :
-                                viewMode === 'ward-household-status' ? 'Ward Household Status' : 'Reports Buddy';
+                              viewMode === 'ward-household-status' ? 'Ward Household Status' : 'Reports Buddy';
 
   if (!isAuthenticated) {
     return (
@@ -192,7 +190,7 @@ function App() {
       <Sidebar
         currentSection={appSection}
         currentView={viewMode}
-        onNavigate={(sec, view) => {
+        onNavigate={(sec: AppSection, view?: ViewMode) => {
           setAppSection(sec);
           if (view) setViewMode(view);
         }}
@@ -201,10 +199,7 @@ function App() {
         onClose={() => setSidebarOpen(false)}
       />
 
-      <main className={clsx(
-        "flex-1 flex flex-col h-screen relative transition-all duration-300",
-        sidebarOpen ? "lg:ml-64" : "ml-0"
-      )}>
+      <main className="flex-1 flex flex-col h-screen relative scroll-smooth overflow-hidden">
         {/* Top Header */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0 z-10 shadow-sm">
           <div className="flex items-center gap-4">
@@ -267,7 +262,7 @@ function App() {
             ) : (
               <>
                 {/* Daily Report Logic */}
-                {!stats && viewMode !== 'mapping' && viewMode !== 'qr-calendar' ? (
+                {!stats && viewMode !== 'mapping' ? (
                   /* Upload Screen */
                   <div className="max-w-2xl mx-auto mt-10">
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
@@ -338,8 +333,6 @@ function App() {
                     {viewMode === 'underground' && <UndergroundReport data={reportData} />}
 
                     {viewMode === 'zonalUnderground' && <ZonalUndergroundReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />}
-
-                    {viewMode === 'qr-calendar' && <QRStatusCalendar />}
                   </>
                 )}
               </>

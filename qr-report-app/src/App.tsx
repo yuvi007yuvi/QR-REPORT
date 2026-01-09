@@ -12,6 +12,8 @@ import { KYCSurveyChecker } from './components/KYCSurveyChecker';
 import { KYCCalendarView } from './components/KYCCalendarView';
 import { WhatsAppReport } from './components/WhatsAppReport';
 import { WardWiseReport } from './components/WardWiseReport';
+import DateWiseCoverageReport from './components/DateWiseCoverageReport';
+import QRStatusReport from './components/QRStatusReport';
 import Sidebar, { type AppSection, type ViewMode } from './components/Sidebar.tsx';
 import { parseFile, processData, type ReportRecord, type SummaryStats } from './utils/dataProcessor';
 import { Loader2, RefreshCw, Calendar, Menu } from 'lucide-react';
@@ -137,8 +139,10 @@ function App() {
                       viewMode === 'coverage-ward' ? 'Ward POI Analysis' :
                         viewMode === 'coverage-all-wards' ? 'All Wards POI Summary' :
                           viewMode === 'coverage-mapping' ? 'POI Mapping' :
-                            viewMode === 'kyc-calendar' ? 'Daily KYC Calendar' :
-                              viewMode === 'ward-household-status' ? 'Ward Household Status' : 'Reports Buddy';
+                            viewMode === 'coverage-date-wise' ? 'Date-wise POI Coverage Calendar' :
+                              viewMode === 'kyc-calendar' ? 'Daily KYC Calendar' :
+                                viewMode === 'ward-household-status' ? 'Ward Household Status' :
+                                  viewMode === 'qr-status-view' ? 'Daily QR Status Report' : 'Reports Buddy';
 
   if (!isAuthenticated) {
     return (
@@ -189,12 +193,9 @@ function App() {
 
       <Sidebar
         currentSection={appSection}
+        onSectionChange={setAppSection}
         currentView={viewMode}
-        onNavigate={(sec: AppSection, view?: ViewMode) => {
-          setAppSection(sec);
-          if (view) setViewMode(view);
-        }}
-        statsAvailable={!!stats}
+        onViewChange={setViewMode}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -249,16 +250,19 @@ function App() {
           <div className="max-w-7xl mx-auto animate-in fade-in duration-500">
 
             {appSection === 'coverage' ? (
-              <CoverageReport initialMode={
-                viewMode === 'coverage-supervisor' ? 'supervisor' :
-                  viewMode === 'coverage-ward' ? 'ward' :
-                    viewMode === 'coverage-all-wards' ? 'all-wards' :
-                      viewMode === 'coverage-mapping' ? 'mapping' : 'dashboard'
-              } />
+              viewMode === 'coverage-date-wise' ? <DateWiseCoverageReport /> :
+                <CoverageReport initialMode={
+                  viewMode === 'coverage-supervisor' ? 'supervisor' :
+                    viewMode === 'coverage-ward' ? 'ward' :
+                      viewMode === 'coverage-all-wards' ? 'all-wards' :
+                        viewMode === 'coverage-mapping' ? 'mapping' : 'dashboard'
+                } />
             ) : appSection === 'kyc' ? (
               viewMode === 'kyc-calendar' ? <KYCCalendarView /> :
-                viewMode === 'whatsapp-report' ? <WhatsAppReport /> :
+                viewMode === 'kyc-whatsapp' ? <WhatsAppReport /> :
                   viewMode === 'ward-household-status' ? <WardWiseReport /> : <KYCSurveyChecker />
+            ) : appSection === 'qr-status' ? (
+              <QRStatusReport />
             ) : (
               <>
                 {/* Daily Report Logic */}

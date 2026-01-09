@@ -12,6 +12,7 @@ import { KYCSurveyChecker } from './components/KYCSurveyChecker';
 import { KYCCalendarView } from './components/KYCCalendarView';
 import { WhatsAppReport } from './components/WhatsAppReport';
 import { WardWiseReport } from './components/WardWiseReport';
+import WardWiseStatusReport from './components/WardWiseStatusReport';
 import DateWiseCoverageReport from './components/DateWiseCoverageReport';
 import QRStatusReport from './components/QRStatusReport';
 import Sidebar, { type AppSection, type ViewMode } from './components/Sidebar.tsx';
@@ -260,7 +261,8 @@ function App() {
             ) : appSection === 'kyc' ? (
               viewMode === 'kyc-calendar' ? <KYCCalendarView /> :
                 viewMode === 'kyc-whatsapp' ? <WhatsAppReport /> :
-                  viewMode === 'ward-household-status' ? <WardWiseReport /> : <KYCSurveyChecker />
+                  viewMode === 'ward-status-new' ? <WardWiseStatusReport /> :
+                    viewMode === 'ward-household-status' ? <WardWiseReport /> : <KYCSurveyChecker />
             ) : appSection === 'qr-status' ? (
               <QRStatusReport />
             ) : (

@@ -28,6 +28,7 @@ export type ViewMode =
     | 'kyc-calendar'
     | 'kyc-whatsapp'
     | 'ward-household-status' // Added back
+    | 'ward-status-new' // Added new view
     | 'qr-status-view';
 
 interface SidebarProps {
@@ -212,6 +213,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                                         className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${currentView === 'kyc-calendar' ? 'bg-white text-orange-600 shadow-sm border border-orange-100' : 'text-gray-500 hover:text-gray-900'}`}
                                     >
                                         KYC Calendar
+                                    </button>
+                                    <button
+                                        onClick={() => onViewChange('ward-status-new')}
+                                        className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${currentView === 'ward-status-new' ? 'bg-white text-orange-600 shadow-sm border border-orange-100' : 'text-gray-500 hover:text-gray-900'}`}
+                                    >
+                                        Ward Wise Status (New)
                                     </button>
                                     <button
                                         onClick={() => onViewChange('kyc-whatsapp')}

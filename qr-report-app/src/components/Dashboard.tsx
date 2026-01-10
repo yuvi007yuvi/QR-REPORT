@@ -632,15 +632,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm border-collapse">
-                                <thead className="bg-gray-100 text-gray-700 font-bold border-b border-gray-300">
+                                <thead className="bg-green-500 text-white font-bold border-b border-green-600">
                                     <tr>
-                                        <th className="p-3 border-r border-gray-300 text-center">Sr. No.</th>
-                                        <th className="p-3 border-r border-gray-300 text-left">Ward Name</th>
-                                        <th className="p-3 border-r border-gray-300 text-center">Supervisor</th>
-                                        <th className="p-3 border-r border-gray-300 text-center">Zonal Head</th>
-                                        <th className="p-3 border-r border-gray-300 text-center">Total</th>
-                                        <th className="p-3 border-r border-gray-300 text-center">Scanned</th>
-                                        <th className="p-3 border-r border-gray-300 text-center">Pending</th>
+                                        <th className="p-3 border-r border-green-400/50 text-center">Sr. No.</th>
+                                        <th className="p-3 border-r border-green-400/50 text-left">Ward Name</th>
+                                        <th className="p-3 border-r border-green-400/50 text-center">Supervisor</th>
+                                        <th className="p-3 border-r border-green-400/50 text-center">Zonal Head</th>
+                                        <th className="p-3 border-r border-green-400/50 text-center">Total</th>
+                                        <th className="p-3 border-r border-green-400/50 text-center">Scanned</th>
+                                        <th className="p-3 border-r border-green-400/50 text-center">Pending</th>
                                         <th className="p-3 text-center">Perf %</th>
                                     </tr>
                                 </thead>
@@ -648,9 +648,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                     {filteredWardStats.map((row, index) => {
                                         const isHigh = row.percentage >= 90;
                                         const isLow = row.percentage < 75;
+
+                                        // Conditional Logic for Cell Colors
+                                        const scannedColor = row.scanned > 0 ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800';
+                                        const pendingColor = row.pending === 0 ? 'bg-green-100 text-green-800' : 'bg-red-50 text-red-800';
+
+                                        let perfBg = 'bg-gray-50';
+                                        let perfText = 'text-gray-800';
+                                        if (row.percentage === 0) { perfBg = 'bg-red-100'; perfText = 'text-red-700'; }
+                                        else if (row.percentage < 50) { perfBg = 'bg-orange-100'; perfText = 'text-orange-700'; }
+                                        else if (row.percentage < 80) { perfBg = 'bg-yellow-100'; perfText = 'text-yellow-700'; }
+                                        else { perfBg = 'bg-green-100'; perfText = 'text-green-700'; }
+
                                         return (
-                                            <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
-                                                <td className="p-3 border-r border-gray-200 text-center text-gray-700 font-medium">{index + 1}</td>
+                                            <tr key={index} className="hover:bg-green-50 transition-colors">
+                                                <td className="p-3 border-r border-gray-200 text-center text-gray-700 font-medium bg-gray-50/50">{index + 1}</td>
                                                 <td className="p-3 border-r border-gray-200 font-bold text-gray-900">{row.ward}</td>
                                                 <td className="p-3 border-r border-gray-200 font-medium text-gray-700 text-center">{row.supervisor}</td>
                                                 <td className="p-3 border-r border-gray-200 text-center">
@@ -658,17 +670,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                                         {row.zonalHead}
                                                     </span>
                                                 </td>
-                                                <td className="p-3 border-r border-gray-200 text-center font-mono">{row.total}</td>
-                                                <td className="p-3 border-r border-gray-200 text-center font-mono font-bold text-green-600">{row.scanned}</td>
-                                                <td className="p-3 border-r border-gray-200 text-center font-mono font-bold text-red-500">{row.pending}</td>
-                                                <td className="p-3 text-center">
+                                                <td className="p-3 border-r border-gray-200 text-center font-mono font-bold bg-blue-50/30">{row.total}</td>
+                                                <td className={`p-3 border-r border-gray-200 text-center font-mono font-bold ${scannedColor}`}>{row.scanned}</td>
+                                                <td className={`p-3 border-r border-gray-200 text-center font-mono font-bold ${pendingColor}`}>{row.pending}</td>
+                                                <td className={`p-3 text-center font-bold ${perfBg} ${perfText}`}>
                                                     <div className="flex items-center justify-center gap-1">
-                                                        <span className={`font-black ${isHigh ? 'text-green-600' : isLow ? 'text-red-500' : 'text-yellow-600'}`}>
-                                                            {row.percentage}%
-                                                        </span>
-                                                        {isHigh ? <TrendingUp className="w-4 h-4 text-green-500" /> :
-                                                            isLow ? <AlertCircle className="w-4 h-4 text-red-500" /> :
-                                                                <TrendingDown className="w-4 h-4 text-yellow-500" />}
+                                                        {row.percentage}%
+                                                        {isHigh ? <TrendingUp className="w-4 h-4" /> :
+                                                            isLow ? <AlertCircle className="w-4 h-4" /> :
+                                                                <TrendingDown className="w-4 h-4" />}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -688,37 +698,41 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                             <h3 className="text-base font-bold text-gray-800">Zone Details</h3>
                         </div>
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-200">
+                            <table className="w-full text-sm text-left border-collapse">
+                                <thead className="bg-green-500 text-white font-bold border-b border-green-600">
                                     <tr>
-                                        <th className="px-6 py-3">Sr. No.</th>
-                                        <th className="px-6 py-3">Zone</th>
-                                        <th className="px-6 py-3 text-right">Total</th>
-                                        <th className="px-6 py-3 text-right">Scanned</th>
-                                        <th className="px-6 py-3 text-right">Pending</th>
+                                        <th className="px-6 py-3 border-r border-green-400/50">Sr. No.</th>
+                                        <th className="px-6 py-3 border-r border-green-400/50">Zone</th>
+                                        <th className="px-6 py-3 border-r border-green-400/50 text-right">Total</th>
+                                        <th className="px-6 py-3 border-r border-green-400/50 text-right">Scanned</th>
+                                        <th className="px-6 py-3 border-r border-green-400/50 text-right">Pending</th>
                                         <th className="px-6 py-3 text-center">Progress</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {zoneChartData.map((data: any, index: number) => {
                                         const percentage = data.Total > 0 ? Math.round((data.Scanned / data.Total) * 100) : 0;
+
+                                        const scannedColor = data.Scanned > 0 ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800';
+                                        const pendingColor = data.Pending === 0 ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800';
+
                                         return (
-                                            <tr key={data.name} className="hover:bg-gray-50/50 transition-colors">
-                                                <td className="px-6 py-3 text-gray-700 font-medium">{index + 1}</td>
-                                                <td className="px-6 py-3 font-medium text-gray-900">{data.name}</td>
-                                                <td className="px-6 py-3 text-right text-gray-600">{data.Total}</td>
-                                                <td className="px-6 py-3 text-right text-green-600 font-semibold">{data.Scanned}</td>
-                                                <td className="px-6 py-3 text-right text-red-500">{data.Pending}</td>
-                                                <td className="px-6 py-3">
+                                            <tr key={data.name} className="hover:bg-green-50 transition-colors">
+                                                <td className="px-6 py-3 text-gray-700 font-medium border-r border-gray-200 bg-gray-50/30 text-center">{index + 1}</td>
+                                                <td className="px-6 py-3 font-bold text-gray-900 border-r border-gray-200">{data.name}</td>
+                                                <td className="px-6 py-3 text-right text-gray-700 border-r border-gray-200 bg-blue-50/30 font-mono font-bold">{data.Total}</td>
+                                                <td className={`px-6 py-3 text-right font-mono font-bold border-r border-gray-200 ${scannedColor}`}>{data.Scanned}</td>
+                                                <td className={`px-6 py-3 text-right font-mono font-bold border-r border-gray-200 ${pendingColor}`}>{data.Pending}</td>
+                                                <td className="px-6 py-3 bg-gray-50/30">
                                                     <div className="flex items-center gap-2 justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-16 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                                                        <div className="flex items-center gap-2 w-full">
+                                                            <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden border border-gray-300">
                                                                 <div
-                                                                    className={`h-full rounded-full transition-all duration-500 ${percentage === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                                                                    className={`h-full rounded-full transition-all duration-500 ${percentage === 100 ? 'bg-green-500' : percentage < 50 ? 'bg-orange-500' : 'bg-blue-500'}`}
                                                                     style={{ width: `${percentage}%` }}
                                                                 ></div>
                                                             </div>
-                                                            <span className="text-xs font-medium text-gray-500 w-8">{percentage}%</span>
+                                                            <span className="text-xs font-bold text-gray-700 w-8 text-right">{percentage}%</span>
                                                         </div>
                                                         <button
                                                             onClick={() => {
@@ -726,9 +740,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                                                 window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
                                                             }}
                                                             title="Share to WhatsApp"
-                                                            className="p-1.5 text-green-600 hover:bg-green-50 rounded-full transition-colors flex-shrink-0"
+                                                            className="p-1.5 text-green-600 hover:bg-green-100 rounded-full transition-colors flex-shrink-0"
                                                         >
-                                                            <MessageCircle className="w-3.5 h-3.5" />
+                                                            <MessageCircle className="w-4 h-4" />
                                                         </button>
                                                     </div>
                                                 </td>
@@ -746,14 +760,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                             <h3 className="text-base font-bold text-gray-800">Zonal Head Performance</h3>
                         </div>
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-200">
+                            <table className="w-full text-sm text-left border-collapse">
+                                <thead className="bg-green-500 text-white font-bold border-b border-green-600">
                                     <tr>
-                                        <th className="px-6 py-3">Sr. No.</th>
-                                        <th className="px-6 py-3">Zonal Head</th>
-                                        <th className="px-6 py-3 text-right">Total</th>
-                                        <th className="px-6 py-3 text-right">Scanned</th>
-                                        <th className="px-6 py-3 text-right">Pending</th>
+                                        <th className="px-6 py-3 border-r border-green-400/50">Sr. No.</th>
+                                        <th className="px-6 py-3 border-r border-green-400/50">Zonal Head</th>
+                                        <th className="px-6 py-3 border-r border-green-400/50 text-right">Total</th>
+                                        <th className="px-6 py-3 border-r border-green-400/50 text-right">Scanned</th>
+                                        <th className="px-6 py-3 border-r border-green-400/50 text-right">Pending</th>
                                         <th className="px-6 py-3 text-center">Progress</th>
                                     </tr>
                                 </thead>
@@ -767,23 +781,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                         }), { total: 0, scanned: 0, pending: 0 });
 
                                         const percentage = headDataFull.total > 0 ? Math.round((headDataFull.scanned / headDataFull.total) * 100) : 0;
+
+                                        const scannedColor = headDataFull.scanned > 0 ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800';
+                                        const pendingColor = headDataFull.pending === 0 ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800';
+
                                         return (
-                                            <tr key={headData.name} className="hover:bg-gray-50/50 transition-colors">
-                                                <td className="px-6 py-3 text-gray-700 font-medium">{index + 1}</td>
-                                                <td className="px-6 py-3 font-medium text-gray-900">{headData.name}</td>
-                                                <td className="px-6 py-3 text-right text-gray-600">{headDataFull.total}</td>
-                                                <td className="px-6 py-3 text-right text-green-600 font-semibold">{headDataFull.scanned}</td>
-                                                <td className="px-6 py-3 text-right text-red-500">{headDataFull.pending}</td>
-                                                <td className="px-6 py-3">
+                                            <tr key={headData.name} className="hover:bg-green-50 transition-colors">
+                                                <td className="px-6 py-3 text-gray-700 font-medium border-r border-gray-200 bg-gray-50/30 text-center">{index + 1}</td>
+                                                <td className="px-6 py-3 font-bold text-gray-900 border-r border-gray-200">{headData.name}</td>
+                                                <td className="px-6 py-3 text-right text-gray-700 border-r border-gray-200 bg-blue-50/30 font-mono font-bold">{headDataFull.total}</td>
+                                                <td className={`px-6 py-3 text-right font-mono font-bold border-r border-gray-200 ${scannedColor}`}>{headDataFull.scanned}</td>
+                                                <td className={`px-6 py-3 text-right font-mono font-bold border-r border-gray-200 ${pendingColor}`}>{headDataFull.pending}</td>
+                                                <td className="px-6 py-3 bg-gray-50/30">
                                                     <div className="flex items-center gap-2 justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-16 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                                                        <div className="flex items-center gap-2 w-full">
+                                                            <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden border border-gray-300">
                                                                 <div
-                                                                    className={`h-full rounded-full transition-all duration-500 ${percentage === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                                                                    className={`h-full rounded-full transition-all duration-500 ${percentage === 100 ? 'bg-green-500' : percentage < 50 ? 'bg-orange-500' : 'bg-blue-500'}`}
                                                                     style={{ width: `${percentage}%` }}
                                                                 ></div>
                                                             </div>
-                                                            <span className="text-xs font-medium text-gray-500 w-8">{percentage}%</span>
+                                                            <span className="text-xs font-bold text-gray-700 w-8 text-right">{percentage}%</span>
                                                         </div>
                                                         <button
                                                             onClick={() => {
@@ -791,9 +809,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                                                 window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
                                                             }}
                                                             title="Share to WhatsApp"
-                                                            className="p-1.5 text-green-600 hover:bg-green-50 rounded-full transition-colors flex-shrink-0"
+                                                            className="p-1.5 text-green-600 hover:bg-green-100 rounded-full transition-colors flex-shrink-0"
                                                         >
-                                                            <MessageCircle className="w-3.5 h-3.5" />
+                                                            <MessageCircle className="w-4 h-4" />
                                                         </button>
                                                     </div>
                                                 </td>
@@ -803,6 +821,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="mt-12 mb-6 text-center">
+                    <div className="inline-block bg-white px-8 py-4 rounded-2xl shadow-sm border border-slate-100">
+                        <p className="text-slate-600 font-medium text-lg tracking-wide">
+                            Generated by <span className="font-extrabold text-indigo-600 mx-1">Reports Buddy Pro</span>
+                            <span className="text-slate-300 mx-3">|</span>
+                            Created by <span className="font-extrabold text-slate-800 mx-1 border-b-2 border-indigo-200">Yuvraj Singh Tomar</span>
+                        </p>
                     </div>
                 </div>
             </div>

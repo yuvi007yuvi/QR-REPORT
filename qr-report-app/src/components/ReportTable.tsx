@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import type { ReportRecord } from '../utils/dataProcessor';
 import { ArrowUpDown, Search, FileSpreadsheet, FileText, Image as ImageIcon, QrCode, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { exportToExcel, exportToPDF, exportToJPEG } from '../utils/exporter';
+import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
+import natureGreenLogo from '../assets/NatureGreen_Logo.png';
 
 interface ReportTableProps {
     data: ReportRecord[];
@@ -139,9 +141,51 @@ export const ReportTable: React.FC<ReportTableProps> = ({ data }) => {
                     </div>
                 </div>
                 <div id="report-table-container" className="bg-white p-4">
-                    <h1 className="text-2xl font-bold text-center mb-6 uppercase text-gray-900 border-b-2 border-gray-800 pb-2">
-                        REPORT OF {selectedZoneHead === 'All' ? 'ALL ZONAL HEADS' : selectedZoneHead} QR REPORT
-                    </h1>
+                    {/* Professional Logo Header */}
+                    <div className="bg-white rounded-xl shadow-lg border-2 border-blue-100 p-6 mb-8">
+                        <div className="grid grid-cols-3 items-center gap-6">
+                            {/* Left Side - Nagar Nigam Logo */}
+                            <div className="flex flex-col items-center sm:items-start">
+                                <img
+                                    src={nagarNigamLogo}
+                                    alt="Nagar Nigam Logo"
+                                    className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
+                                />
+
+                                <p className="hidden sm:block text-[10px] font-bold text-blue-800 mt-2 uppercase tracking-tight text-center sm:text-left">
+                                    Nagar Nigam<br />Mathura-Vrindavan
+                                </p>
+                            </div>
+
+                            {/* Center - Title Section */}
+                            <div className="text-center flex flex-col items-center justify-center">
+                                <div className="bg-blue-50 px-4 py-1 rounded-full mb-3">
+                                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">Official Report</span>
+                                </div>
+                                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-gray-900 tracking-tight leading-none mb-2">
+                                    DETAILED QR<br />
+                                    <span className="text-blue-600">REPORT</span>
+                                </h1>
+                                <div className="h-1 w-20 bg-blue-600 rounded-full mb-2"></div>
+                                <p className="text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-widest">
+                                    {selectedZoneHead === 'All' ? 'ALL ZONAL HEADS' : selectedZoneHead}
+                                </p>
+                            </div>
+
+                            {/* Right Side - Nature Green Logo */}
+                            <div className="flex flex-col items-center sm:items-end">
+                                <img
+                                    src={natureGreenLogo}
+                                    alt="Nature Green Logo"
+                                    className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
+                                />
+
+                                <p className="hidden sm:block text-[10px] font-bold text-green-700 mt-2 uppercase tracking-tight text-center sm:text-right">
+                                    Nature Green<br />Waste Management
+                                </p>
+                            </div>
+                        </div>
+                    </div>
 
                     {/* Filtered Stats Cards */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -159,21 +203,21 @@ export const ReportTable: React.FC<ReportTableProps> = ({ data }) => {
                     </div>
 
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-gray-50 text-gray-600 font-medium border-b border-gray-200">
+                        <table className="w-full text-sm text-left border-collapse">
+                            <thead className="bg-green-500 text-white font-bold border-b border-green-600">
                                 <tr>
-                                    <th className="px-6 py-3 text-gray-600 font-medium">S.No.</th>
+                                    <th className="px-6 py-3 border-r border-green-400/50">S.No.</th>
                                     {['QR ID', 'Ward', 'Zone', 'Zonal Head', 'Building/Street', 'Assigned To', 'Status', 'Scanned By', 'Scan Time'].map((header, idx) => {
                                         const key = ['qrId', 'ward', 'zone', 'zonalHead', 'buildingName', 'assignedTo', 'status', 'scannedBy', 'scanTime'][idx] as keyof ReportRecord;
                                         return (
                                             <th
                                                 key={key}
-                                                className="px-6 py-3 cursor-pointer hover:bg-gray-100 transition-colors"
+                                                className="px-6 py-3 cursor-pointer hover:bg-green-600 transition-colors border-r border-green-400/50"
                                                 onClick={() => handleSort(key)}
                                             >
                                                 <div className="flex items-center gap-1">
                                                     {header}
-                                                    <ArrowUpDown className="w-3 h-3" />
+                                                    <ArrowUpDown className="w-3 h-3 text-green-200" />
                                                 </div>
                                             </th>
                                         );
@@ -210,6 +254,17 @@ export const ReportTable: React.FC<ReportTableProps> = ({ data }) => {
                                 Showing first 100 of {sortedData.length} records. Search to find specific items.
                             </div>
                         )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="mt-12 mb-6 text-center">
+                        <div className="inline-block bg-white px-8 py-4 rounded-2xl shadow-sm border border-slate-100">
+                            <p className="text-slate-600 font-medium text-lg tracking-wide">
+                                Generated by <span className="font-extrabold text-indigo-600 mx-1">Reports Buddy Pro</span>
+                                <span className="text-slate-300 mx-3">|</span>
+                                Created by <span className="font-extrabold text-slate-800 mx-1 border-b-2 border-indigo-200">Yuvraj Singh Tomar</span>
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

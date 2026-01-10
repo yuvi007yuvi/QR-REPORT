@@ -1,16 +1,40 @@
-export interface SupervisorInfo {
-    sNo: string;
-    empId: string;
-    department: string;
-    name: string;
-    mobile: string;
-    ward: string;
-    zonal: string;
+const fs = require('fs');
+const path = require('path');
+
+// 1. Read CSV
+const csvPath = 'd:\\DEVELOPMENT REPORTS\\QR-REPORT\\qr-report-app\\SupervisorKYC (2).csv';
+const csvContent = fs.readFileSync(csvPath, 'utf-8');
+const csvLines = csvContent.split('\n').filter(l => l.trim() !== '');
+
+const csvSupervisors = [];
+// Skip header
+for (let i = 1; i < csvLines.length; i++) {
+    const line = csvLines[i];
+    // Simple CSV parse (handling quotes)
+    const parts = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
+    // The regex above is basic. Let's do a simpler split if quotes are consistent.
+    // The file has quotes around all fields? 
+    // "S.No.","Employee Display ID","Employee Name","Employee Mobile Number","Customer Count"
+    // 1,"MVSID1644","ADIL MALIK","8445688038",17
+    // It seems S.No and Count are numbers, others are quoted strings.
+
+    // Better split approach for this specific format
+    const matches = line.match(/^(\d+),"([^"]+)","([^"]+)","([^"]+)",(\d+)$/);
+    if (matches) {
+        csvSupervisors.push({
+            empId: matches[2],
+            name: matches[3],
+            mobile: matches[4]
+        });
+    } else {
+        // Fallback for lines that might strictly follow the regex
+        // Try generic split if needed, or log error
+        // console.log('Skipped line:', line);
+    }
 }
 
-// Full master list from new kyc maping.csv
-export const MASTER_SUPERVISORS: SupervisorInfo[] = [
-    // UCC DEPARTMENT - SURESH / ALOK Zone
+// 2. Master Data (Hardcoded from read file)
+const MASTER_SUPERVISORS = [
     { sNo: "1", empId: "MVSID890", department: "UCC", name: "Sumit Khare", mobile: "6395075446", ward: "57", zonal: "SURESH / ALOK" },
     { sNo: "2", empId: "MVSID1714", department: "UCC", name: "Nirmla", mobile: "8392924492", ward: "60", zonal: "SURESH / ALOK" },
     { sNo: "3", empId: "MVSID912", department: "UCC", name: "Vishal Singh", mobile: "8543982344", ward: "65", zonal: "SURESH / ALOK" },
@@ -55,7 +79,6 @@ export const MASTER_SUPERVISORS: SupervisorInfo[] = [
     { sNo: "42", empId: "MVSID1694", department: "UCC", name: "Babita Bhardwaj", mobile: "8439676031", ward: "19", zonal: "SURESH / ALOK" },
     { sNo: "43", empId: "MVSID1868", department: "UCC", name: "Varsha Chauhan", mobile: "7668719749", ward: "54", zonal: "SURESH / ALOK" },
     { sNo: "44", empId: "MVSID924", department: "UCC", name: "Hariom", mobile: "8077632507", ward: "NA", zonal: "SURESH / ALOK" },
-    // UCC DEPARTMENT - PANKAJ Zone
     { sNo: "45", empId: "MVSID928", department: "UCC", name: "Adarsh Singh", mobile: "8299205980", ward: "13", zonal: "PANKAJ" },
     { sNo: "46", empId: "MVSID944", department: "UCC", name: "Gajendra Chaudhary", mobile: "9759528676", ward: "34", zonal: "PANKAJ" },
     { sNo: "47", empId: "MVSID902", department: "UCC", name: "Rashmi", mobile: "9897267660", ward: "70", zonal: "PANKAJ" },
@@ -67,14 +90,12 @@ export const MASTER_SUPERVISORS: SupervisorInfo[] = [
     { sNo: "53", empId: "MVSID936", department: "UCC", name: "Sachin Gauhar", mobile: "9557068172", ward: "21", zonal: "PANKAJ" },
     { sNo: "54", empId: "MVSID940", department: "UCC", name: "Vipin Kumar Vrindavan", mobile: "9870903653", ward: "25", zonal: "PANKAJ" },
     { sNo: "55", empId: "MVSID875", department: "UCC", name: "Preety Sharma", mobile: "8923569355", ward: "N/A", zonal: "PANKAJ" },
-    // C&T DEPARTMENT - BHARAT Zone
     { sNo: "56", empId: "MVSID1624", department: "C&T", name: "ANKIT", mobile: "9289305297", ward: "15,11,1", zonal: "BHARAT" },
     { sNo: "57", empId: "MVSID1625", department: "C&T", name: "VEERESH", mobile: "9456019802", ward: "68,54,37", zonal: "BHARAT" },
     { sNo: "58", empId: "MVSID1627", department: "C&T", name: "SONVEER", mobile: "7428541259", ward: "3,33,59", zonal: "BHARAT" },
     { sNo: "59", empId: "MVSID1626", department: "C&T", name: "VIKASH", mobile: "9917493967", ward: "30,20", zonal: "BHARAT" },
     { sNo: "60", empId: "MVSID1623", department: "C&T", name: "SACHIN", mobile: "9289305296", ward: "43", zonal: "RANVEER" },
     { sNo: "61", empId: "MVSID1629", department: "C&T", name: "GAURAV", mobile: "9289305303", ward: "35,49", zonal: "GIRISH" },
-    // C&T DEPARTMENT - GIRISH Zone
     { sNo: "62", empId: "MVSID1628", department: "C&T", name: "HARIOM", mobile: "9634891789", ward: "5", zonal: "GIRISH" },
     { sNo: "63", empId: "MVSID1638", department: "C&T", name: "MAHAVEER", mobile: "9289305320", ward: "14,53", zonal: "GIRISH" },
     { sNo: "64", empId: "MVSID1692", department: "C&T", name: "ANSHU", mobile: "9289305313", ward: "31,44,47", zonal: "BHARAT" },
@@ -83,13 +104,11 @@ export const MASTER_SUPERVISORS: SupervisorInfo[] = [
     { sNo: "67", empId: "MVSID1635", department: "C&T", name: "NARESH", mobile: "9368902115", ward: "61,56", zonal: "RANVEER" },
     { sNo: "68", empId: "MVSID1639", department: "C&T", name: "JITENDRA", mobile: "7428541253", ward: "26,18", zonal: "GIRISH" },
     { sNo: "69", empId: "MVSID1641", department: "C&T", name: "AMAN YADAV", mobile: "8630314347", ward: "64,65", zonal: "GIRISH" },
-    // C&T DEPARTMENT - NISHANT Zone
     { sNo: "70", empId: "MVSID1631", department: "C&T", name: "ANIL BAGHEL", mobile: "7428541261", ward: "32,29,27", zonal: "NISHANT" },
     { sNo: "71", empId: "MVSID1632", department: "C&T", name: "DILIP", mobile: "9289305312", ward: "28,10,6", zonal: "NISHANT" },
     { sNo: "72", empId: "MVSID1633", department: "C&T", name: "AMAN CHAU.", mobile: "9258475317", ward: "38,41", zonal: "NISHANT" },
     { sNo: "73", empId: "MVSID1640", department: "C&T", name: "DEEPAK", mobile: "9289305302", ward: "52,57", zonal: "NISHANT" },
     { sNo: "74", empId: "MVSID1695", department: "C&T", name: "MOHIT", mobile: "8755983564", ward: "23,63", zonal: "NISHANT" },
-    // C&T DEPARTMENT - RANVEER Zone
     { sNo: "75", empId: "MVSID1644", department: "C&T", name: "ADIL MALIK", mobile: "8445688038", ward: "42", zonal: "RANVEER" },
     { sNo: "76", empId: "MVSID1646", department: "C&T", name: "ARJUN", mobile: "9084321551", ward: "36,39", zonal: "RANVEER" },
     { sNo: "77", empId: "MVSID1648", department: "C&T", name: "ARYAN", mobile: "7217337300", ward: "60", zonal: "RANVEER" },
@@ -98,7 +117,6 @@ export const MASTER_SUPERVISORS: SupervisorInfo[] = [
     { sNo: "80", empId: "MVSID1700", department: "C&T", name: "CHARAN SINGH", mobile: "9289305315", ward: "22,40", zonal: "RANVEER" },
     { sNo: "81", empId: "MVSID1650", department: "C&T", name: "HARIKESH", mobile: "8218387116", ward: "45", zonal: "RANVEER" },
     { sNo: "82", empId: "MVSID1647", department: "C&T", name: "SURENDRA", mobile: "9289305299", ward: "46,55", zonal: "RANVEER" },
-    // C&T DEPARTMENT - PANKAJ Zone
     { sNo: "83", empId: "MVSID1655", department: "C&T", name: "SATISH", mobile: "9634259837", ward: "8,13", zonal: "PANKAJ" },
     { sNo: "84", empId: "MVSID1656", department: "C&T", name: "VISHNU", mobile: "8923039276", ward: "50,66", zonal: "PANKAJ" },
     { sNo: "85", empId: "MVSID1660", department: "C&T", name: "PRIYANSHU", mobile: "9696089484", ward: "9", zonal: "PANKAJ" },
@@ -108,6 +126,30 @@ export const MASTER_SUPERVISORS: SupervisorInfo[] = [
     { sNo: "89", empId: "MVSID1651", department: "C&T", name: "HEMANT", mobile: "7428541245", ward: "67,69", zonal: "PANKAJ" },
     { sNo: "90", empId: "MVSID1659", department: "C&T", name: "MOHIT", mobile: "9761137529", ward: "70", zonal: "PANKAJ" },
     { sNo: "91", empId: "MVSID1693", department: "C&T", name: "Nikhil kumar", mobile: "7351312453", ward: "N/A", zonal: "PANKAJ" },
-    { sNo: "92", empId: "MVSID3296", department: "UCC", name: "rohit kumar", mobile: "8445762660", ward: "N/A", zonal: "N/A" },
-    { sNo: "93", empId: "MVSID3194", department: "UCC", name: "Veerendra singh", mobile: "8160489245", ward: "N/A", zonal: "N/A" },
+    { sNo: "92", empId: "MVSID3296", department: "UCC", name: "rohit kumar", mobile: "8445762660", ward: "N/A", zonal: "N/A" }
 ];
+
+// Compare
+const masterIds = new Set(MASTER_SUPERVISORS.map(s => s.empId.trim()));
+const csvIds = new Set(csvSupervisors.map(s => s.empId.trim()));
+
+console.log('--- Supervisors in CSV BUT NOT in MASTER ---');
+csvSupervisors.forEach(s => {
+    if (!masterIds.has(s.empId.trim())) {
+        console.log(`${s.empId} - ${s.name}`);
+    }
+});
+
+console.log('\n--- Supervisors in MASTER (UCC Only) BUT NOT in CSV ---');
+MASTER_SUPERVISORS.filter(s => s.department === 'UCC').forEach(s => {
+    if (!csvIds.has(s.empId.trim())) {
+        console.log(`${s.empId} - ${s.name} (${s.department})`);
+    }
+});
+
+console.log('\n--- Supervisors in MASTER (ALL) BUT NOT in CSV ---');
+MASTER_SUPERVISORS.forEach(s => {
+    if (!csvIds.has(s.empId.trim())) {
+        console.log(`${s.empId} - ${s.name} (${s.department})`);
+    }
+});

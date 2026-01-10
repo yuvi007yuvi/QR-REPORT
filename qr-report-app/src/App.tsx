@@ -31,7 +31,7 @@ function App() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === 'admin' || passwordInput === 'ng123' || passwordInput === '1234') {
+    if (passwordInput === 'yuvraj1234') {
       setIsAuthenticated(true);
       setLoginError('');
     } else {

@@ -16,6 +16,8 @@ import WardWiseStatusReport from './components/WardWiseStatusReport';
 import DateWiseCoverageReport from './components/DateWiseCoverageReport';
 import QRStatusReport from './components/QRStatusReport';
 import Sidebar, { type AppSection, type ViewMode } from './components/Sidebar.tsx';
+import DistanceReport from './components/DistanceReport.tsx';
+import TripReport from './components/TripReport.tsx';
 import { parseFile, processData, type ReportRecord, type SummaryStats } from './utils/dataProcessor';
 import { Loader2, RefreshCw, Calendar, Menu } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -143,7 +145,8 @@ function App() {
                             viewMode === 'coverage-date-wise' ? 'Date-wise POI Coverage Calendar' :
                               viewMode === 'kyc-calendar' ? 'Daily KYC Calendar' :
                                 viewMode === 'ward-household-status' ? 'Ward Household Status' :
-                                  viewMode === 'qr-status-view' ? 'Daily QR Status Report' : 'Reports Buddy';
+                                  viewMode === 'trip-report' ? 'Trip Report' :
+                                    viewMode === 'qr-status-view' ? 'Daily QR Status Report' : 'Reports Buddy';
 
   if (!isAuthenticated) {
     return (
@@ -268,7 +271,7 @@ function App() {
             ) : (
               <>
                 {/* Daily Report Logic */}
-                {!stats && viewMode !== 'mapping' ? (
+                {!stats && viewMode !== 'mapping' && viewMode !== 'distance-report' && viewMode !== 'trip-report' ? (
                   /* Upload Screen */
                   <div className="max-w-2xl mx-auto mt-10">
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
@@ -339,6 +342,10 @@ function App() {
                     {viewMode === 'underground' && <UndergroundReport data={reportData} />}
 
                     {viewMode === 'zonalUnderground' && <ZonalUndergroundReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />}
+
+                    {viewMode === 'distance-report' && <DistanceReport />}
+
+                    {viewMode === 'trip-report' && <TripReport />}
                   </>
                 )}
               </>

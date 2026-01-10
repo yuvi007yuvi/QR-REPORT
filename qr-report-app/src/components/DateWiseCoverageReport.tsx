@@ -4,7 +4,7 @@ import { Calendar, Filter, Table as TableIcon, Download, FileImage, FileText } f
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { exportToJPEG } from '../utils/exporter';
+import { toJpeg } from 'html-to-image';
 import { MASTER_SUPERVISORS } from '../data/master-supervisors';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import natureGreenLogo from '../assets/NatureGreen_Logo.png';
@@ -39,15 +39,25 @@ const DateWiseCoverageReport = () => {
 
     // Helper function to get supervisor and zonal from ward name
     const getSupervisorInfo = (wardName: string) => {
-        // Extract ward number from ward name (e.g., "65-Holi Gali" -> "65")
-        const wardNumberRaw = wardName.split('-')[0].trim();
-        // Remove leading zeros (e.g., "01" -> "1")
-        const wardNumber = String(parseInt(wardNumberRaw, 10));
+        // Extract ward number using regex to handle various formats (e.g. "65-Holi Gali", "Ward 25", "025", etc)
+        const match = wardName.match(/(\d+)/);
+        if (!match) return { supervisor: '-', zonal: '-' };
+
+        // Normalize to string representation of number (removes leading zeros)
+        const wardNumber = String(parseInt(match[0], 10));
 
         // Find supervisor for this ward (C&T department only)
         const supervisor = MASTER_SUPERVISORS.find(s => {
-            if (s.department !== 'C&T') return false; // Only C&T department
-            const wards = s.ward.split(',').map(w => w.trim());
+            // Only C&T department
+            if (s.department !== 'C&T') return false;
+
+            // Allow for basic matching of comma-separated wards
+            // Also robustly parse master data wards just in case of formatting diffs
+            const wards = s.ward.split(',').map(w => {
+                const m = w.match(/(\d+)/);
+                return m ? String(parseInt(m[0], 10)) : w.trim();
+            });
+
             return wards.includes(wardNumber);
         });
 
@@ -481,8 +491,36 @@ const DateWiseCoverageReport = () => {
     };
 
     // Export to JPEG
-    const exportToImage = () => {
-        exportToJPEG('date-wise-coverage-report', `Coverage_Report_${new Date().toISOString().split('T')[0]}`);
+    const exportToImage = async () => {
+        const element = document.getElementById('date-wise-coverage-report');
+        const scrollContainer = document.getElementById('date-wise-coverage-scroll-container');
+        if (!element) return;
+
+        let originalOverflow = '';
+
+        if (scrollContainer) {
+            originalOverflow = scrollContainer.style.overflow;
+            scrollContainer.style.overflow = 'visible';
+        }
+
+        try {
+            const dataUrl = await toJpeg(element, {
+                quality: 0.95,
+                backgroundColor: '#ffffff',
+                pixelRatio: 2
+            });
+            const link = document.createElement('a');
+            link.download = `Coverage_Report_${new Date().toISOString().split('T')[0]}.jpeg`;
+            link.href = dataUrl;
+            link.click();
+        } catch (error) {
+            console.error('Error exporting JPEG:', error);
+            alert('Failed to export JPEG');
+        } finally {
+            if (scrollContainer) {
+                scrollContainer.style.overflow = originalOverflow;
+            }
+        }
     };
 
     const getCellColor = (percentage: number) => {
@@ -761,7 +799,7 @@ const DateWiseCoverageReport = () => {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div id="date-wise-coverage-scroll-container" className="overflow-x-auto">
                     <table className="w-full border-collapse text-xs border border-black font-sans">
                         <thead>
                             <tr className="bg-green-400 text-white shadow-sm">

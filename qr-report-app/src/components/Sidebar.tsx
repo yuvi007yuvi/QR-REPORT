@@ -18,6 +18,7 @@ export type ViewMode =
     | 'mapping'
     | 'underground'
     | 'zonalUnderground'
+    | 'distance-report'
     | 'coverage-dashboard'
     | 'coverage-supervisor'
     | 'coverage-ward'
@@ -29,6 +30,7 @@ export type ViewMode =
     | 'kyc-whatsapp'
     | 'ward-household-status' // Added back
     | 'ward-status-new' // Added new view
+    | 'trip-report' // Added trip report
     | 'qr-status-view';
 
 interface SidebarProps {
@@ -132,6 +134,18 @@ const Sidebar: React.FC<SidebarProps> = ({
                                         className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${currentView === 'zonalUnderground' ? 'bg-white text-blue-600 shadow-sm border border-blue-100' : 'text-gray-500 hover:text-gray-900'}`}
                                     >
                                         Zonal Underground
+                                    </button>
+                                    <button
+                                        onClick={() => onViewChange('distance-report')}
+                                        className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${currentView === 'distance-report' ? 'bg-white text-blue-600 shadow-sm border border-blue-100' : 'text-gray-500 hover:text-gray-900'}`}
+                                    >
+                                        Distance Report
+                                    </button>
+                                    <button
+                                        onClick={() => onViewChange('trip-report')}
+                                        className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${currentView === 'trip-report' ? 'bg-white text-blue-600 shadow-sm border border-blue-100' : 'text-gray-500 hover:text-gray-900'}`}
+                                    >
+                                        Trip Report
                                     </button>
                                 </div>
                             )}

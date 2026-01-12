@@ -4,6 +4,7 @@ import { CheckCircle, FileDown, FileImage, FileSpreadsheet } from 'lucide-react'
 import * as XLSX from 'xlsx';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import masterDataJson from '../data/masterData.json';
 import supervisorDataJson from '../data/supervisorData.json';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
@@ -96,19 +97,47 @@ const QRStatusReport = () => {
         return { wards, zones, zonals };
     }, [masterRecords]);
 
-    // Helpers for Date Parsing (Copied from dataProcessor to ensure consistency)
     const formatExcelDate = (serial: number | string): string => {
         if (!serial) return '-';
-        if (typeof serial === 'string' && (serial.includes('/') || serial.includes('-'))) return serial;
-        const num = Number(serial);
-        if (!isNaN(num)) {
-            const date = new Date(Math.round((num - 25569) * 86400 * 1000));
+
+        let date: Date | null = null;
+        const cleanSerial = String(serial).trim();
+
+        // Handle Excel Serial Number (Number type or String number)
+        // Check if string is numeric (integers or decimals)
+        const num = Number(cleanSerial);
+        const isExcelSerial = !isNaN(num) && num > 20000 && num < 60000;
+
+        if (typeof serial === 'number' || isExcelSerial) {
+            // Excel serials are typically >25569 (1970) and <60000 (2060s)
+            // Simple number check
+            date = new Date(Math.round((num - 25569) * 86400 * 1000));
+        } else {
+            // String parsing
+            const parts = cleanSerial.split(/[-/:\s]/);
+            if (parts.length === 3) {
+                if (parts[0].length === 4) {
+                    // YYYY-MM-DD or YYYY/MM/DD
+                    date = new Date(`${parts[0]}-${parts[1]}-${parts[2]}`);
+                } else {
+                    // DD-MM-YYYY or DD/MM/YYYY or DD:MM:YYYY
+                    date = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                }
+            } else {
+                // Fallback for messy strings, though unlikely to work if not ISO or DD-MM-YYYY
+                const d = new Date(cleanSerial);
+                if (!isNaN(d.getTime())) date = d;
+            }
+        }
+
+        if (date && !isNaN(date.getTime())) {
             const day = String(date.getDate()).padStart(2, '0');
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const year = date.getFullYear();
-            return `${day}/${month}/${year}`;
+            return `${day}:${month}:${year}`;
         }
-        return String(serial);
+
+        return cleanSerial;
     };
 
     const handleFileProcess = async () => {
@@ -160,11 +189,12 @@ const QRStatusReport = () => {
             });
 
             // Sort dates descending (newest first)
+            // Sort dates descending (newest first)
             const sortedDates = Array.from(datesSet).sort((a, b) => {
-                const partsA = a.split(/[-/]/);
-                const partsB = b.split(/[-/]/);
+                const partsA = a.split(/[-/:]/); // Split by -, /, or :
+                const partsB = b.split(/[-/:]/);
                 if (partsA.length === 3 && partsB.length === 3) {
-                    // dd/mm/yyyy
+                    // dd:mm:yyyy
                     const dateA = new Date(`${partsA[2]}-${partsA[1]}-${partsA[0]}`);
                     const dateB = new Date(`${partsB[2]}-${partsB[1]}-${partsB[0]}`);
                     return dateB.getTime() - dateA.getTime();
@@ -259,43 +289,148 @@ const QRStatusReport = () => {
     };
 
     const handleExportPDF = async () => {
-        if (!reportRef.current) return;
-        setIsExporting(true);
+        if (filteredRows.length === 0) return;
 
-        await new Promise(resolve => setTimeout(resolve, 500));
+        const doc = new jsPDF('l', 'mm', 'a3'); // Landscape A3 for more width
+        const pageWidth = doc.internal.pageSize.width;
 
+        // --- Helper to load images ---
+        const loadImage = (src: string): Promise<HTMLImageElement> => {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.src = src;
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+            });
+        };
+
+        // --- Header Section ---
         try {
-            const dataUrl = await toPng(reportRef.current, {
-                cacheBust: true,
-                backgroundColor: '#ffffff',
-                width: reportRef.current.scrollWidth,
-                height: reportRef.current.scrollHeight,
-                style: {
-                    overflow: 'visible',
-                    maxWidth: 'none',
-                    maxHeight: 'none'
-                }
-            });
+            const img1 = await loadImage(nagarNigamLogo);
+            const img2 = await loadImage(natureGreenLogo);
+            const logoHeight = 20;
+            const ratio1 = img1.width / img1.height;
+            const ratio2 = img2.width / img2.height;
 
-            const pdf = new jsPDF({
-                orientation: 'landscape',
-                unit: 'mm',
-                format: 'a4'
-            });
+            doc.addImage(img1, 'PNG', 15, 5, logoHeight * ratio1, logoHeight);
+            doc.addImage(img2, 'PNG', pageWidth - 15 - (logoHeight * ratio2), 5, logoHeight * ratio2, logoHeight);
 
-            const imgProps = pdf.getImageProperties(dataUrl);
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(31, 41, 55);
+            doc.text('Mathura Vrindavan Nagar Nigam', pageWidth / 2, 12, { align: 'center' });
 
-            pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`QR_Status_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+            doc.setFontSize(12);
+            doc.setTextColor(21, 128, 61); // Green-700
+            doc.text('Date Wise QR Scanned Status Report', pageWidth / 2, 19, { align: 'center' });
 
-        } catch (error) {
-            console.error('PDF export failed:', error);
-            alert('Failed to export PDF.');
-        } finally {
-            setIsExporting(false);
+            // Stats Line
+            const dateRange = availableDates.length > 0
+                ? `${availableDates[availableDates.length - 1]} - ${availableDates[0]}`
+                : 'N/A';
+
+            doc.setFontSize(9);
+            doc.setTextColor(100);
+            doc.text(`Generated: ${new Date().toLocaleDateString()} | Date Range: ${dateRange} | Total QRs: ${filteredRows.length}`, pageWidth / 2, 25, { align: 'center' });
+
+            // Filter Line
+            let filterText = '';
+            if (selectedWard !== 'All') filterText += `Ward: ${selectedWard}  `;
+            if (selectedZone !== 'All') filterText += `Zone: ${selectedZone}  `;
+            if (selectedZonal !== 'All') filterText += `Zonal: ${selectedZonal}`;
+            if (filterText) {
+                doc.text(`Filters: ${filterText}`, pageWidth / 2, 30, { align: 'center' });
+            }
+
+        } catch (e) {
+            console.error('Error adding header images:', e);
+            doc.text('QR Status Report', pageWidth / 2, 15, { align: 'center' });
         }
+
+        // --- Table Data ---
+        const tableHead = [
+            ['S.No', 'QR ID', 'Ward', 'Zone', 'Supervisor', 'Site Name', 'Scanned Days', ...availableDates]
+        ];
+
+        const tableBody = filteredRows.map((row, index) => {
+            const scanStatusMap = scanDataMap.get(row.qrId);
+            let daysScanned = 0;
+            const dateStatuses = availableDates.map(date => {
+                const isScanned = scanStatusMap?.has(date);
+                if (isScanned) daysScanned++;
+                return isScanned ? 'Scanned' : 'Not Scanned'; // Changed from 'YES' to 'Scanned' and '-' to 'Not Scanned'
+            });
+
+            return [
+                (index + 1).toString(),
+                row.qrId,
+                row.ward,
+                row.zone,
+                row.supervisor,
+                row.siteName,
+                daysScanned.toString(),
+                ...dateStatuses
+            ];
+        });
+
+        // Create column styles
+        const colStyles: any = {
+            0: { cellWidth: 10 }, // S.No
+            1: { cellWidth: 20 }, // QR ID
+            2: { cellWidth: 15 }, // Ward (Reduced slightly)
+            3: { cellWidth: 15 }, // Zone (Reduced slightly)
+            4: { cellWidth: 25 }, // Supervisor
+            5: { cellWidth: 30 }, // Site Name
+            6: { cellWidth: 15, fontStyle: 'bold' }, // Days count
+        };
+
+        // Set fixed width for date columns to prevent wrapping
+        availableDates.forEach((_, i) => {
+            colStyles[7 + i] = { cellWidth: 25 }; // Increased width for A3
+        });
+
+        // --- Generate AutoTable ---
+        autoTable(doc, {
+            head: tableHead,
+            body: tableBody,
+            startY: 35,
+            theme: 'grid',
+            styles: {
+                fontSize: 8, // Increased font size for A3
+                cellPadding: 1,
+                valign: 'middle',
+                halign: 'center'
+            },
+            headStyles: {
+                fillColor: [22, 163, 74], // green-600
+                textColor: 255,
+                fontStyle: 'bold',
+                valign: 'middle'
+            },
+            columnStyles: colStyles,
+            didParseCell: (data) => {
+                if (data.section === 'body') {
+                    // Color code "Scanned" cells
+                    if (data.column.index >= 7) { // Date columns start specific index
+                        if (data.cell.text[0] === 'Scanned') { // Updated to check for 'Scanned'
+                            data.cell.styles.fillColor = [220, 252, 231]; // green-100
+                            data.cell.styles.textColor = [21, 128, 61];   // green-700
+                            data.cell.styles.fontStyle = 'bold';
+                        } else {
+                            data.cell.styles.textColor = [239, 68, 68]; // red-500
+                        }
+                    }
+                    // Color code Scanned Days success/fail
+                    if (data.column.index === 6) {
+                        const val = parseInt(data.cell.text[0]);
+                        if (val > 0) data.cell.styles.textColor = [21, 128, 61];
+                        else data.cell.styles.textColor = [239, 68, 68];
+                    }
+                }
+            }
+        });
+
+        doc.save(`QR_Status_Report_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
     if (scanDataMap.size === 0) {

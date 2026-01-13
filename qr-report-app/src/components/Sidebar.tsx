@@ -61,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             )}
 
             {/* Sidebar */}
-            <div className={`fixed lg:static inset-y-0 left-0 z-50 w-72 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:transform-none ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className={`fixed lg:static inset-y-0 left-0 z-50 bg-white border-r border-gray-200 transition-all duration-300 ease-in-out ${isOpen ? 'w-72 translate-x-0' : 'w-72 -translate-x-full lg:w-0 lg:border-none lg:overflow-hidden lg:translate-x-0'}`}>
                 <div className="flex flex-col h-full">
                     {/* Header */}
                     <div className="p-6 border-b border-gray-100 flex items-center justify-between">

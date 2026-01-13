@@ -27,7 +27,9 @@ import NagarNigamLogo from './assets/nagar-nigam-logo.png';
 import NatureGreenLogo from './assets/NatureGreen_Logo.png';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem('isLoggedIn') === 'true';
+  });
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
 
@@ -35,6 +37,7 @@ function App() {
     e.preventDefault();
     if (passwordInput === 'yuvraj1234') {
       setIsAuthenticated(true);
+      localStorage.setItem('isLoggedIn', 'true');
       setLoginError('');
     } else {
       setLoginError('Incorrect password');

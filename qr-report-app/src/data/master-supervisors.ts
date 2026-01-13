@@ -73,6 +73,7 @@ export const MASTER_SUPERVISORS: SupervisorInfo[] = [
     { sNo: "58", empId: "MVSID1627", department: "C&T", name: "SONVEER", mobile: "7428541259", ward: "3,33,59", zonal: "BHARAT" },
     { sNo: "59", empId: "MVSID1626", department: "C&T", name: "VIKASH", mobile: "9917493967", ward: "30,20", zonal: "BHARAT" },
     { sNo: "60", empId: "MVSID1623", department: "C&T", name: "SACHIN", mobile: "9289305296", ward: "43", zonal: "RANVEER" },
+    { sNo: "60-B", empId: "MVSID1623", department: "C&T", name: "SACHIN", mobile: "9289305296", ward: "16,48", zonal: "BHARAT" },
     { sNo: "61", empId: "MVSID1629", department: "C&T", name: "GAURAV", mobile: "9289305303", ward: "35,49", zonal: "GIRISH" },
     // C&T DEPARTMENT - GIRISH Zone
     { sNo: "62", empId: "MVSID1628", department: "C&T", name: "HARIOM", mobile: "9634891789", ward: "5", zonal: "GIRISH" },
@@ -80,7 +81,8 @@ export const MASTER_SUPERVISORS: SupervisorInfo[] = [
     { sNo: "64", empId: "MVSID1692", department: "C&T", name: "ANSHU", mobile: "9289305313", ward: "31,44,47", zonal: "BHARAT" },
     { sNo: "65", empId: "MVSID1636", department: "C&T", name: "SUDESH", mobile: "9520522925", ward: "2,4", zonal: "GIRISH" },
     { sNo: "66", empId: "MVSID1637", department: "C&T", name: "SUBHASH", mobile: "8685882119", ward: "7,19", zonal: "GIRISH" },
-    { sNo: "67", empId: "MVSID1635", department: "C&T", name: "NARESH", mobile: "9368902115", ward: "61,56", zonal: "RANVEER" },
+    { sNo: "67", empId: "MVSID1635", department: "C&T", name: "NARESH", mobile: "9368902115", ward: "56", zonal: "RANVEER" },
+    { sNo: "67-B", empId: "MVSID1635", department: "C&T", name: "NARESH", mobile: "9368902115", ward: "61", zonal: "GIRISH" },
     { sNo: "68", empId: "MVSID1639", department: "C&T", name: "JITENDRA", mobile: "7428541253", ward: "26,18", zonal: "GIRISH" },
     { sNo: "69", empId: "MVSID1641", department: "C&T", name: "AMAN YADAV", mobile: "8630314347", ward: "64,65", zonal: "GIRISH" },
     // C&T DEPARTMENT - NISHANT Zone

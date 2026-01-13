@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Upload, Search, Download, Filter, Calendar, Image as ImageIcon } from 'lucide-react';
+import { Upload, Search, Download, Filter, Calendar, Image as ImageIcon, MapPin, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toJpeg } from 'html-to-image';
 import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { MASTER_SUPERVISORS } from '../data/master-supervisors';
+import { WARD_LIST } from '../data/wardList';
 import NagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import NatureGreenLogo from '../assets/NatureGreen_Logo.png';
 
@@ -76,26 +77,138 @@ export const WhatsAppReport: React.FC = () => {
                 supervisorName: sup.name,
                 empId: sup.empId,
                 department: sup.department,
-                total: 0
+                uniqueKey: sup.empId,
+                total: 0,
+                total_detail: ''
             };
+
+            const targetWards = sup.ward
+                ? sup.ward.toString().split(',').map(w => w.trim()).filter(w => w && w !== 'N/A')
+                : [];
+
+            // Track total counts per ward across all dates
+            let totalWardCounts: Record<string, number> = {};
+            targetWards.forEach(w => totalWardCounts[w] = 0);
+
+            // Multi-Row Supervisor Logic:
+            // If the same empId exists in multiple rows (Split Supervisor), avoid double counting.
+            // 1. Assigned Wards -> Strict Match to correct row.
+            // 2. Unassigned Wards -> Assign to the PRIMARY (First) row only.
+            const allEntriesForId = MASTER_SUPERVISORS.filter(s => s.empId === sup.empId);
+            const isMultiRow = allEntriesForId.length > 1;
+            const isPrimary = MASTER_SUPERVISORS.findIndex(s => s.empId === sup.empId) === index;
+
+            // Wards assigned to my "Siblings" (other rows with same ID)
+            const otherAssignedWards = isMultiRow
+                ? allEntriesForId.filter(s => s !== sup)
+                    .flatMap(s => s.ward ? s.ward.toString().split(',').map(w => w.trim()) : [])
+                : [];
 
             filteredDates.forEach(date => {
                 let count = 0;
+                let wardCounts: Record<string, number> = {};
+                // Initialize ward counts for this date
+                targetWards.forEach(w => wardCounts[w] = 0);
+
                 if (kycData.length > 0) {
-                    count = kycData.filter((row: any) => {
+                    const matches = kycData.filter((row: any) => {
                         const rowDate = normalizeDate(row['Created Date'] || row['Date'] || '');
                         const rowId = (row['Supervisor ID'] || row['Employee ID'] || '').toString().trim().toUpperCase();
 
-                        return rowDate === date && rowId === sup.empId;
-                    }).length;
+                        if (rowDate !== date || rowId !== sup.empId) return false;
+
+                        const csvWardName = row['Ward Name'] || row['Ward'] || '';
+
+                        // Parse Ward Number/Name using the map if needed, or just standard extraction
+                        let csvWardNum = csvWardName.split('-')[0].trim().replace(/^0+/, '');
+
+                        // Try to find Canonical Name for counting?
+                        // Actually, logic uses Number (1, 48) for matching.
+                        // Let's stick to extraction.
+
+                        // Logic for Split Supervisors:
+                        if (isMultiRow) {
+                            if (targetWards.includes(csvWardNum)) {
+                                // My Assigned Ward -> KEEP
+                            } else if (otherAssignedWards.includes(csvWardNum)) {
+                                // Assigned to Sibling -> SKIP
+                                return false;
+                            } else {
+                                // Unassigned -> KEEP ONLY IF PRIMARY
+                                if (!isPrimary) return false;
+                            }
+                        }
+
+                        // Count Logic (now safe from double counting)
+                        if (csvWardNum) {
+                            wardCounts[csvWardNum] = (wardCounts[csvWardNum] || 0) + 1;
+                            totalWardCounts[csvWardNum] = (totalWardCounts[csvWardNum] || 0) + 1;
+                        }
+                        return true;
+                    });
+                    count = matches.length;
                 }
+
                 rowData[date] = count;
+
+                // Formulate DETAIL String for Date Cell
+                const allDirectWards = Object.keys(wardCounts).filter(w => wardCounts[w] > 0);
+                if (count > 0 && allDirectWards.length > 0) {
+                    // Sort: Assigned first, then others
+                    allDirectWards.sort((a, b) => {
+                        const aIsTarget = targetWards.includes(a);
+                        const bIsTarget = targetWards.includes(b);
+                        if (aIsTarget && !bIsTarget) return -1;
+                        if (!aIsTarget && bIsTarget) return 1;
+                        return a.localeCompare(b);
+                    });
+
+                    const details = allDirectWards
+                        .map(w => `${w}${!targetWards.includes(w) ? '*' : ''}:${wardCounts[w]}`)
+                        .join(', ');
+                    rowData[date + '_detail'] = details ? `(${details})` : '';
+                } else {
+                    rowData[date + '_detail'] = '';
+                }
+
                 rowData.total += count;
             });
 
+            // Finalize Ward Column Display
+            // Include ALL Assigned Wards (even if 0 count) AND any other wards with > 0 count
+            const distinctWards = new Set([...targetWards, ...Object.keys(totalWardCounts).filter(w => totalWardCounts[w] > 0)]);
+            const allTotalWards = Array.from(distinctWards);
+
+            if (allTotalWards.length > 0) {
+                // Sort: Assigned first, then others
+                allTotalWards.sort((a, b) => {
+                    const aIsTarget = targetWards.includes(a);
+                    const bIsTarget = targetWards.includes(b);
+                    if (aIsTarget && !bIsTarget) return -1;
+                    if (!aIsTarget && bIsTarget) return 1;
+                    return a.localeCompare(b); // Numeric sort
+                });
+
+                // Format: "1(50), 3(40), 9-Other(10)"
+                rowData.ward = allTotalWards.map(w => {
+                    const isAssigned = targetWards.includes(w);
+                    const label = isAssigned ? w : `${w}-Other`;
+                    const count = totalWardCounts[w] || 0;
+                    return `${label}(${count})`;
+                }).join(', ');
+
+                // Update Total Detail
+                const details = allTotalWards
+                    .map(w => `${w}${!targetWards.includes(w) ? '*' : ''}:${totalWardCounts[w] || 0}`)
+                    .join(', ');
+                rowData.total_detail = details ? `(${details})` : '';
+            } else if (targetWards.length > 0) {
+                // Fallback if no work done (should be covered above but safety)
+                rowData.ward = targetWards.map(w => `${w}(0)`).join(', ');
+            }
+
             return rowData;
         });
-
     }, [kycData, filteredDates]);
 
     const filteredReport = reportData.filter((row: any) => {
@@ -243,16 +356,21 @@ export const WhatsAppReport: React.FC = () => {
 
         const tableBody = filteredReport.map((row: any, index: number) => {
             const defaultRemark = row.total >= totalTarget ? 'Done' : 'Pending';
-            return [
+            const rowDataCells = [
                 (index + 1).toString(),
                 row.zone,
                 row.ward,
                 row.supervisorName,
                 row.department,
-                ...filteredDates.map(date => row[date] !== undefined ? row[date] : 0),
-                row.total,
-                remarks[row.empId] || defaultRemark
+                ...filteredDates.map(date => {
+                    const c = row[date] !== undefined ? row[date] : 0;
+                    const d = row[date + '_detail'] || '';
+                    return d ? `${c} ${d}` : c;
+                }),
+                row.total_detail ? `${row.total} ${row.total_detail}` : row.total,
+                remarks[row.uniqueKey] || defaultRemark
             ];
+            return rowDataCells;
         });
 
         // Dynamic column styles for dates to ensure they don't wrap and are uniform
@@ -681,23 +799,23 @@ export const WhatsAppReport: React.FC = () => {
                     {/* Table Container */}
                     <div id="whatsapp-report-table-scroll-container" className="overflow-x-auto max-h-[600px]">
                         <table className="w-full text-sm text-center text-gray-800 border-collapse border border-gray-400">
-                            <thead className="text-xs uppercase text-white sticky top-0 z-30 shadow-md">
+                            <thead className="text-xs uppercase text-white sticky top-0 z-30 shadow-lg">
                                 <tr>
-                                    <th scope="col" className="px-4 py-4 border border-gray-400 bg-slate-700 sticky left-0 z-40">S.No</th>
-                                    <th scope="col" className="px-4 py-4 border border-gray-400 bg-slate-700 sticky left-[60px] z-40">Zone Name</th>
-                                    <th scope="col" className="px-4 py-4 border border-gray-400 bg-slate-700 sticky left-[160px] z-40">Ward No</th>
-                                    <th scope="col" className="px-4 py-4 border border-gray-400 bg-slate-700 sticky left-[240px] z-40 min-w-[200px]">Supervisor Name</th>
+                                    <th scope="col" className="px-4 py-4 border-b border-r border-gray-600 bg-gradient-to-br from-gray-800 to-gray-900 sticky left-0 z-40">S.No</th>
+                                    <th scope="col" className="px-4 py-4 border-b border-r border-gray-600 bg-gradient-to-br from-gray-800 to-gray-900 sticky left-[60px] z-40">Zone Name</th>
+                                    <th scope="col" className="px-4 py-4 border-b border-r border-gray-600 bg-gradient-to-br from-gray-800 to-gray-900 sticky left-[160px] z-40">Ward No (Count)</th>
+                                    <th scope="col" className="px-4 py-4 border-b border-r border-gray-600 bg-gradient-to-br from-gray-800 to-gray-900 sticky left-[240px] z-40 min-w-[200px]">Supervisor Name</th>
 
                                     {filteredDates.map(date => (
-                                        <th key={date} scope="col" className="px-2 py-4 border border-gray-400 bg-blue-600 min-w-[90px] whitespace-nowrap">
+                                        <th key={date} scope="col" className="px-2 py-4 border-b border-r border-blue-400 bg-gradient-to-b from-blue-500 to-blue-600 min-w-[90px] whitespace-nowrap shadow-sm">
                                             {date.split('-').reverse().join('-')}
                                         </th>
                                     ))}
 
-                                    <th scope="col" className="px-4 py-4 bg-emerald-700 font-extrabold text-white border border-gray-400 sticky right-[120px] z-30">
+                                    <th scope="col" className="px-4 py-4 bg-gradient-to-br from-emerald-600 to-emerald-800 font-extrabold text-white border-b border-l border-gray-600 sticky right-[120px] z-30 shadow-[-5px_0_10px_rgba(0,0,0,0.1)]">
                                         Total
                                     </th>
-                                    <th scope="col" className="px-4 py-4 bg-slate-700 font-extrabold text-white border border-gray-400 sticky right-0 z-30 min-w-[120px]">
+                                    <th scope="col" className="px-4 py-4 bg-gradient-to-br from-gray-800 to-gray-900 font-extrabold text-white border-b border-gray-600 sticky right-0 z-30 min-w-[120px]">
                                         Remark
                                     </th>
                                 </tr>
@@ -707,8 +825,56 @@ export const WhatsAppReport: React.FC = () => {
                                     filteredReport.map((row: any, index: number) => (
                                         <tr key={index} className={`hover:bg-yellow-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                                             <td className="px-4 py-3 font-mono border border-gray-300 sticky left-0 bg-inherit">{index + 1}</td>
-                                            <td className="px-4 py-3 font-semibold text-gray-700 border border-gray-300 sticky left-[60px] bg-inherit">{row.zone}</td>
-                                            <td className="px-4 py-3 font-bold text-blue-800 border border-gray-300 sticky left-[160px] bg-inherit">{row.ward}</td>
+                                            <td className="px-4 py-3 border-r border-gray-200 sticky left-[60px] bg-inherit">
+                                                <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border shadow-sm whitespace-nowrap ${row.zone.toLowerCase().includes('bharat') ? 'bg-orange-100 text-orange-800 border-orange-200' :
+                                                    row.zone.toLowerCase().includes('girish') ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                                                        row.zone.toLowerCase().includes('ranveer') ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                                                            row.zone.toLowerCase().includes('nishant') ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                                                                row.zone.toLowerCase().includes('vrindavan') ? 'bg-pink-100 text-pink-800 border-pink-200' :
+                                                                    'bg-gray-100 text-gray-800 border-gray-200'
+                                                    }`}>
+                                                    {row.zone}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 border-r border-gray-200 sticky left-[160px] bg-inherit">
+                                                <div className="flex flex-wrap gap-1.5 w-full min-w-[120px]">
+                                                    {row.ward.split(',').map((wItem: string, wIdx: number) => {
+                                                        const match = wItem.trim().match(/^([\w\s-]+(?:\s*-\s*Other)?)(?:\((\d+)\))?$/);
+                                                        if (match) {
+                                                            const rawNum = match[1];
+                                                            const wCount = match[2];
+                                                            const isUnfixed = rawNum.includes('Other');
+                                                            const wNum = rawNum.replace('-Other', '');
+
+                                                            // Find full name from WARD_LIST
+                                                            const fullWardName = WARD_LIST.find(w => {
+                                                                const numPart = w.split('-')[0];
+                                                                return parseInt(numPart) === parseInt(wNum);
+                                                            }) || wNum;
+
+                                                            return (
+                                                                <div key={wIdx} title={fullWardName} className={`group flex items-stretch rounded-xl overflow-hidden border shadow-sm hover:shadow-md transition-all duration-200 cursor-help bg-white select-none ${isUnfixed ? 'border-amber-200 ring-1 ring-amber-100 ring-offset-0' : 'border-gray-200 hover:border-blue-300'}`}>
+                                                                    {/* Ward Section */}
+                                                                    <div className={`px-2.5 py-1.5 flex items-center gap-1.5 border-r flex-1 min-w-0 ${isUnfixed ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200' : 'bg-gradient-to-br from-gray-50 to-slate-100 border-gray-100'}`}>
+                                                                        <MapPin className={`w-3.5 h-3.5 flex-shrink-0 ${isUnfixed ? 'text-amber-600' : 'text-slate-500 group-hover:text-blue-500 transition-colors'}`} />
+                                                                        <span className={`text-xs font-bold tracking-tight truncate ${isUnfixed ? 'text-amber-900' : 'text-slate-700'}`}>{fullWardName}</span>
+                                                                    </div>
+
+                                                                    {/* Count Section */}
+                                                                    <div className={`px-2.5 py-1.5 flex items-center justify-center gap-1 min-w-[45px] transition-colors ${!wCount || parseInt(wCount) === 0 ? 'bg-red-50 text-red-700' :
+                                                                        parseInt(wCount) >= 20 ? 'bg-emerald-50 text-emerald-700' :
+                                                                            'bg-yellow-50 text-yellow-700'
+                                                                        }`}>
+                                                                        {(!wCount || parseInt(wCount) === 0) ? <AlertCircle className="w-3 h-3 opacity-80" /> : <CheckCircle2 className="w-3 h-3 opacity-80" />}
+                                                                        <span className="text-xs font-black">{wCount || '0'}</span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return <span key={wIdx} className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs font-medium text-gray-700">{wItem}</span>;
+                                                    })}
+                                                </div>
+                                            </td>
                                             <td className="px-4 py-3 font-semibold text-gray-900 border border-gray-300 sticky left-[240px] bg-inherit whitespace-nowrap flex items-center justify-center gap-2">
                                                 {row.supervisorName}
                                                 <span className={`text-[9px] px-1.5 py-0.5 rounded border ${row.department === 'UCC' ? 'bg-purple-50 text-purple-600 border-purple-200' :
@@ -721,35 +887,52 @@ export const WhatsAppReport: React.FC = () => {
 
                                             {filteredDates.map(date => {
                                                 const count = row[date] || 0;
-                                                // Conditional color based on count
-                                                let cellClass = "bg-red-50 text-red-600 font-medium"; // Default zero (Red)
+                                                const detail = row[date + '_detail'];
 
-                                                if (count >= 20) cellClass = "text-emerald-700 font-black bg-emerald-100 ring-1 ring-inset ring-emerald-200"; // Green
-                                                else if (count >= 1) cellClass = "text-yellow-700 font-bold bg-yellow-50"; // Yellow
+                                                // Conditional color based on count
+                                                let cellClass = "bg-red-50 text-red-600 border-red-100 font-bold"; // Default zero (Red)
+
+                                                if (count >= 20) {
+                                                    cellClass = "bg-emerald-100 text-emerald-800 border-emerald-200 font-black shadow-inner"; // Green
+                                                } else if (count >= 1) {
+                                                    cellClass = "bg-yellow-100 text-yellow-800 border-yellow-200 font-bold"; // Yellow
+                                                }
 
                                                 return (
                                                     <td key={date} className="px-2 py-3 border border-gray-300">
-                                                        <div className={`py-1 px-1 text-center rounded ${cellClass}`}>
-                                                            {count}
+                                                        <div className={`py-1 px-1 text-center rounded ${cellClass} flex flex-col items-center justify-center`}>
+                                                            <span>{count}</span>
+                                                            {detail && (
+                                                                <span className="text-[8px] leading-tight text-gray-500 font-normal mt-0.5">
+                                                                    {detail}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 );
                                             })}
 
                                             <td className="px-4 py-3 font-black text-gray-900 bg-gray-100 border border-gray-300 sticky right-[120px] shadow-[-2px_0_5px_rgba(0,0,0,0.1)]">
-                                                {row.total}
+                                                <div className="flex flex-col items-center">
+                                                    <span>{row.total}</span>
+                                                    {row.total_detail && (
+                                                        <span className="text-[8px] leading-tight text-gray-500 font-normal mt-0.5">
+                                                            {row.total_detail}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-2 py-3 border border-gray-300 sticky right-0 bg-white shadow-[-2px_0_5px_rgba(0,0,0,0.1)]">
                                                 {(() => {
                                                     const DAILY_TARGET = 20;
                                                     const totalTarget = DAILY_TARGET * Math.max(1, filteredDates.length);
                                                     const defaultRemark = row.total >= totalTarget ? 'Done' : 'Pending';
-                                                    const currentRemark = remarks[row.empId] || defaultRemark;
+                                                    const currentRemark = remarks[row.uniqueKey] || defaultRemark;
                                                     return (
                                                         <select
                                                             value={currentRemark}
                                                             onChange={(e) => {
-                                                                setRemarks(prev => ({ ...prev, [row.empId]: e.target.value }));
+                                                                setRemarks(prev => ({ ...prev, [row.uniqueKey]: e.target.value }));
                                                             }}
                                                             className={`w-full text-xs p-1 rounded border border-gray-300 focus:ring-1 focus:ring-blue-500 outline-none
                                                                 ${currentRemark === 'Done' ? 'bg-green-50 text-green-700 font-bold' :

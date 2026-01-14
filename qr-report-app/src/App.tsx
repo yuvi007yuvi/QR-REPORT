@@ -18,6 +18,7 @@ import QRStatusReport from './components/QRStatusReport';
 import Sidebar, { type AppSection, type ViewMode } from './components/Sidebar.tsx';
 import DistanceReport from './components/DistanceReport.tsx';
 import TripReport from './components/TripReport.tsx';
+import SecondaryTripReport from './components/SecondaryTripReport';
 import { parseFile, processData, type ReportRecord, type SummaryStats } from './utils/dataProcessor';
 import { Loader2, RefreshCw, Calendar, Menu } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -149,7 +150,8 @@ function App() {
                               viewMode === 'kyc-calendar' ? 'Daily KYC Calendar' :
                                 viewMode === 'ward-household-status' ? 'Ward Household Status' :
                                   viewMode === 'trip-report' ? 'Trip Report' :
-                                    viewMode === 'qr-status-view' ? 'Daily QR Status Report' : 'Reports Buddy';
+                                    viewMode === 'secondary-trip-view' ? 'Secondary Trip Report' :
+                                      viewMode === 'qr-status-view' ? 'Daily QR Status Report' : 'Reports Buddy';
 
   if (!isAuthenticated) {
     return (
@@ -271,6 +273,8 @@ function App() {
                     viewMode === 'ward-household-status' ? <WardWiseReport /> : <KYCSurveyChecker />
             ) : appSection === 'qr-status' ? (
               <QRStatusReport />
+            ) : appSection === 'secondary-trip' ? (
+              <SecondaryTripReport />
             ) : (
               <>
                 {/* Daily Report Logic */}

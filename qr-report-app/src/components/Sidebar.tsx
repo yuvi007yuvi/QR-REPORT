@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 
-export type AppSection = 'daily' | 'coverage' | 'kyc' | 'qr-status';
+export type AppSection = 'daily' | 'coverage' | 'kyc' | 'qr-status' | 'secondary-trip';
 
 export type ViewMode =
     | 'dashboard'
@@ -31,7 +31,8 @@ export type ViewMode =
     | 'ward-household-status' // Added back
     | 'ward-status-new' // Added new view
     | 'trip-report' // Added trip report
-    | 'qr-status-view';
+    | 'qr-status-view'
+    | 'secondary-trip-view';
 
 interface SidebarProps {
     currentSection: AppSection;
@@ -202,6 +203,20 @@ const Sidebar: React.FC<SidebarProps> = ({
                             >
                                 <ClipboardCheck className="w-5 h-5" />
                                 <span className="font-semibold">QR Status Report</span>
+                            </div>
+                        </div>
+
+                        {/* Secondary Trip Report Section */}
+                        <div>
+                            <div
+                                onClick={() => {
+                                    onSectionChange('secondary-trip');
+                                    onViewChange('secondary-trip-view'); // We need to add this to ViewMode type too
+                                }}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer mb-2 transition-colors ${currentSection === 'secondary-trip' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                            >
+                                <Map className="w-5 h-5" />
+                                <span className="font-semibold">Secondary Trip Report</span>
                             </div>
                         </div>
 

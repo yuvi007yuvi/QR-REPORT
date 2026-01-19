@@ -97,7 +97,8 @@ const SecondaryTripReport: React.FC = () => {
                 const history = await SecondaryTripReportService.getVehicleHistory(
                     vehicle.dvc_id || vehicle.vehicleNo,
                     dateFrom,
-                    dateTo
+                    dateTo,
+                    vehicle.provider
                 );
 
                 if (history.length > 0) {
@@ -125,16 +126,20 @@ const SecondaryTripReport: React.FC = () => {
 
     const exportToExcel = () => {
         const headers = [
-            "Vehicle Number", "Dump Zone", "Entry Time", "Exit Time", "Duration (Min)", "Status"
+            "Vehicle Number", "Provider", "Dump Zone", "Entry Time", "Exit Time", "Duration (Min)", "Status"
         ];
-        const data = trips.map(t => [
-            t.vehicleNo,
-            t.dumpName,
-            new Date(t.entryTime).toLocaleString(),
-            t.exitTime ? new Date(t.exitTime).toLocaleString() : '-',
-            t.durationMinutes,
-            t.isValid ? 'Valid' : 'Invalid'
-        ]);
+        const data = trips.map(t => {
+            const v = vehicles.find(v => v.vehicleNo === t.vehicleNo);
+            return [
+                t.vehicleNo,
+                v?.provider === 'primary' ? 'NatureGreen' : 'Secondary',
+                t.dumpName,
+                new Date(t.entryTime).toLocaleString(),
+                t.exitTime ? new Date(t.exitTime).toLocaleString() : '-',
+                t.durationMinutes,
+                t.isValid ? 'Valid' : 'Invalid'
+            ];
+        });
 
         const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
         const wb = XLSX.utils.book_new();
@@ -150,16 +155,20 @@ const SecondaryTripReport: React.FC = () => {
         doc.text(`From: ${dateFrom} To: ${dateTo}`, 14, 26);
 
         const tableHeaders = [
-            "Vehicle", "Dump Zone", "Entry Time", "Exit Time", "Duration", "Status"
+            "Vehicle", "Provider", "Dump Zone", "Entry Time", "Exit Time", "Duration", "Status"
         ];
-        const tableData = trips.map(t => [
-            t.vehicleNo,
-            t.dumpName,
-            new Date(t.entryTime).toLocaleString(),
-            t.exitTime ? new Date(t.exitTime).toLocaleString() : '-',
-            t.durationMinutes + ' min',
-            t.isValid ? 'Valid' : 'Invalid'
-        ]);
+        const tableData = trips.map(t => {
+            const v = vehicles.find(v => v.vehicleNo === t.vehicleNo);
+            return [
+                t.vehicleNo,
+                v?.provider === 'primary' ? 'Pri' : 'Sec',
+                t.dumpName,
+                new Date(t.entryTime).toLocaleString(),
+                t.exitTime ? new Date(t.exitTime).toLocaleString() : '-',
+                t.durationMinutes + ' min',
+                t.isValid ? 'Valid' : 'Invalid'
+            ];
+        });
 
         (doc as any).autoTable({
             head: [tableHeaders],
@@ -179,8 +188,19 @@ const SecondaryTripReport: React.FC = () => {
                         <Truck className="w-6 h-6 text-blue-600" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-gray-800">Secondary Trip Report</h1>
-                        <p className="text-sm text-gray-500">Geofenced Dump Zone Tracking</p>
+                        <h1 className="text-xl font-bold text-gray-800">Integrated GPS Trip Report</h1>
+                        <p className="text-sm text-gray-500">Unified Tracking (Primary & Secondary)</p>
+                    </div>
+                </div>
+                <div className="hidden md:flex gap-4 text-sm">
+                    <div className="px-3 py-1 bg-gray-50 rounded-lg border border-gray-200">
+                        <span className="text-gray-500">Total:</span> <span className="font-bold">{vehicles.length}</span>
+                    </div>
+                    <div className="px-3 py-1 bg-green-50 rounded-lg border border-green-200">
+                        <span className="text-green-700">Primary:</span> <span className="font-bold text-green-700">{vehicles.filter(v => v.provider === 'primary').length}</span>
+                    </div>
+                    <div className="px-3 py-1 bg-purple-50 rounded-lg border border-purple-200">
+                        <span className="text-purple-700">Secondary:</span> <span className="font-bold text-purple-700">{vehicles.filter(v => v.provider === 'secondary').length}</span>
                     </div>
                 </div>
                 <button
@@ -221,7 +241,9 @@ const SecondaryTripReport: React.FC = () => {
                         >
                             <option value="All">All Vehicles</option>
                             {vehicles.map(v => (
-                                <option key={v.vehicleNo} value={v.vehicleNo}>{v.vehicleNo}</option>
+                                <option key={v.vehicleNo} value={v.vehicleNo}>
+                                    {v.vehicleNo} {v.provider === 'primary' ? '(Pri)' : '(Sec)'}
+                                </option>
                             ))}
                         </select>
                     </div>
@@ -267,6 +289,7 @@ const SecondaryTripReport: React.FC = () => {
                             <thead className="bg-gray-50 text-gray-700 font-bold border-b border-gray-200">
                                 <tr>
                                     <th className="px-4 py-3">Vehicle</th>
+                                    <th className="px-4 py-3">Provider</th>
                                     <th className="px-4 py-3">Dump Zone</th>
                                     <th className="px-4 py-3">Entry Time</th>
                                     <th className="px-4 py-3">Exit Time</th>
@@ -276,29 +299,37 @@ const SecondaryTripReport: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {trips.map(trip => (
-                                    <tr key={trip.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
-                                        <td className="px-4 py-3 font-medium">{trip.vehicleNo}</td>
-                                        <td className="px-4 py-3 text-gray-600">{trip.dumpName}</td>
-                                        <td className="px-4 py-3 text-gray-600">{new Date(trip.entryTime).toLocaleString()}</td>
-                                        <td className="px-4 py-3 text-gray-600">{trip.exitTime ? new Date(trip.exitTime).toLocaleString() : '-'}</td>
-                                        <td className="px-4 py-3 font-mono">{trip.durationMinutes} m</td>
-                                        <td className="px-4 py-3">
-                                            <span className={`px-2 py-0.5 rounded text-xs border ${trip.isValid ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                                {trip.isValid ? 'Valid' : 'Invalid'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <button
-                                                onClick={() => setSelectedTrip(trip)}
-                                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                                                title="View Map"
-                                            >
-                                                <MapIcon className="w-4 h-4" />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {trips.map(trip => {
+                                    const v = vehicles.find(veh => veh.vehicleNo === trip.vehicleNo);
+                                    return (
+                                        <tr key={trip.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
+                                            <td className="px-4 py-3 font-medium">{trip.vehicleNo}</td>
+                                            <td className="px-4 py-3">
+                                                <span className={`px-2 py-0.5 rounded text-[10px] border ${v?.provider === 'primary' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-purple-50 text-purple-700 border-purple-200'}`}>
+                                                    {v?.provider === 'primary' ? 'Primary' : 'Secondary'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-gray-600">{trip.dumpName}</td>
+                                            <td className="px-4 py-3 text-gray-600">{new Date(trip.entryTime).toLocaleString()}</td>
+                                            <td className="px-4 py-3 text-gray-600">{trip.exitTime ? new Date(trip.exitTime).toLocaleString() : '-'}</td>
+                                            <td className="px-4 py-3 font-mono">{trip.durationMinutes} m</td>
+                                            <td className="px-4 py-3">
+                                                <span className={`px-2 py-0.5 rounded text-xs border ${trip.isValid ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                                    {trip.isValid ? 'Valid' : 'Invalid'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <button
+                                                    onClick={() => setSelectedTrip(trip)}
+                                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                                                    title="View Map"
+                                                >
+                                                    <MapIcon className="w-4 h-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

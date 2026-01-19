@@ -14,6 +14,7 @@ export interface Vehicle {
     lng: number;
     speed: number;
     datetime: string; // "YYYY-MM-DD HH:mm:ss"
+    provider?: 'primary' | 'secondary';
 }
 
 export interface DumpPolygon {
@@ -36,8 +37,8 @@ export interface TripEvent {
     path: number[][]; // [lat, lng] array
 }
 
-const SECONDARY_API_KEY = '162814E902A9896655663D59F9BE98D5';
-const BASE_URL = 'https://oempowersupply.in/naturegreen.php';
+// Point to Local Backend Proxy
+const BACKEND_URL = 'http://localhost:5000/api/gps/secondary';
 
 // Cache structure
 interface CacheEntry<T> {
@@ -59,52 +60,113 @@ export const SecondaryTripReportService = {
         }
 
         try {
-            // Using a CORS proxy to bypass browser restrictions
-            const proxyUrl = 'https://api.allorigins.win/raw?url=';
-            const targetUrl = encodeURIComponent(`${BASE_URL}?key=${SECONDARY_API_KEY}&cmd=ALL,*`);
+            // Call Local Backend
+            const response = await fetch(`${BACKEND_URL}/live`, { cache: 'no-store' });
 
-            const response = await fetch(`${proxyUrl}${targetUrl}`);
-            if (!response.ok) throw new Error('Failed to fetch from Secondary API');
-
-            const text = await response.text();
-            let data: any;
-            try {
-                data = JSON.parse(text);
-            } catch (e) {
-                console.warn("API response is not JSON:", text.substring(0, 100));
-                data = [];
+            if (!response.ok) {
+                // If backend returns 4xx/5xx
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `Backend API Error: ${response.status}`);
             }
 
-            const vehicles: Vehicle[] = Array.isArray(data) ? data.map((v: any, index: number) => ({
-                sNo: index + 1,
-                vehicleNo: v.vehicle_no || v.name || 'Unknown',
-                dvc_id: v.device_id || v.id || '',
-                lat: parseFloat(v.lat),
-                lng: parseFloat(v.lng),
-                speed: parseFloat(v.speed || '0'),
-                datetime: v.datetime || new Date().toISOString()
-            })) : [];
+            // Backend handles JSON parsing or text fallback. 
+            // We expect JSON array from backend if success.
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                const jsonResponse = await response.json();
 
-            vehicleCache[cacheKey] = { data: vehicles, timestamp: now };
-            return vehicles;
+                // If it's a wrapped success:false response
+                if (jsonResponse.success === false) {
+                    throw new Error(jsonResponse.message || "API reported failure");
+                }
+
+                // Handle both array [] and object { data: [] } formats
+                const list = Array.isArray(jsonResponse) ? jsonResponse : (jsonResponse.data || []);
+
+                const vehicles: Vehicle[] = Array.isArray(list) ? list.map((v: any, index: number) => ({
+                    sNo: index + 1,
+                    vehicleNo: v.name || v.vehicle_no || 'Unknown',
+                    dvc_id: v.imei || v.device_id || v.id || '',
+                    lat: parseFloat(v.lat),
+                    lng: parseFloat(v.lng),
+                    speed: parseFloat(v.speed || '0'),
+                    datetime: v.dt_tracker || v.datetime || new Date().toISOString(),
+                    provider: v.provider || 'secondary' // Fallback if missing
+                })) : [];
+
+                console.log(`[Frontend] Fetched ${vehicles.length} vehicles. P: ${vehicles.filter(v => v.provider === 'primary').length}, S: ${vehicles.filter(v => v.provider === 'secondary').length}`);
+
+                vehicleCache[cacheKey] = { data: vehicles, timestamp: now };
+                return vehicles;
+            } else {
+                // Not JSON (Backend couldn't parse 3rd party response)
+                const text = await response.text();
+                console.warn("Received non-JSON response from backend:", text.substring(0, 300));
+                return [];
+            }
 
         } catch (error) {
             console.error("Error fetching vehicles:", error);
-            return [];
+            // Re-throw so the UI knows to show the "API Unavailable" alert
+            throw error;
         }
     },
 
     // 2. Fetch History
-    async getVehicleHistory(deviceId: string, from: string, to: string): Promise<Vehicle[]> {
-        // from/to format: YYYY-MM-DD
-        const targetUrl = `${BASE_URL}?key=${SECONDARY_API_KEY}&cmd=TRACK,${deviceId},${from},${to}`;
-        const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl);
-
+    async getVehicleHistory(deviceId: string, from: string, to: string, provider?: string): Promise<Vehicle[]> {
         try {
-            await fetch(proxyUrl);
-            // Mocking return for now
+            const url = `${BACKEND_URL}/history?deviceId=${deviceId}&from=${from}&to=${to}&provider=${provider || 'secondary'}`;
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                console.error(`Backend returned ${response.status}`);
+                return [];
+            }
+
+            const contentType = response.headers.get("content-type");
+            let data: any;
+
+            if (contentType && contentType.includes("application/json")) {
+                data = await response.json();
+            } else {
+                const text = await response.text();
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    // Dynamic import for PapaParse to parse CSV if JSON fails
+                    const Papa = (await import('papaparse')).default;
+                    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+                    data = parsed.data;
+                }
+            }
+
+            // Normalize Data
+            if (!Array.isArray(data) && data?.data && Array.isArray(data.data)) {
+                data = data.data;
+            }
+
+            if (Array.isArray(data)) {
+                return data.map((row: any, index: number) => {
+                    const lat = parseFloat(row.lat || row.latitude || '0');
+                    const lng = parseFloat(row.lng || row.long || row.longitude || '0');
+
+                    if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return null;
+
+                    return {
+                        sNo: index + 1,
+                        vehicleNo: row.vehicle_name || row.vehicle_no || row.name || 'Unknown',
+                        dvc_id: deviceId,
+                        lat: lat,
+                        lng: lng,
+                        speed: parseFloat(row.speed || '0'),
+                        datetime: row.dt_tracker || row.datetime || row.date_time || row.timestamp || new Date().toISOString()
+                    };
+                }).filter((v): v is Vehicle => v !== null);
+            }
+
             return [];
         } catch (e) {
+            console.error("Error fetching history", e);
             return [];
         }
     },

@@ -25,19 +25,25 @@ const WardWiseStatusReport = () => {
     const [data, setData] = useState<WardStatusRow[]>([]);
     const [fileName, setFileName] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedZonals, setSelectedZonals] = useState<string[]>([]); // Empty = All, otherwise list of selected zones
+    const [selectedZonals, setSelectedZonals] = useState<string[]>([]); // Empty = All
     const [isZoneDropdownOpen, setIsZoneDropdownOpen] = useState(false);
-    const [selectedWard, setSelectedWard] = useState('All');
+    const [selectedWards, setSelectedWards] = useState<string[]>([]); // Empty = All
+    const [isWardDropdownOpen, setIsWardDropdownOpen] = useState(false);
+
     const reportRef = useRef<HTMLDivElement>(null);
     const headerRef = useRef<HTMLDivElement>(null);
     const statsRef = useRef<HTMLDivElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const wardDropdownRef = useRef<HTMLDivElement>(null);
 
     // Close dropdown when clicking outside
     React.useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsZoneDropdownOpen(false);
+            }
+            if (wardDropdownRef.current && !wardDropdownRef.current.contains(event.target as Node)) {
+                setIsWardDropdownOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -153,11 +159,11 @@ const WardWiseStatusReport = () => {
                 row.wardNo.toString().includes(searchTerm);
 
             const matchesZonal = selectedZonals.length === 0 || selectedZonals.includes(row.zoneName || 'Unmapped');
-            const matchesWard = selectedWard === 'All' || row.wardNo.toString() === selectedWard;
+            const matchesWard = selectedWards.length === 0 || selectedWards.includes(row.wardNo.toString());
 
             return matchesSearch && matchesZonal && matchesWard;
         });
-    }, [data, searchTerm, selectedZonals, selectedWard]);
+    }, [data, searchTerm, selectedZonals, selectedWards]);
 
     const totals = useMemo(() => {
         return filteredData.reduce((acc, row) => ({
@@ -270,20 +276,7 @@ const WardWiseStatusReport = () => {
     return (
         <div className="min-h-screen bg-gray-50 p-6 space-y-6">
             {/* Header Card */}
-            <div ref={headerRef} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                    <img src={NagarNigamLogo} alt="NN" className="h-20 object-contain hidden md:block" />
-
-                    <div className="text-center">
-                        <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Mathura Vrindavan Nagar Nigam</h1>
-                        <div className="inline-block border-b-4 border-green-500 pb-1 mt-2">
-                            <h2 className="text-xl font-bold text-green-700 uppercase tracking-wide">Ward Wise KYC Status Report</h2>
-                        </div>
-                    </div>
-
-                    <img src={NatureGreenLogo} alt="NG" className="h-20 object-contain hidden md:block" />
-                </div>
-            </div>
+            {/* ... */}
 
             {/* Controls */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col xl:flex-row gap-4 justify-between items-center no-print">
@@ -297,11 +290,13 @@ const WardWiseStatusReport = () => {
                     </div>
                 )}
 
+                {/* Filters Section */}
                 {data.length > 0 && (
                     <div className="flex flex-col md:flex-row gap-3 w-full xl:w-auto items-center flex-1 justify-end">
                         {/* Filters */}
                         <div className="flex gap-2 w-full md:w-auto">
                             {/* Zonal Multi-Select */}
+                            {/* ... existing Zonal Dropdown ... */}
                             <div className="relative" ref={dropdownRef}>
                                 <button
                                     onClick={() => setIsZoneDropdownOpen(!isZoneDropdownOpen)}
@@ -350,14 +345,54 @@ const WardWiseStatusReport = () => {
                                 )}
                             </div>
 
-                            <select
-                                value={selectedWard}
-                                onChange={e => setSelectedWard(e.target.value)}
-                                className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white min-w-[120px] text-sm font-medium"
-                            >
-                                <option value="All">All Wards</option>
-                                {uniqueWards.map(w => <option key={w} value={w}>Ward {w}</option>)}
-                            </select>
+                            {/* Ward Multi-Select */}
+                            <div className="relative" ref={wardDropdownRef}>
+                                <button
+                                    onClick={() => setIsWardDropdownOpen(!isWardDropdownOpen)}
+                                    className="flex items-center justify-between gap-2 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white min-w-[160px] text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                >
+                                    <span>
+                                        {selectedWards.length === 0 ? 'All Wards' : `${selectedWards.length} Wards Selected`}
+                                    </span>
+                                    <ChevronDown size={16} className={`transition-transform ${isWardDropdownOpen ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {isWardDropdownOpen && (
+                                    <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto p-2">
+                                        <div
+                                            className="px-3 py-2 hover:bg-gray-50 rounded-md cursor-pointer flex items-center gap-2 mb-1"
+                                            onClick={() => setSelectedWards([])}
+                                        >
+                                            <div className={`w-4 h-4 border rounded flex items-center justify-center ${selectedWards.length === 0 ? 'bg-green-600 border-green-600' : 'border-gray-300'}`}>
+                                                {selectedWards.length === 0 && <CheckCircle size={10} className="text-white" />}
+                                            </div>
+                                            <span className="text-sm font-medium">All Wards</span>
+                                        </div>
+                                        <div className="h-px bg-gray-100 my-1" />
+                                        {uniqueWards.map(ward => {
+                                            const isSelected = selectedWards.includes(ward || '');
+                                            return (
+                                                <div
+                                                    key={ward}
+                                                    className="px-3 py-2 hover:bg-gray-50 rounded-md cursor-pointer flex items-center gap-2"
+                                                    onClick={() => {
+                                                        setSelectedWards(prev =>
+                                                            prev.includes(ward || '')
+                                                                ? prev.filter(w => w !== (ward || ''))
+                                                                : [...prev, (ward || '')]
+                                                        );
+                                                    }}
+                                                >
+                                                    <div className={`w-4 h-4 border rounded flex items-center justify-center ${isSelected ? 'bg-green-600 border-green-600' : 'border-gray-300'}`}>
+                                                        {isSelected && <CheckCircle size={10} className="text-white" />}
+                                                    </div>
+                                                    <span className="text-sm text-gray-700">Ward {ward}</span>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Search & Exports */}

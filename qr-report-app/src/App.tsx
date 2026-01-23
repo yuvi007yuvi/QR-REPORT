@@ -1,316 +1,149 @@
-import { useState, useEffect } from 'react';
-import { FileUpload } from './components/FileUpload';
+import React, { useState } from 'react';
+import { Menu } from 'lucide-react';
+import Sidebar from './components/Sidebar';
+import type { AppSection } from './components/Sidebar';
+import NagarNigamLogo from './assets/nagar-nigam-logo.png';
+import NatureGreenLogo from './assets/NatureGreen_Logo.png';
 import { Dashboard } from './components/Dashboard';
-import { ReportTable } from './components/ReportTable';
-import { ZonalReport } from './components/ZonalReport';
-import { BeforeAfterReport } from './components/BeforeAfterReport';
-import { SupervisorZonalMapping } from './components/SupervisorZonalMapping';
-import { UndergroundReport } from './components/UndergroundReport';
-import { ZonalUndergroundReport } from './components/ZonalUndergroundReport';
+import TripReport from './components/TripReport';
+import SecondaryVehicleHistory from './components/SecondaryVehicleHistory';
+import CdwasteComplaintReport from './components/CdwasteComplaintReport';
 import { CoverageReport } from './components/CoverageReport';
 import { KYCSurveyChecker } from './components/KYCSurveyChecker';
-import { KYCCalendarView } from './components/KYCCalendarView';
-import { WhatsAppReport } from './components/WhatsAppReport';
+import QRStatusReport from './components/QRStatusReport';
+import { ZonalReport } from './components/ZonalReport';
+import { BeforeAfterReport } from './components/BeforeAfterReport';
+import { UndergroundReport } from './components/UndergroundReport';
+import { ZonalUndergroundReport } from './components/ZonalUndergroundReport';
+import DistanceReport from './components/DistanceReport';
+import DateWiseCoverageReport from './components/DateWiseCoverageReport';
 import { WardWiseReport } from './components/WardWiseReport';
 import WardWiseStatusReport from './components/WardWiseStatusReport';
-import DateWiseCoverageReport from './components/DateWiseCoverageReport';
-import QRStatusReport from './components/QRStatusReport';
-import Sidebar, { type AppSection, type ViewMode } from './components/Sidebar.tsx';
-import DistanceReport from './components/DistanceReport.tsx';
-import TripReport from './components/TripReport.tsx';
-import SecondaryTripReport from './components/SecondaryTripReport';
-import SecondaryVehicleHistory from './components/SecondaryVehicleHistory';
-import { parseFile, processData, type ReportRecord, type SummaryStats } from './utils/dataProcessor';
-import { Loader2, RefreshCw, Calendar, Menu } from 'lucide-react';
-import { clsx } from 'clsx';
-import masterDataJson from './data/masterData.json';
-import supervisorDataJson from './data/supervisorData.json';
+import { WhatsAppReport } from './components/WhatsAppReport';
+import { SupervisorZonalMapping } from './components/SupervisorZonalMapping';
+import { KYCCalendarView } from './components/KYCCalendarView';
+import { KPIChecker } from './components/KPIChecker';
+import type { ReportRecord, SummaryStats } from './utils/dataProcessor';
+import './App.css';
 
+const App: React.FC = () => {
+  const [currentSection, setCurrentSection] = useState<AppSection>('daily');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'detailed' | 'zonal' | 'beforeAfter' | 'mapping' | 'underground' | 'zonalUnderground' | 'distance-report' | 'coverage-dashboard' | 'coverage-supervisor' | 'coverage-ward' | 'coverage-all-wards' | 'coverage-mapping' | 'coverage-date-wise' | 'kyc-survey' | 'kyc-calendar' | 'kyc-whatsapp' | 'ward-household-status' | 'ward-status-new' | 'trip-report' | 'qr-status-view' | 'secondary-trip-view' | 'secondary-vehicle-history' | 'cd-waste-complaint' | 'kpi-checker'>('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-// Authentication removed as requested
-function App() {
-  // const [isAuthenticated, setIsAuthenticated] = useState(true);
-
-  const [appSection, setAppSection] = useState<AppSection>('daily');
-
-  // Daily Report State
-  const [scannedFile, setScannedFile] = useState<File | null>(null);
-  const [reportData, setReportData] = useState<ReportRecord[]>([]);
-  const [stats, setStats] = useState<SummaryStats | null>(null);
-  const [availableDates, setAvailableDates] = useState<string[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>('All');
-  const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  // Keep track of raw scanned data to re-filter without re-parsing
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [rawScannedData, setRawScannedData] = useState<any[] | null>(null);
-
-  const handleProcess = async () => {
-    if (!scannedFile) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const [scannedData] = await Promise.all([
-        parseFile(scannedFile),
-      ]);
-
-      setRawScannedData(scannedData);
-
-      // Use embedded data
-      const masterData = masterDataJson;
-      const supervisorData = supervisorDataJson;
-
-      // Initial process to get dates and default report (All dates)
-      const { report, stats, availableDates } = processData(masterData, supervisorData, scannedData, 'All');
-
-      setAvailableDates(['All', ...availableDates]);
-
-      // Default to Today's date if available
-      const today = new Date();
-      const day = String(today.getDate()).padStart(2, '0');
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const year = today.getFullYear();
-      const todayStr = `${day}/${month}/${year}`;
-
-      if (availableDates.includes(todayStr)) {
-        setSelectedDate(todayStr);
-      } else {
-        setSelectedDate('All');
-      }
-
-      setReportData(report);
-      setStats(stats);
-      setViewMode('dashboard');
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      console.error(err);
-      setError('Error processing files. Please check the file formats.');
-    } finally {
-      setLoading(false);
-    }
+  // Mock stats for dashboard - in a real app, this would come from a data source
+  const mockStats: SummaryStats = {
+    total: 1250,
+    scanned: 980,
+    pending: 270,
+    unknown: 0,
+    scannedPercentage: 78,
+    zoneStats: {},
+    zonalHeadStats: {},
+    wardStats: []
   };
 
-  // Re-process when date changes
-  useEffect(() => {
-    if (rawScannedData && stats) { // Only if we have data processed at least once
-      const masterData = masterDataJson;
-      const supervisorData = supervisorDataJson;
-      const { report, stats: newStats } = processData(masterData, supervisorData, rawScannedData, selectedDate);
-      setReportData(report);
-      setStats(newStats);
+  const mockReportData: ReportRecord[] = [];
+  const mockDate = "";
+
+  const renderCurrentView = () => {
+    switch (currentView) {
+      case 'dashboard':
+        return <Dashboard stats={mockStats} />;
+      case 'detailed':
+        return <CoverageReport />;
+      case 'zonal':
+        return <ZonalReport data={mockReportData} date={mockDate} />;
+      case 'beforeAfter':
+        return <BeforeAfterReport data={mockReportData} date={mockDate} />;
+      case 'mapping':
+        return <SupervisorZonalMapping />;
+      case 'underground':
+        return <UndergroundReport data={mockReportData} />;
+      case 'zonalUnderground':
+        return <ZonalUndergroundReport data={mockReportData} date={mockDate} />;
+      case 'distance-report':
+        return <DistanceReport />;
+      case 'trip-report':
+        return <TripReport />;
+      case 'coverage-dashboard':
+        return <CoverageReport />;
+      case 'coverage-supervisor':
+        return <CoverageReport />;
+      case 'coverage-ward':
+        return <WardWiseReport />;
+      case 'coverage-all-wards':
+        return <CoverageReport />;
+      case 'coverage-mapping':
+        return <SupervisorZonalMapping />;
+      case 'coverage-date-wise':
+        return <DateWiseCoverageReport />;
+      case 'kyc-survey':
+        return <KYCSurveyChecker />;
+      case 'kyc-calendar':
+        return <KYCCalendarView />;
+      case 'kyc-whatsapp':
+        return <WhatsAppReport />;
+      case 'ward-household-status':
+        return <WardWiseStatusReport />;
+      case 'ward-status-new':
+        return <WardWiseStatusReport />;
+      case 'qr-status-view':
+        return <QRStatusReport />;
+      case 'secondary-trip-view':
+        return <TripReport />;
+      case 'secondary-vehicle-history':
+        return <SecondaryVehicleHistory />;
+      case 'cd-waste-complaint':
+        return <CdwasteComplaintReport />;
+      case 'kpi-checker':
+        return <KPIChecker />;
+      default:
+        return <Dashboard stats={mockStats} />;
     }
-  }, [selectedDate, rawScannedData]);
-
-  const handleReset = () => {
-    setScannedFile(null);
-    setReportData([]);
-    setStats(null);
-    setRawScannedData(null);
-    setAvailableDates([]);
-    setSelectedDate('All');
-    setError(null);
-    setViewMode('dashboard');
   };
-
-  const currentTitle =
-    viewMode === 'dashboard' ? 'Quick Dashboard' :
-      viewMode === 'detailed' ? 'Detailed Daily Report' :
-        viewMode === 'zonal' ? 'Zonal Daily Summary' :
-          viewMode === 'beforeAfter' ? 'Photo Evidence Report' :
-            viewMode === 'mapping' ? 'Daily Supervisor Mapping' :
-              viewMode === 'underground' ? 'Underground Dustbin Status' :
-                viewMode === 'zonalUnderground' ? 'Zonal Dustbin Summary' :
-                  viewMode === 'coverage-dashboard' ? 'POI Coverage Dashboard' :
-                    viewMode === 'coverage-supervisor' ? 'Supervisor POI Analysis' :
-                      viewMode === 'coverage-ward' ? 'Ward POI Analysis' :
-                        viewMode === 'coverage-all-wards' ? 'All Wards POI Summary' :
-                          viewMode === 'coverage-mapping' ? 'POI Mapping' :
-                            viewMode === 'coverage-date-wise' ? 'Date-wise POI Coverage Calendar' :
-                              viewMode === 'kyc-calendar' ? 'Daily KYC Calendar' :
-                                viewMode === 'ward-household-status' ? 'Ward Household Status' :
-                                  viewMode === 'trip-report' ? 'Trip Report' :
-                                    viewMode === 'secondary-trip-view' ? 'Integrated GPS Trip Report' :
-                                      viewMode === 'qr-status-view' ? 'Daily QR Status Report' :
-                                        viewMode === 'secondary-vehicle-history' ? 'GPS Vehicle History' : 'Reports Buddy';
-
-  // Login block removed
-
 
   return (
-    <div className="flex h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
-
+    <div className="flex h-screen bg-gray-100 overflow-hidden">
       <Sidebar
-        currentSection={appSection}
-        onSectionChange={setAppSection}
-        currentView={viewMode}
-        onViewChange={setViewMode}
+        currentSection={currentSection}
+        onSectionChange={setCurrentSection}
+        currentView={currentView}
+        onViewChange={setCurrentView as any}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top bar with hamburger menu */}
+        <header className="bg-white shadow-sm z-10 flex items-center justify-between p-4 border-b border-gray-200">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden p-2 rounded-md hover:bg-gray-100 transition-colors"
+          >
+            <Menu className="w-5 h-5 text-gray-600" />
+          </button>
 
-      <main className="flex-1 flex flex-col h-screen relative scroll-smooth overflow-hidden">
-        {/* Top Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0 z-10 shadow-sm">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              aria-label="Toggle sidebar"
-            >
-              <Menu className="w-5 h-5 text-gray-600" />
-            </button>
-            <h2 className="text-xl font-bold text-gray-800 tracking-tight">
-              {currentTitle}
-            </h2>
+          {/* Header Logos */}
+          <div className="flex items-center gap-4 flex-1 justify-center md:justify-start">
+            <img src={NagarNigamLogo} alt="NN" className="h-10 w-auto object-contain" />
+            <div className="flex flex-col">
+              <h1 className="text-lg font-bold text-gray-900 leading-tight">
+                {currentView.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+              </h1>
+              <span className="text-xs text-gray-500 font-medium">Mathura-Vrindavan Nagar Nigam</span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            {appSection === 'daily' && stats && (
-              <>
-                <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1.5 border border-gray-200">
-                  <div className="px-2 text-gray-500">
-                    <Calendar className="w-4 h-4" />
-                  </div>
-                  <select
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="bg-transparent border-none text-sm font-medium text-gray-700 focus:ring-0 cursor-pointer py-0.5 pr-8 outline-none"
-                  >
-                    {availableDates.map(date => (
-                      <option key={date} value={date}>{date === 'All' ? 'All Dates' : date}</option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  onClick={handleReset}
-                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Reset
-                </button>
-              </>
-            )}
+          <div className="w-10">
+            <img src={NatureGreenLogo} alt="NG" className="h-10 w-auto object-contain hidden md:block" />
           </div>
         </header>
-
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-8 scroll-smooth">
-          <div className="max-w-7xl mx-auto animate-in fade-in duration-500">
-
-            {appSection === 'coverage' ? (
-              viewMode === 'coverage-date-wise' ? <DateWiseCoverageReport /> :
-                <CoverageReport initialMode={
-                  viewMode === 'coverage-supervisor' ? 'supervisor' :
-                    viewMode === 'coverage-ward' ? 'ward' :
-                      viewMode === 'coverage-all-wards' ? 'all-wards' :
-                        viewMode === 'coverage-mapping' ? 'mapping' : 'dashboard'
-                } />
-            ) : appSection === 'kyc' ? (
-              viewMode === 'kyc-calendar' ? <KYCCalendarView /> :
-                viewMode === 'kyc-whatsapp' ? <WhatsAppReport /> :
-                  viewMode === 'ward-status-new' ? <WardWiseStatusReport /> :
-                    viewMode === 'ward-household-status' ? <WardWiseReport /> : <KYCSurveyChecker />
-            ) : appSection === 'qr-status' ? (
-              <QRStatusReport />
-            ) : appSection === 'secondary-trip' ? (
-              viewMode === 'secondary-vehicle-history' ? <SecondaryVehicleHistory /> : <SecondaryTripReport />
-            ) : (
-              <>
-                {/* Daily Report Logic */}
-                {!stats && viewMode !== 'mapping' && viewMode !== 'distance-report' && viewMode !== 'trip-report' ? (
-                  /* Upload Screen */
-                  <div className="max-w-2xl mx-auto mt-10">
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
-                      <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Menu className="w-8 h-8 text-blue-600" />
-                      </div>
-                      <h2 className="text-2xl font-bold text-gray-900 mb-2">Initialize Daily Report</h2>
-                      <p className="text-gray-500 mb-8 max-w-md mx-auto">
-                        Upload the Bulk Collection Scan CSV file to generate the interactive dashboard and detailed reports.
-                      </p>
-
-                      <div className="space-y-6 text-left">
-                        <FileUpload
-                          label="Scanned Data (BulkCollectionScan.csv)"
-                          file={scannedFile}
-                          onFileSelect={setScannedFile}
-                          required
-                        />
-                      </div>
-
-                      {error && (
-                        <div className="mt-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2 text-left">
-                          <span className="font-bold">Error:</span> {error}
-                        </div>
-                      )}
-
-                      <div className="mt-8">
-                        <button
-                          onClick={handleProcess}
-                          disabled={!scannedFile || loading}
-                          className={clsx(
-                            "w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium text-white transition-all shadow-sm",
-                            !scannedFile || loading
-                              ? "bg-gray-300 cursor-not-allowed"
-                              : "bg-blue-600 hover:bg-blue-700 hover:shadow-md active:transform active:scale-95"
-                          )}
-                        >
-                          {loading ? (
-                            <>
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                              Processing Data...
-                            </>
-                          ) : (
-                            <>
-                              Generate Dashboard
-                            </>
-                          )}
-                        </button>
-                      </div>
-                      <p className="mt-4 text-xs text-gray-400">
-                        Checking Master Data & Supervisor Mapping automatically.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  /* Views */
-                  <>
-                    {viewMode === 'dashboard' && stats && <Dashboard stats={stats} />}
-
-                    {viewMode === 'detailed' && <ReportTable data={reportData} />}
-
-                    {viewMode === 'zonal' && <ZonalReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />}
-
-                    {viewMode === 'beforeAfter' && <BeforeAfterReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />}
-
-                    {viewMode === 'mapping' && <SupervisorZonalMapping />}
-
-                    {viewMode === 'underground' && <UndergroundReport data={reportData} />}
-
-                    {viewMode === 'zonalUnderground' && <ZonalUndergroundReport data={reportData} date={selectedDate === 'All' ? 'All Dates' : selectedDate} />}
-
-                    {viewMode === 'distance-report' && <DistanceReport />}
-
-                    {viewMode === 'trip-report' && <TripReport />}
-
-                    {viewMode === 'secondary-vehicle-history' && <SecondaryVehicleHistory />} {/* Added new view */}
-                  </>
-                )}
-              </>
-            )}
-
-          </div>
-        </div>
-      </main>
-    </div>
+        <main className="flex-1 overflow-y-auto p-4 bg-gray-100">
+          {renderCurrentView()}
+        </main>
+      </div>
+    </div >
   );
-}
+};
 
 export default App;

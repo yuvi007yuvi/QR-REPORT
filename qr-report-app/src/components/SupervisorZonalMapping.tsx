@@ -34,39 +34,38 @@ const WARD_NAMES: Record<string, string> = {
     "66": "66-Keshighat", "67": "67-Kemar Van", "68": "68-Shanti Nagar", "69": "69-Ratan Chhatri", "70": "70-Biharipur"
 };
 
+import { MASTER_SUPERVISORS } from '../data/master-supervisors';
+
 export const SupervisorZonalMapping: React.FC = () => {
 
     const mappingData = useMemo(() => {
-        const data = supervisorDataJson as unknown as SupervisorData[];
-        const groupedByZone: Record<string, Record<string, SupervisorData[]>> = {};
+        // Filter for C&T supervisors from the master list
+        const ctSupervisors = MASTER_SUPERVISORS.filter(s => s.department === 'C&T');
 
-        // Group by Zone and then by Supervisor
-        data.forEach(item => {
-            const head = item["Zonal Head"] || 'Unassigned';
-            const supervisor = item["Supervisor"] || 'Unknown';
+        const groupedByZone: Record<string, typeof ctSupervisors> = {};
 
+        // Group by Zonal Head
+        ctSupervisors.forEach(sup => {
+            const head = sup.zonal || 'Unassigned';
             if (!groupedByZone[head]) {
-                groupedByZone[head] = {};
+                groupedByZone[head] = [];
             }
-            if (!groupedByZone[head][supervisor]) {
-                groupedByZone[head][supervisor] = [];
-            }
-            groupedByZone[head][supervisor].push(item);
+            groupedByZone[head].push(sup);
         });
 
-        // Consolidate and format data
+        // Format data for display
         const consolidated: Record<string, SupervisorData[]> = {};
 
         Object.keys(groupedByZone).sort().forEach(zone => {
-            const supervisorsInZone = groupedByZone[zone];
-            consolidated[zone] = Object.keys(supervisorsInZone).sort().map(supName => {
-                const entries = supervisorsInZone[supName];
-                const wards = entries
-                    .map(e => {
-                        const num = e["Ward No"].toString();
-                        return WARD_NAMES[num] || `Ward ${num}`;
-                    })
-                    // Sort by the numeric prefix of the ward string
+            const supervisors = groupedByZone[zone];
+
+            consolidated[zone] = supervisors.map(sup => {
+                // Parse ward numbers (handle comma separated)
+                const wardNums = sup.ward.toString().split(',').map(s => s.trim());
+
+                const wardNames = wardNums
+                    .map(num => WARD_NAMES[num] || `Ward ${num}`)
+                    // Sort numerically based on the leading number
                     .sort((a, b) => {
                         const numA = parseInt(a.match(/^(\d+)/)?.[1] || '0', 10);
                         const numB = parseInt(b.match(/^(\d+)/)?.[1] || '0', 10);
@@ -74,11 +73,14 @@ export const SupervisorZonalMapping: React.FC = () => {
                     })
                     .join(", ");
 
-                // Use the first entry for other details and override Ward No
                 return {
-                    ...entries[0],
-                    "Ward No": wards
-                };
+                    "S.No.": parseInt(sup.sNo) || 0, // Best effort parse
+                    "Supervisor": sup.name,
+                    "Mobile No": sup.mobile,
+                    "Ward No": wardNames,
+                    "Zonal Head": sup.zonal,
+                    "Zone & Circle": sup.zonal // Map Zonal to Zone & Circle for now as they are proxy
+                } as SupervisorData;
             });
         });
 

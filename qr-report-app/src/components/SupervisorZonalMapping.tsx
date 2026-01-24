@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import supervisorDataJson from '../data/supervisorData.json';
+
 import { Image as ImageIcon } from 'lucide-react';
 import { exportToJPEG } from '../utils/exporter';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';

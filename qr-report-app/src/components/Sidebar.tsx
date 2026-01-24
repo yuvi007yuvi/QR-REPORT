@@ -18,7 +18,8 @@ import {
     FileText, // Added
     Home, // Added
     FileSearch, // Added
-    CheckSquare // Added
+    CheckSquare, // Added
+    PieChart // Added
 } from 'lucide-react';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 
@@ -49,7 +50,8 @@ export type ViewMode =
     | 'secondary-trip-view'
     | 'secondary-vehicle-history' // Added
     | 'cd-waste-complaint' // Added for C&D Waste Complaint Report
-    | 'kpi-checker'; // Added
+    | 'kpi-checker' // Added
+    | 'supervisor-count-report'; // Added
 
 interface SidebarProps {
     currentSection: AppSection;
@@ -129,6 +131,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             icon: ClipboardCheck,
             items: [
                 { id: 'kyc-survey', label: 'KYC Survey', icon: FileSearch },
+                { id: 'supervisor-count-report', label: 'Supervisor Count Report', icon: PieChart },
                 { id: 'kyc-calendar', label: 'KYC Calendar', icon: Calendar },
                 { id: 'kyc-whatsapp', label: 'WhatsApp Reports', icon: FileText },
                 { id: 'ward-household-status', label: 'Ward Household Status', icon: Home },

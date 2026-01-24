@@ -10,6 +10,7 @@ import SecondaryVehicleHistory from './components/SecondaryVehicleHistory';
 import CdwasteComplaintReport from './components/CdwasteComplaintReport';
 import { CoverageReport } from './components/CoverageReport';
 import { KYCSurveyChecker } from './components/KYCSurveyChecker';
+import { SupervisorCountReport } from './components/SupervisorCountReport';
 import QRStatusReport from './components/QRStatusReport';
 import { ZonalReport } from './components/ZonalReport';
 import { BeforeAfterReport } from './components/BeforeAfterReport';
@@ -28,7 +29,7 @@ import './App.css';
 
 const App: React.FC = () => {
   const [currentSection, setCurrentSection] = useState<AppSection>('daily');
-  const [currentView, setCurrentView] = useState<'dashboard' | 'detailed' | 'zonal' | 'beforeAfter' | 'mapping' | 'underground' | 'zonalUnderground' | 'distance-report' | 'coverage-dashboard' | 'coverage-supervisor' | 'coverage-ward' | 'coverage-all-wards' | 'coverage-mapping' | 'coverage-date-wise' | 'kyc-survey' | 'kyc-calendar' | 'kyc-whatsapp' | 'ward-household-status' | 'ward-status-new' | 'trip-report' | 'qr-status-view' | 'secondary-trip-view' | 'secondary-vehicle-history' | 'cd-waste-complaint' | 'kpi-checker'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'detailed' | 'zonal' | 'beforeAfter' | 'mapping' | 'underground' | 'zonalUnderground' | 'distance-report' | 'coverage-dashboard' | 'coverage-supervisor' | 'coverage-ward' | 'coverage-all-wards' | 'coverage-mapping' | 'coverage-date-wise' | 'kyc-survey' | 'kyc-calendar' | 'kyc-whatsapp' | 'ward-household-status' | 'ward-status-new' | 'trip-report' | 'qr-status-view' | 'secondary-trip-view' | 'secondary-vehicle-history' | 'cd-waste-complaint' | 'kpi-checker' | 'supervisor-count-report'>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Mock stats for dashboard - in a real app, this would come from a data source
@@ -80,6 +81,8 @@ const App: React.FC = () => {
         return <DateWiseCoverageReport />;
       case 'kyc-survey':
         return <KYCSurveyChecker />;
+      case 'supervisor-count-report':
+        return <SupervisorCountReport />;
       case 'kyc-calendar':
         return <KYCCalendarView />;
       case 'kyc-whatsapp':

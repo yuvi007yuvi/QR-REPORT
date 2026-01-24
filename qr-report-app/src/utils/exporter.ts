@@ -55,19 +55,126 @@ export const exportToPDF = (data: ReportRecord[], title: string = 'QR Scanned Re
     doc.save(`${filename}.pdf`);
 };
 
-import { toJpeg } from 'html-to-image';
+import { toJpeg, toPng } from 'html-to-image';
 
 export const exportToJPEG = async (elementId: string, filename: string = 'QR_Report') => {
     const element = document.getElementById(elementId);
     if (!element) return;
 
+    // Store original styles
+    const originalStyle = {
+        height: element.style.height,
+        maxHeight: element.style.maxHeight,
+        overflow: element.style.overflow
+    };
+
+    // Find scrollable children and store their styles
+    const scrollables = Array.from(element.querySelectorAll('.overflow-y-auto, .overflow-x-auto, .overflow-auto')) as HTMLElement[];
+    const scrollableStyles = scrollables.map(el => ({
+        el,
+        height: el.style.height,
+        maxHeight: el.style.maxHeight,
+        overflow: el.style.overflow
+    }));
+
     try {
+        // Expand element and children
+        element.style.height = 'auto';
+        element.style.maxHeight = 'none';
+        element.style.overflow = 'visible';
+
+        scrollables.forEach(el => {
+            el.style.height = 'auto';
+            el.style.maxHeight = 'none';
+            el.style.overflow = 'visible';
+        });
+
+        // Small wait for layout
+        await new Promise(resolve => setTimeout(resolve, 50));
+
         const dataUrl = await toJpeg(element, { quality: 0.95, backgroundColor: '#ffffff' });
+
         const link = document.createElement('a');
         link.download = `${filename}.jpg`;
         link.href = dataUrl;
         link.click();
+
     } catch (error) {
         console.error('Error exporting to JPEG:', error);
+    } finally {
+        // Restore styles
+        element.style.height = originalStyle.height;
+        element.style.maxHeight = originalStyle.maxHeight;
+        element.style.overflow = originalStyle.overflow;
+
+        scrollableStyles.forEach(({ el, height, maxHeight, overflow }) => {
+            el.style.height = height;
+            el.style.maxHeight = maxHeight;
+            el.style.overflow = overflow;
+        });
+    }
+};
+
+export const exportToPDFImage = async (elementId: string, filename: string = 'QR_Report') => {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+
+    // Store original styles
+    const originalStyle = {
+        height: element.style.height,
+        maxHeight: element.style.maxHeight,
+        overflow: element.style.overflow
+    };
+
+    const scrollables = Array.from(element.querySelectorAll('.overflow-y-auto, .overflow-x-auto, .overflow-auto')) as HTMLElement[];
+    const scrollableStyles = scrollables.map(el => ({
+        el,
+        height: el.style.height,
+        maxHeight: el.style.maxHeight,
+        overflow: el.style.overflow
+    }));
+
+    try {
+        // Expand element and children
+        element.style.height = 'auto';
+        element.style.maxHeight = 'none';
+        element.style.overflow = 'visible';
+
+        scrollables.forEach(el => {
+            el.style.height = 'auto';
+            el.style.maxHeight = 'none';
+            el.style.overflow = 'visible';
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Use PNG for better quality in PDF
+        const dataUrl = await toPng(element, { backgroundColor: '#ffffff' });
+
+        const imgWidth = element.offsetWidth;
+        const imgHeight = element.offsetHeight;
+
+        const doc = new jsPDF({
+            orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+            unit: 'px',
+            format: [imgWidth, imgHeight]
+        });
+
+        doc.addImage(dataUrl, 'PNG', 0, 0, imgWidth, imgHeight);
+        doc.save(`${filename}.pdf`);
+
+    } catch (error) {
+        console.error('Error exporting to PDF:', error);
+    } finally {
+        // Restore styles
+        element.style.height = originalStyle.height;
+        element.style.maxHeight = originalStyle.maxHeight;
+        element.style.overflow = originalStyle.overflow;
+
+        scrollableStyles.forEach(({ el, height, maxHeight, overflow }) => {
+            el.style.height = height;
+            el.style.maxHeight = maxHeight;
+            el.style.overflow = overflow;
+        });
     }
 };

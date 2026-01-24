@@ -223,27 +223,7 @@ const CDWasteComplaintReport: React.FC = () => {
     return grouped;
   }, [filteredData, wardToSupervisorMap]);
 
-  // Calculate summary counts
-  const summaryCounts = useMemo(() => {
-    const totalOpen = filteredData.length;
 
-    // Calculate open complaints by zone, treating specific zones as Mathura
-    const mathuraOpen = filteredData.filter(record =>
-      record.zone.toLowerCase().includes('mathura') ||
-      record.zone.toLowerCase().includes('bhuteswar') ||
-      record.zone.toLowerCase().includes('aurangabad')
-    ).length;
-
-    const vrindavanOpen = filteredData.filter(record =>
-      record.zone.toLowerCase().includes('vrindavan')
-    ).length;
-
-    return {
-      totalOpen,
-      mathuraOpen,
-      vrindavanOpen
-    };
-  }, [filteredData]);
 
   // Export to Excel function
   const handleExportExcel = () => {

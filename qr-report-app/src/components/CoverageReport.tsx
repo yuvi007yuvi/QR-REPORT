@@ -454,67 +454,188 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
         XLSX.writeFile(wb, "Coverage_Report.xlsx");
     };
 
-    const exportToZonalPDF = () => {
+    const exportToZonalPDF = async () => {
+        setLoading(true);
         const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
 
-        // Group by Zonal Head
-        const zonalSummary = stats.reduce((acc, curr) => {
-            if (!acc[curr.zonalHead]) {
-                acc[curr.zonalHead] = {
-                    total: 0,
-                    covered: 0,
-                    notCovered: 0,
-                    supervisorCount: 0
-                };
-            }
-            acc[curr.zonalHead].total += curr.total;
-            acc[curr.zonalHead].covered += curr.covered;
-            acc[curr.zonalHead].notCovered += curr.notCovered;
-            acc[curr.zonalHead].supervisorCount++;
-            return acc;
-        }, {} as Record<string, any>);
+        try {
+            // Load logos
+            const logoLeft = await getBase64ImageFromURL(nagarNigamLogo).catch(() => null);
+            const logoRight = await getBase64ImageFromURL(natureGreenLogo).catch(() => null);
 
-        const tableColumn = ["Zonal Head", "Supervisors", "Total POI", "Covered", "Not Covered", "Coverage %"];
-        const tableRows = Object.entries(zonalSummary).sort((a, b) => a[0].localeCompare(b[0])).map(([head, data]) => [
-            head,
-            data.supervisorCount,
-            data.total.toLocaleString(),
-            data.covered.toLocaleString(),
-            data.notCovered.toLocaleString(),
-            (data.total > 0 ? (data.covered / data.total * 100).toFixed(2) : '0') + '%'
-        ]);
-
-        doc.setFontSize(18);
-        doc.text("POI Coverage Zonal Summary Report", 14, 20);
-        doc.setFontSize(10);
-        doc.setTextColor(100);
-        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
-
-        autoTable(doc, {
-            head: [tableColumn],
-            body: tableRows,
-            startY: 35,
-            theme: 'striped',
-            headStyles: { fillColor: [22, 163, 74], halign: 'center' },
-            columnStyles: {
-                0: { fontStyle: 'bold' },
-                1: { halign: 'center' },
-                2: { halign: 'center' },
-                3: { halign: 'center' },
-                4: { halign: 'center' },
-                5: { halign: 'center', fontStyle: 'bold' }
-            },
-            didParseCell: (data) => {
-                if (data.section === 'body' && data.column.index === 5) {
-                    const rowRaw = data.cell.raw as string;
-                    const val = parseFloat(rowRaw.replace('%', ''));
-                    if (val >= 90) data.cell.styles.textColor = [22, 101, 52];
-                    else if (val < 75) data.cell.styles.textColor = [153, 27, 27];
+            // Group by Zonal Head for POI stats
+            const zonalSummary = stats.reduce((acc, curr) => {
+                if (!acc[curr.zonalHead]) {
+                    acc[curr.zonalHead] = {
+                        total: 0,
+                        covered: 0,
+                        notCovered: 0
+                    };
                 }
-            }
-        });
+                acc[curr.zonalHead].total += curr.total;
+                acc[curr.zonalHead].covered += curr.covered;
+                acc[curr.zonalHead].notCovered += curr.notCovered;
+                return acc;
+            }, {} as Record<string, any>);
 
-        doc.save("Zonal_Coverage_Report.pdf");
+            // Calculate Wards and Routes per Zone
+            const zoneMeta = wardStats.reduce((acc, curr) => {
+                const head = curr.zonalHead || 'Unmapped';
+                if (!acc[head]) {
+                    acc[head] = {
+                        routes: 0,
+                        wards: new Set<string>()
+                    };
+                }
+                acc[head].routes += 1;
+                acc[head].wards.add(curr.wardNumber);
+                return acc;
+            }, {} as Record<string, { routes: number, wards: Set<string> }>);
+
+            // Calculate Grand Totals
+            const grandTotals = {
+                total: 0,
+                covered: 0,
+                notCovered: 0,
+                routeCount: 0,
+                wardCount: 0
+            };
+
+            const tableColumn = ["Zonal Head", "Wards", "Routes", "Total POI", "Covered", "Not Covered", "Coverage %"];
+
+            const tableRows = Object.entries(zonalSummary).sort((a, b) => a[0].localeCompare(b[0])).map(([head, data]) => {
+                const meta = zoneMeta[head] || { routes: 0, wards: new Set() };
+                const wardCount = meta.wards.size;
+                const routeCount = meta.routes;
+
+                // Accumulate Grand Totals
+                grandTotals.total += data.total;
+                grandTotals.covered += data.covered;
+                grandTotals.notCovered += data.notCovered;
+                grandTotals.routeCount += routeCount;
+                grandTotals.wardCount += wardCount;
+
+                return [
+                    head,
+                    wardCount,
+                    routeCount,
+                    data.total.toLocaleString(),
+                    data.covered.toLocaleString(),
+                    data.notCovered.toLocaleString(),
+                    (data.total > 0 ? (data.covered / data.total * 100).toFixed(2) : '0') + '%'
+                ];
+            });
+
+            // Add Grand Total Row
+            tableRows.push([
+                "Grand Total",
+                grandTotals.wardCount,
+                grandTotals.routeCount,
+                grandTotals.total.toLocaleString(),
+                grandTotals.covered.toLocaleString(),
+                grandTotals.notCovered.toLocaleString(),
+                (grandTotals.total > 0 ? (grandTotals.covered / grandTotals.total * 100).toFixed(2) : '0') + '%'
+            ]);
+
+            // --- PDF DESIGN ---
+
+            // 1. Outer Border
+            doc.setDrawColor(22, 163, 74); // Green-600
+            doc.setLineWidth(1.5);
+            doc.rect(5, 5, pageWidth - 10, pageHeight - 10);
+
+            // 2. Logos
+            if (logoLeft) doc.addImage(logoLeft, 'PNG', 10, 10, 30, 15);
+            if (logoRight) doc.addImage(logoRight, 'PNG', pageWidth - 35, 8, 25, 25);
+
+            // 3. Header Title
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(31, 41, 55); // Gray-800
+            doc.text("POI Coverage Summary", pageWidth / 2, 18, { align: 'center' });
+
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(107, 114, 128); // Gray-500
+            doc.text("Zonal Performance Report", pageWidth / 2, 24, { align: 'center' });
+
+            doc.setFontSize(8);
+            doc.setTextColor(156, 163, 175);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 30, { align: 'center' });
+
+            // 4. Table Table
+            autoTable(doc, {
+                head: [tableColumn],
+                body: tableRows,
+                startY: 40,
+                theme: 'grid',
+                headStyles: {
+                    fillColor: [22, 163, 74],
+                    textColor: 255,
+                    fontSize: 10,
+                    fontStyle: 'bold',
+                    halign: 'center'
+                },
+                columnStyles: {
+                    0: { fontStyle: 'bold', cellWidth: 'auto' },
+                    1: { halign: 'center' },
+                    2: { halign: 'center' },
+                    3: { halign: 'center' },
+                    4: { halign: 'center' },
+                    5: { halign: 'center' },
+                    6: { halign: 'center', fontStyle: 'bold' }
+                },
+                styles: {
+                    fontSize: 9,
+                    cellPadding: 4,
+                    lineColor: [229, 231, 235],
+                    lineWidth: 0.1,
+                },
+                alternateRowStyles: {
+                    fillColor: [249, 250, 251] // Gray-50
+                },
+                didParseCell: (data) => {
+                    // Style Grand Total Row
+                    if (data.row.index === tableRows.length - 1) {
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.fillColor = [220, 252, 231]; // Green-100
+                        data.cell.styles.textColor = [20, 83, 45]; // Green-900
+                    }
+
+                    // Color code Coverage %
+                    if (data.section === 'body' && data.column.index === 6) {
+                        const rowRaw = data.cell.raw as string;
+                        const val = parseFloat(rowRaw.replace('%', ''));
+                        if (val >= 90) data.cell.styles.textColor = [22, 101, 52]; // Green
+                        else if (val < 75) data.cell.styles.textColor = [220, 38, 38]; // Red
+                        else data.cell.styles.textColor = [0, 0, 0];
+                    }
+                }
+            });
+
+            // 5. Footer
+            const pageCount = doc.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(156, 163, 175);
+                doc.text(
+                    `Page ${i} of ${pageCount}`,
+                    pageWidth / 2,
+                    pageHeight - 8,
+                    { align: 'center' }
+                );
+            }
+
+            doc.save("Zonal_Coverage_Report.pdf");
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            alert("Failed to generate Zonal PDF");
+        } finally {
+            setLoading(false);
+        }
     };
 
     const exportCompletePerformancePDF = async () => {

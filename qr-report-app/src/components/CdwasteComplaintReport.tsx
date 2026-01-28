@@ -23,7 +23,7 @@ import { toPng, toJpeg } from 'html-to-image';
 const CDWasteComplaintReport: React.FC = () => {
   const [complaintData, setComplaintData] = useState<ComplaintRecord[]>([]);
   const [filteredData, setFilteredData] = useState<ComplaintRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [showDetails, setShowDetails] = useState<{ supervisor: string, complaints: ComplaintRecord[] } | null>(null);
@@ -56,34 +56,7 @@ const CDWasteComplaintReport: React.FC = () => {
     return map;
   }, []);
 
-  // Load CSV data
-  useEffect(() => {
-    const loadCSVData = async () => {
-      try {
-        setLoading(true);
 
-        // Load complaint data
-        const complaintResponse = await fetch('/Complaint-Data (1).csv');
-        const csvText = await complaintResponse.text();
-
-        // Parse CSV data using utility function
-        const allRecords = parseCSV(csvText);
-
-        // Filter for C&D waste complaints
-        const cdWasteRecords = filterCDWasteComplaints(allRecords);
-
-        setComplaintData(cdWasteRecords);
-        setFilteredData(cdWasteRecords);
-      } catch (err) {
-        console.error('Error loading CSV data:', err);
-        setError('Failed to load complaint data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadCSVData();
-  }, []);
 
   // Apply filters
   useEffect(() => {

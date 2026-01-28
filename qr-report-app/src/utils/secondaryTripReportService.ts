@@ -38,7 +38,7 @@ export interface TripEvent {
 }
 
 // Point to Local Backend Proxy
-const BACKEND_URL = 'http://localhost:5000/api/gps/secondary';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api/gps/secondary';
 
 // Cache structure
 interface CacheEntry<T> {

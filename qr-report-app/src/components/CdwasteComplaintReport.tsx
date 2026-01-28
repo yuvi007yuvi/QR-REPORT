@@ -24,7 +24,7 @@ const CDWasteComplaintReport: React.FC = () => {
   const [complaintData, setComplaintData] = useState<ComplaintRecord[]>([]);
   const [filteredData, setFilteredData] = useState<ComplaintRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
 
   const [showDetails, setShowDetails] = useState<{ supervisor: string, complaints: ComplaintRecord[] } | null>(null);
 
@@ -286,6 +286,7 @@ const CDWasteComplaintReport: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    setLoading(true);
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
@@ -299,6 +300,8 @@ const CDWasteComplaintReport: React.FC = () => {
       } catch (err) {
         console.error('Error parsing CSV:', err);
         alert('Error parsing CSV file. Please ensure it is a valid format.');
+      } finally {
+        setLoading(false);
       }
     };
     reader.readAsText(file);
@@ -312,13 +315,7 @@ const CDWasteComplaintReport: React.FC = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="p-4 text-red-600">
-        Error: {error}
-      </div>
-    );
-  }
+
 
   if (showDetails) {
     return (

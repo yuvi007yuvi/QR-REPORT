@@ -16,6 +16,10 @@ import {
 import { exportToJPEG } from '../utils/exporter';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import natureGreenLogo from '../assets/NatureGreen_Logo.png';
+import { Upload } from 'lucide-react';
+import { processData, parseFile } from '../utils/dataProcessor';
+import masterData from '../data/masterData.json';
+import supervisorData from '../data/supervisorData.json';
 
 import {
     BarChart,
@@ -36,22 +40,41 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
+    const [dashboardStats, setDashboardStats] = React.useState<SummaryStats>(stats);
+    const [loading, setLoading] = React.useState(false);
     const [selectedZone, setSelectedZone] = React.useState('All');
     const [selectedSupervisor, setSelectedSupervisor] = React.useState('All');
     const [selectedWard, setSelectedWard] = React.useState('All');
 
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setLoading(true);
+        try {
+            const jsonData = await parseFile(file);
+            const { stats: newStats } = processData(masterData, supervisorData, jsonData);
+            setDashboardStats(newStats);
+        } catch (error) {
+            console.error("Upload failed", error);
+            alert("Failed to process file");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // --- Filter Handlers ---
-    const zones = useMemo(() => ['All', ...new Set(stats.wardStats.map(w => w.zonalHead))].sort(), [stats.wardStats]);
+    const zones = useMemo(() => ['All', ...new Set(dashboardStats.wardStats.map(w => w.zonalHead))].sort(), [dashboardStats.wardStats]);
     const supervisors = useMemo(() => {
-        let filteredSupervisors = stats.wardStats;
+        let filteredSupervisors = dashboardStats.wardStats;
         if (selectedZone !== 'All') {
             filteredSupervisors = filteredSupervisors.filter(w => w.zonalHead === selectedZone);
         }
         return ['All', ...new Set(filteredSupervisors.map(w => w.supervisor))].sort();
-    }, [stats.wardStats, selectedZone]);
+    }, [dashboardStats.wardStats, selectedZone]);
 
     const wards = useMemo(() => {
-        let filteredWards = stats.wardStats;
+        let filteredWards = dashboardStats.wardStats;
         if (selectedZone !== 'All') {
             filteredWards = filteredWards.filter(w => w.zonalHead === selectedZone);
         }
@@ -64,17 +87,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
             if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
             return a.localeCompare(b);
         });
-    }, [stats.wardStats, selectedZone, selectedSupervisor]);
+    }, [dashboardStats.wardStats, selectedZone, selectedSupervisor]);
 
     // --- Filtered Data ---
     const filteredWardStats = useMemo(() => {
-        return stats.wardStats.filter(w => {
+        return dashboardStats.wardStats.filter(w => {
             const zoneMatch = selectedZone === 'All' || w.zonalHead === selectedZone;
             const supervisorMatch = selectedSupervisor === 'All' || w.supervisor === selectedSupervisor;
             const wardMatch = selectedWard === 'All' || w.ward === selectedWard;
             return zoneMatch && supervisorMatch && wardMatch;
         });
-    }, [stats.wardStats, selectedZone, selectedSupervisor, selectedWard]);
+    }, [dashboardStats.wardStats, selectedZone, selectedSupervisor, selectedWard]);
 
     const filteredSummaryStats = useMemo(() => {
         const total = filteredWardStats.reduce((acc, curr) => acc + curr.total, 0);
@@ -216,6 +239,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                     </div>
                 </div>
 
+                <label className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm cursor-pointer">
+                    <Upload className="w-4 h-4" />
+                    <span>{loading ? 'Processing...' : 'Upload Data'}</span>
+                    <input
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                        disabled={loading}
+                    />
+                </label>
                 <button
                     onClick={() => exportToJPEG('dashboard-report-container', 'Dashboard_Report')}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
@@ -304,7 +338,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                     <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-6">Zone Wise Performance</h3>
                         <div className="h-[350px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                                 <BarChart
                                     data={zoneChartData}
                                     margin={{
@@ -343,7 +377,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col">
                         <h3 className="text-lg font-bold text-gray-800 mb-4">Overall Completion</h3>
                         <div className="flex-1 min-h-[280px] relative mb-6">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minHeight={250}>
                                 <PieChart>
                                     <Pie
                                         data={pieChartData}
@@ -410,7 +444,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                     <div className="bg-white rounded-xl shadow-sm border-2 border-green-500 p-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-2">Scanned by Zonals</h3>
                         <div className="h-[350px] w-full relative">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                                 <PieChart margin={{ top: 5, right: 30, bottom: 5, left: 30 }}>
                                     <Pie
                                         data={zonalDonutData.scannedData}
@@ -485,7 +519,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                     <div className="bg-white rounded-xl shadow-sm border-2 border-red-500 p-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-2">Pending by Zonals</h3>
                         <div className="h-[350px] w-full relative">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                                 <PieChart margin={{ top: 5, right: 30, bottom: 5, left: 30 }}>
                                     <Pie
                                         data={zonalDonutData.pendingData}
@@ -628,7 +662,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                 <MapPin className="w-5 h-5" />
                                 <h3 className="font-bold uppercase tracking-wider">All Wards Summary (Daily)</h3>
                             </div>
-                            <span className="text-xs font-semibold bg-white/20 px-2 py-1 rounded">Total {stats.wardStats.length} Wards</span>
+                            <span className="text-xs font-semibold bg-white/20 px-2 py-1 rounded">Total {dashboardStats.wardStats.length} Wards</span>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm border-collapse">

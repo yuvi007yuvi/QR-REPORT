@@ -431,7 +431,7 @@ const WardWiseStatusReport = () => {
                             <p className="text-2xl font-bold text-gray-900">{totals.target.toLocaleString()}</p>
                         </div>
                         <div className="h-16 w-16">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minHeight={60}>
                                 <PieChart>
                                     <Pie data={[{ value: 1 }]} innerRadius={20} outerRadius={30} fill="#3b82f6" dataKey="value" stroke="none" />
                                 </PieChart>
@@ -448,7 +448,7 @@ const WardWiseStatusReport = () => {
                             <p className="text-2xl font-bold text-emerald-600">{totals.done.toLocaleString()}</p>
                         </div>
                         <div className="h-16 w-16">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minHeight={60}>
                                 <PieChart>
                                     <Pie
                                         data={[{ value: totals.done }, { value: totals.gap }]}
@@ -476,7 +476,7 @@ const WardWiseStatusReport = () => {
                             <p className="text-2xl font-bold text-red-600">{totals.gap.toLocaleString()}</p>
                         </div>
                         <div className="h-16 w-16">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minHeight={60}>
                                 <PieChart>
                                     <Pie
                                         data={[{ value: totals.gap }, { value: totals.done }]}
@@ -504,7 +504,7 @@ const WardWiseStatusReport = () => {
                             <p className="text-2xl font-bold text-gray-900">{filteredData.length}</p>
                         </div>
                         <div className="h-16 w-16 opacity-50">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minHeight={60}>
                                 <PieChart>
                                     <Pie data={[{ value: 1 }]} innerRadius={20} outerRadius={30} fill="#a855f7" dataKey="value" stroke="none" />
                                 </PieChart>

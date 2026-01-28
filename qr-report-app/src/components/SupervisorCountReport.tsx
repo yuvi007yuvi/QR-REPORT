@@ -456,7 +456,7 @@ export const SupervisorCountReport: React.FC = () => {
                                         Top 10 Performers {selectedZone !== 'All' ? `- (${selectedZone})` : ''}
                                     </h3>
                                     <div className="flex-1 w-full min-h-[500px]">
-                                        <ResponsiveContainer width="100%" height="100%">
+                                        <ResponsiveContainer width="100%" height="100%" minHeight={500}>
                                             <BarChart
                                                 data={filteredData.slice(0, 10).map((item, index) => ({
                                                     ...item,
@@ -535,7 +535,7 @@ export const SupervisorCountReport: React.FC = () => {
                         <div className="bg-white border border-black p-4 flex flex-col">
                             <h3 className="font-bold text-black text-lg mb-6">Zone vs KYC Volume</h3>
                             <div className="flex-1 w-full min-h-[400px]">
-                                <ResponsiveContainer width="100%" height="100%">
+                                <ResponsiveContainer width="100%" height="100%" minHeight={400}>
                                     <BarChart data={zonalStats} margin={{ top: 20, right: 30, left: 20, bottom: 50 }}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.5} stroke="#000" />
                                         <XAxis

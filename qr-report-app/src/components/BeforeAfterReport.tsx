@@ -4,6 +4,10 @@ import { Image as ImageIcon } from 'lucide-react';
 import { exportToJPEG } from '../utils/exporter';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import natureGreenLogo from '../assets/NatureGreen_Logo.png';
+import { Upload } from 'lucide-react';
+import { processData, parseFile } from '../utils/dataProcessor';
+import masterData from '../data/masterData.json';
+import supervisorData from '../data/supervisorData.json';
 
 interface BeforeAfterReportProps {
     data: ReportRecord[];
@@ -31,20 +35,48 @@ interface ZoneHeadStats {
 }
 
 export const BeforeAfterReport: React.FC<BeforeAfterReportProps> = ({ data, date }) => {
+    const [localData, setLocalData] = React.useState<ReportRecord[]>(data);
+    const [localDate, setLocalDate] = React.useState<string>(date);
+    const [loading, setLoading] = React.useState(false);
     const [showDetails, setShowDetails] = React.useState(false);
     const [selectedZone, setSelectedZone] = React.useState('All');
 
+    React.useEffect(() => {
+        setLocalData(data);
+        setLocalDate(date);
+    }, [data, date]);
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setLoading(true);
+        try {
+            const jsonData = await parseFile(file);
+            const { report, availableDates } = processData(masterData, supervisorData, jsonData);
+            setLocalData(report);
+            if (availableDates.length > 0) {
+                setLocalDate(availableDates[0]);
+            }
+        } catch (error) {
+            console.error("Upload failed", error);
+            alert("Failed to process file");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const zonalHeads = useMemo(() => {
-        const heads = new Set(data.map(d => d.zonalHead).filter(h => h && h !== 'Unassigned' && h !== 'Unknown'));
+        const heads = new Set(localData.map(d => d.zonalHead).filter(h => h && h !== 'Unassigned' && h !== 'Unknown'));
         return ['All', ...Array.from(heads).sort()];
-    }, [data]);
+    }, [localData]);
 
     const reportData = useMemo(() => {
         const statsByHead: Record<string, ZoneHeadStats> = {};
 
         const normalize = (s: string) => s ? s.trim() : 'Unknown';
 
-        data.forEach(record => {
+        localData.forEach(record => {
             const headName = normalize(record.zonalHead);
             const supervisorName = normalize(record.assignedTo);
 
@@ -93,11 +125,22 @@ export const BeforeAfterReport: React.FC<BeforeAfterReportProps> = ({ data, date
         return Object.values(statsByHead)
             .filter(head => selectedZone === 'All' || head.name === selectedZone)
             .sort((a, b) => a.name.localeCompare(b.name));
-    }, [data, selectedZone]);
+    }, [localData, selectedZone]);
 
     return (
         <div className="space-y-6">
             <div className="flex justify-end gap-2 items-center">
+                <label className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors cursor-pointer shadow-sm">
+                    <Upload className="w-4 h-4" />
+                    <span>{loading ? 'Processing...' : 'Upload Data'}</span>
+                    <input
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                        disabled={loading}
+                    />
+                </label>
                 <select
                     value={selectedZone}
                     onChange={(e) => setSelectedZone(e.target.value)}
@@ -115,7 +158,7 @@ export const BeforeAfterReport: React.FC<BeforeAfterReportProps> = ({ data, date
                     {showDetails ? 'Hide Details' : 'Show Details'}
                 </button>
                 <button
-                    onClick={() => exportToJPEG('before-after-report-container', `Before_After_Report_${date.replace(/\//g, '-')}`)}
+                    onClick={() => exportToJPEG('before-after-report-container', `Before_After_Report_${localDate.replace(/\//g, '-')}`)}
                     className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
                 >
                     <ImageIcon className="w-4 h-4" />
@@ -173,7 +216,7 @@ export const BeforeAfterReport: React.FC<BeforeAfterReportProps> = ({ data, date
                 <div className="border-2 border-black">
                     <div className="grid grid-cols-[1fr_2fr] border-b border-black">
                         <div className="bg-[#d9ead3] p-2 font-bold border-r border-black">DATE:-</div>
-                        <div className="bg-[#d9ead3] p-2 font-bold text-center">{date}</div>
+                        <div className="bg-[#d9ead3] p-2 font-bold text-center">{localDate}</div>
                     </div>
                     <div className="bg-[#d9ead3] p-2 font-bold text-center border-b border-black text-xl">
                         Before & After Scan Report

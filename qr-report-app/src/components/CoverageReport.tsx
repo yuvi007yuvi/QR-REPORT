@@ -1082,7 +1082,7 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                 {/* Covered POIs Chart */}
                                 <div className="bg-white rounded-xl shadow-sm border-2 border-green-500 p-6">
                                     <div className="h-[400px] w-full relative">
-                                        <ResponsiveContainer width="100%" height="100%">
+                                        <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                                             <PieChart margin={{ top: 5, right: 30, bottom: 5, left: 30 }}>
                                                 <Pie
                                                     data={chartData.barChartData.map((item) => ({
@@ -1165,7 +1165,7 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                 {/* Not Covered (Left) POIs Chart */}
                                 <div className="bg-white rounded-xl shadow-sm border-2 border-red-500 p-6">
                                     <div className="h-[400px] w-full relative">
-                                        <ResponsiveContainer width="100%" height="100%">
+                                        <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                                             <PieChart margin={{ top: 5, right: 30, bottom: 5, left: 30 }}>
                                                 <Pie
                                                     data={chartData.barChartData.map((item) => ({
@@ -1253,7 +1253,7 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                     <div className="w-full md:w-1/2">
                                         <h3 className="text-lg font-bold text-gray-800 mb-4">Overall Coverage Status</h3>
                                         <div className="h-[300px] w-full relative">
-                                            <ResponsiveContainer width="100%" height="100%">
+                                            <ResponsiveContainer width="100%" height="100%" minHeight={250}>
                                                 <PieChart>
                                                     <Pie
                                                         data={chartData.pieChartData}
@@ -1341,7 +1341,7 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
                             <h3 className="text-xl font-bold text-gray-800 mb-2">Covered by Supervisors</h3>
                             <div className="h-[450px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
+                                <ResponsiveContainer width="100%" height="100%" minHeight={400}>
                                     <PieChart margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
                                         <Pie
                                             data={filteredStats.sort((a, b) => b.covered - a.covered).slice(0, 10) as any[]}
@@ -1382,7 +1382,7 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
                             <h3 className="text-xl font-bold text-gray-800 mb-2">Pending by Supervisors</h3>
                             <div className="h-[450px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
+                                <ResponsiveContainer width="100%" height="100%" minHeight={400}>
                                     <PieChart margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
                                         <Pie
                                             data={filteredStats.sort((a, b) => b.notCovered - a.notCovered).slice(0, 10) as any[]}

@@ -4,6 +4,10 @@ import { Image as ImageIcon } from 'lucide-react';
 import { exportToJPEG } from '../utils/exporter';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import natureGreenLogo from '../assets/NatureGreen_Logo.png';
+import { Upload } from 'lucide-react';
+import { processData, parseFile } from '../utils/dataProcessor';
+import masterData from '../data/masterData.json';
+import supervisorData from '../data/supervisorData.json';
 
 interface ZonalReportProps {
     data: ReportRecord[];
@@ -27,13 +31,42 @@ interface ZoneHeadStats {
 }
 
 export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
+    const [localData, setLocalData] = React.useState<ReportRecord[]>(data);
+    const [localDate, setLocalDate] = React.useState<string>(date);
+    const [loading, setLoading] = React.useState(false);
+
+    React.useEffect(() => {
+        setLocalData(data);
+        setLocalDate(date);
+    }, [data, date]);
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setLoading(true);
+        try {
+            const jsonData = await parseFile(file);
+            const { report, availableDates } = processData(masterData, supervisorData, jsonData);
+            setLocalData(report);
+            if (availableDates.length > 0) {
+                setLocalDate(availableDates[0]);
+            }
+        } catch (error) {
+            console.error("Upload failed", error);
+            alert("Failed to process file");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const reportData = useMemo(() => {
         const statsByHead: Record<string, ZoneHeadStats> = {};
 
         // Helper to normalize names for grouping
         const normalize = (s: string) => s ? s.trim() : 'Unknown';
 
-        data.forEach(record => {
+        localData.forEach(record => {
             const headName = normalize(record.zonalHead);
             const supervisorName = normalize(record.assignedTo);
 
@@ -71,7 +104,7 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
 
         // Convert to array and sort if needed
         return Object.values(statsByHead).sort((a, b) => a.name.localeCompare(b.name));
-    }, [data]);
+    }, [localData]);
 
     // Calculate Grand Totals for Header
     const grandTotals = useMemo(() => {
@@ -85,7 +118,7 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
         // Looking at the user image, it seems they separate by city. 
         // Let's check the data. Zone 4 is Vrindavan.
 
-        data.forEach(r => {
+        localData.forEach(r => {
             const isVrindavan = r.zone.toLowerCase().includes('vrindavan') || r.zonalHead.toLowerCase().includes('vrindavan'); // Updated for new name
             if (isVrindavan) {
                 vrindavanTotal++;
@@ -97,13 +130,24 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
         });
 
         return { mathuraTotal, mathuraScanned, vrindavanTotal, vrindavanScanned };
-    }, [data]);
+    }, [localData]);
 
     return (
         <div className="space-y-6">
             <div className="flex justify-end gap-2">
+                <label className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors cursor-pointer shadow-sm">
+                    <Upload className="w-4 h-4" />
+                    <span>{loading ? 'Processing...' : 'Upload Data'}</span>
+                    <input
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                        disabled={loading}
+                    />
+                </label>
                 <button
-                    onClick={() => exportToJPEG('zonal-report-container', `Zonal_Report_${date.replace(/\//g, '-')}`)}
+                    onClick={() => exportToJPEG('zonal-report-container', `Zonal_Report_${localDate.replace(/\//g, '-')}`)}
                     className="flex items-center gap-1 px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors"
                 >
                     <ImageIcon className="w-4 h-4" />
@@ -162,7 +206,7 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
                 <div className="border-2 border-black">
                     <div className="grid grid-cols-[1fr_2fr] border-b border-black">
                         <div className="bg-[#d9ead3] p-2 font-bold border-r border-black">DATE:-</div>
-                        <div className="bg-[#d9ead3] p-2 font-bold text-center">{date}</div>
+                        <div className="bg-[#d9ead3] p-2 font-bold text-center">{localDate}</div>
                     </div>
                     <div className="bg-[#d9ead3] p-2 font-bold text-center border-b border-black text-xl">
                         Secondary Points Mathura - Vrindavan

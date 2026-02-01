@@ -24,12 +24,13 @@ import { WhatsAppReport } from './components/WhatsAppReport';
 import { SupervisorZonalMapping } from './components/SupervisorZonalMapping';
 import { KYCCalendarView } from './components/KYCCalendarView';
 import { KPIChecker } from './components/KPIChecker';
+import POIWardWiseReport from './components/POIWardWiseReport';
 import type { ReportRecord, SummaryStats } from './utils/dataProcessor';
 import './App.css';
 
 const App: React.FC = () => {
   const [currentSection, setCurrentSection] = useState<AppSection>('daily');
-  const [currentView, setCurrentView] = useState<'dashboard' | 'detailed' | 'zonal' | 'beforeAfter' | 'mapping' | 'underground' | 'zonalUnderground' | 'distance-report' | 'coverage-dashboard' | 'coverage-supervisor' | 'coverage-ward' | 'coverage-all-wards' | 'coverage-mapping' | 'coverage-date-wise' | 'kyc-survey' | 'kyc-calendar' | 'kyc-whatsapp' | 'ward-household-status' | 'ward-status-new' | 'trip-report' | 'qr-status-view' | 'secondary-trip-view' | 'secondary-vehicle-history' | 'cd-waste-complaint' | 'kpi-checker' | 'supervisor-count-report'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'detailed' | 'zonal' | 'beforeAfter' | 'mapping' | 'underground' | 'zonalUnderground' | 'distance-report' | 'coverage-dashboard' | 'coverage-supervisor' | 'coverage-ward' | 'coverage-all-wards' | 'coverage-mapping' | 'coverage-date-wise' | 'poi-ward-monthly' | 'kyc-survey' | 'kyc-calendar' | 'kyc-whatsapp' | 'ward-household-status' | 'ward-status-new' | 'trip-report' | 'qr-status-view' | 'secondary-trip-view' | 'secondary-vehicle-history' | 'cd-waste-complaint' | 'kpi-checker' | 'supervisor-count-report'>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Mock stats for dashboard - in a real app, this would come from a data source
@@ -99,6 +100,8 @@ const App: React.FC = () => {
         return <SecondaryVehicleHistory />;
       case 'cd-waste-complaint':
         return <CdwasteComplaintReport />;
+      case 'poi-ward-monthly':
+        return <POIWardWiseReport />;
       case 'kpi-checker':
         return <KPIChecker />;
       default:

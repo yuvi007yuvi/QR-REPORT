@@ -19,7 +19,8 @@ import {
     Home, // Added
     FileSearch, // Added
     CheckSquare, // Added
-    PieChart // Added
+    PieChart, // Added
+    ArrowRightLeft // Added
 } from 'lucide-react';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 
@@ -40,6 +41,7 @@ export type ViewMode =
     | 'coverage-all-wards'
     | 'coverage-mapping' // Added back
     | 'coverage-date-wise'
+    | 'vehicle-change-report' // Added
     | 'poi-ward-monthly' // New Report
     | 'kyc-survey'
     | 'kyc-calendar'
@@ -125,6 +127,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 { id: 'coverage-all-wards', label: 'All Wards Summary', icon: FileSpreadsheet },
                 { id: 'coverage-mapping', label: 'POI Mapping', icon: Map },
                 { id: 'coverage-date-wise', label: 'Date Wise Coverage', icon: Calendar },
+                { id: 'vehicle-change-report', label: 'Vehicle Change Report', icon: ArrowRightLeft }, // Added
             ]
         },
         {

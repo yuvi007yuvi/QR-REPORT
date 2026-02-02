@@ -373,31 +373,68 @@ export const VehicleChangeReport: React.FC = () => {
     };
     const handleExportPDF = async () => {
         if (!reportRef.current) return;
+
+        let clone: HTMLElement | null = null;
+
         try {
-            const element = reportRef.current;
-            const table = element.querySelector('table');
+            const originalElement = reportRef.current;
 
-            // Calculate total dimensions required
-            // We use the table's scrollWidth to ensure we capture all columns
-            const totalWidth = table ? Math.max(element.scrollWidth, table.scrollWidth) + 40 : element.scrollWidth;
-            const totalHeight = element.scrollHeight + 20;
+            // 1. Deep clone the element
+            clone = originalElement.cloneNode(true) as HTMLElement;
 
-            const dataUrl = await toJpeg(element, {
+            // 2. Apply positioning and styling to valid clone
+            clone.style.position = 'fixed';
+            clone.style.top = '0'; // Move on-screen (behind everything) to ensure rendering
+            clone.style.left = '0';
+            clone.style.width = 'max-content';
+            clone.style.height = 'auto';
+            clone.style.overflow = 'visible';
+            clone.style.zIndex = '-9999'; // Hide behind current content
+            clone.style.backgroundColor = '#ffffff';
+
+            // 3. Fix scroll containers
+            const scrollContainers = clone.querySelectorAll('.overflow-x-auto, .overflow-y-auto');
+            scrollContainers.forEach(container => {
+                if (container instanceof HTMLElement) {
+                    container.style.overflow = 'visible';
+                    container.style.width = 'auto';
+                    container.style.height = 'auto';
+                    container.style.maxHeight = 'none';
+                    container.style.maxWidth = 'none';
+                }
+            });
+
+            // 4. Disable sticky positioning
+            const stickyElements = clone.querySelectorAll('.sticky');
+            stickyElements.forEach(el => {
+                if (el instanceof HTMLElement) {
+                    el.style.position = 'static';
+                }
+            });
+
+            // 5. Append to body
+            document.body.appendChild(clone);
+
+            // Wait for layout/paint
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // 6. Measure complete dimensions
+            const totalWidth = clone.scrollWidth + 40;
+            const totalHeight = clone.scrollHeight + 40;
+
+            const dataUrl = await toJpeg(clone, {
                 quality: 0.95,
                 backgroundColor: '#ffffff',
                 width: totalWidth,
                 height: totalHeight,
                 style: {
-                    overflow: 'visible', // Ensure no internal scrollbars clip content
-                    height: 'auto',
-                    maxHeight: 'none',
+                    overflow: 'visible',
                     width: `${totalWidth}px`,
-                    maxWidth: 'none'
+                    height: `${totalHeight}px`
                 }
-            });
+            } as any);
 
-            // Create PDF with custom dimensions matching the content
-            // This ensures no shrinking occurs and all data is visible
+            // 7. Create PDF
             const pdf = new jsPDF({
                 orientation: totalWidth > totalHeight ? 'l' : 'p',
                 unit: 'px',
@@ -406,9 +443,14 @@ export const VehicleChangeReport: React.FC = () => {
 
             pdf.addImage(dataUrl, 'JPEG', 0, 0, totalWidth, totalHeight);
             pdf.save(`Vehicle_Change_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+
         } catch (e) {
             console.error("PDF Export Error", e);
             alert("Export failed. Please try again or use Excel export.");
+        } finally {
+            if (clone && document.body.contains(clone)) {
+                document.body.removeChild(clone);
+            }
         }
     };
 

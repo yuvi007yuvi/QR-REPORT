@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { Upload, FileSpreadsheet, Download, ArrowRightLeft, ChevronDown, Filter, X } from 'lucide-react';
+import { Upload, FileSpreadsheet, Download, ArrowRightLeft, ChevronDown, Filter, X, FileDown } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import { toJpeg } from 'html-to-image';
 import NagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import NatureGreenLogo from '../assets/NatureGreen_Logo.png';
+import supervisorData from '../data/supervisorData.json';
 
 interface POIRecord {
     "Route Name": string;
@@ -21,6 +24,8 @@ interface RouteData {
     routeName: string;
     ward: string;
     zone: string;
+    zonalIncharge: string;
+    supervisor: string;
     vehicleChanges: number;
     uniqueVehicles: string[];
     vehicleHistory: Record<string, { vehicle: string; coverage: string; total: string; covered: string }>; // Date -> Data
@@ -109,9 +114,12 @@ export const VehicleChangeReport: React.FC = () => {
     const [dates, setDates] = useState<string[]>([]);
     const [selectedZones, setSelectedZones] = useState<string[]>([]);
     const [selectedWards, setSelectedWards] = useState<string[]>([]);
+    const [selectedZonalIncharge, setSelectedZonalIncharge] = useState<string[]>([]);
+    const [selectedSupervisors, setSelectedSupervisors] = useState<string[]>([]);
     const [selectedChangeCounts, setSelectedChangeCounts] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [fileName, setFileName] = useState<string | null>(null);
+    const reportRef = React.useRef<HTMLDivElement>(null);
 
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -138,12 +146,63 @@ export const VehicleChangeReport: React.FC = () => {
         const routeMap = new Map<string, RouteData>();
         const uniqueDates = new Set<string>();
 
+        // Create maps for name-based and number-based lookup
+        const wardToZonalHead = new Map<string, string>();
+        const wardToSupervisor = new Map<string, string>();
+        const wardNoToZonalHead = new Map<string, string>();
+        const wardNoToSupervisor = new Map<string, string>();
+
+        supervisorData.forEach((item: any) => {
+            const name = item["Ward Name"].trim();
+            const no = String(item["Ward No"]).trim();
+            wardToZonalHead.set(name, item["Zonal Head"]);
+            wardToSupervisor.set(name, item["Supervisor"]);
+            wardNoToZonalHead.set(no, item["Zonal Head"]);
+            wardNoToSupervisor.set(no, item["Supervisor"]);
+        });
+
+        const ZONE_MAPPING: Record<string, string> = {
+            '1': 'City Zone',
+            '2': 'Bhuteswar Zone',
+            '3': 'Aurangabad Zone',
+            '4': 'Vrindavan Zone'
+        };
+
         records.forEach(record => {
             const routeName = record["Route Name"];
             const vehicleNumber = record["Vehicle Number"];
             const date = record["Date"];
-            const ward = record["Ward Name"] || '-';
-            const zone = record["Zone & Circle"] || '-';
+            // Extract Ward Name properly (sometimes it has number prefix "41-Dhaulipiau")
+            const rawWard = record["Ward Name"] || '-';
+
+            // Try to extract parts: "ID-Name" -> ID="41", Name="Dhaulipiau"
+            let wardNamePart = rawWard;
+            let wardNoPart = '';
+
+            if (rawWard.includes('-')) {
+                const parts = rawWard.split('-');
+                if (parts.length >= 2) {
+                    wardNoPart = parts[0].trim();
+                    wardNamePart = parts[1].trim();
+                }
+            }
+
+            // Try lookup by Name first, then by Number
+            let zonalIncharge = wardToZonalHead.get(wardNamePart);
+            let supervisor = wardToSupervisor.get(wardNamePart);
+
+            if (!zonalIncharge && wardNoPart) {
+                zonalIncharge = wardNoToZonalHead.get(wardNoPart);
+            }
+            if (!supervisor && wardNoPart) {
+                supervisor = wardNoToSupervisor.get(wardNoPart);
+            }
+
+            zonalIncharge = zonalIncharge || 'Unknown';
+            supervisor = supervisor || 'Unknown';
+
+            const rawZone = record["Zone & Circle"] ? String(record["Zone & Circle"]).trim() : '';
+            const zone = ZONE_MAPPING[rawZone] || rawZone || '-';
             const coverage = record["Coverage"] || '-';
             const total = record["Total"] || '0';
             const covered = record["Covered"] || '0';
@@ -155,8 +214,10 @@ export const VehicleChangeReport: React.FC = () => {
             if (!routeMap.has(routeName)) {
                 routeMap.set(routeName, {
                     routeName,
-                    ward,
+                    ward: record["Ward Name"] || '-',
                     zone,
+                    zonalIncharge,
+                    supervisor,
                     vehicleChanges: 0,
                     uniqueVehicles: [],
                     vehicleHistory: {}
@@ -200,8 +261,12 @@ export const VehicleChangeReport: React.FC = () => {
             route.vehicleChanges = changes;
         });
 
-        // Convert map to array and sort by number of changes (descending)
-        const processededData = Array.from(routeMap.values()).sort((a, b) => b.vehicleChanges - a.vehicleChanges);
+        // Convert map to array and sort by Ward Name (A-Z), then Route Name
+        const processededData = Array.from(routeMap.values()).sort((a, b) => {
+            const wardCompare = a.ward.localeCompare(b.ward, undefined, { numeric: true, sensitivity: 'base' });
+            if (wardCompare !== 0) return wardCompare;
+            return a.routeName.localeCompare(b.routeName, undefined, { numeric: true, sensitivity: 'base' });
+        });
         setData(processededData);
     };
 
@@ -222,15 +287,25 @@ export const VehicleChangeReport: React.FC = () => {
         return counts.map(c => c === 0 ? "No change" : c.toString());
     }, [data]);
 
+    const uniqueZonalIncharges = React.useMemo(() => {
+        return Array.from(new Set(data.map(d => d.zonalIncharge))).sort().filter(Boolean);
+    }, [data]);
+
+    const uniqueSupervisors = React.useMemo(() => {
+        return Array.from(new Set(data.map(d => d.supervisor))).sort().filter(Boolean);
+    }, [data]);
+
     const filteredData = React.useMemo(() => {
         return data.filter(item => {
             const matchZone = selectedZones.length === 0 || selectedZones.includes(item.zone);
             const matchWard = selectedWards.length === 0 || selectedWards.includes(item.ward);
+            const matchIncharge = selectedZonalIncharge.length === 0 || selectedZonalIncharge.includes(item.zonalIncharge);
+            const matchSupervisor = selectedSupervisors.length === 0 || selectedSupervisors.includes(item.supervisor);
             const changeVal = item.vehicleChanges === 0 ? "No change" : item.vehicleChanges.toString();
             const matchChange = selectedChangeCounts.length === 0 || selectedChangeCounts.includes(changeVal);
-            return matchZone && matchWard && matchChange;
+            return matchZone && matchWard && matchIncharge && matchSupervisor && matchChange;
         });
-    }, [data, selectedZones, selectedWards, selectedChangeCounts]);
+    }, [data, selectedZones, selectedWards, selectedZonalIncharge, selectedSupervisors, selectedChangeCounts]);
 
     const grandTotals = React.useMemo(() => {
         const totals: Record<string, { total: number; covered: number }> = {};
@@ -253,10 +328,12 @@ export const VehicleChangeReport: React.FC = () => {
         if (filteredData.length === 0) return;
 
         // Prepare data for export
-        const exportData = filteredData.map(row => {
+        const exportData = filteredData.map((row, index) => {
             const rowData: any = {
+                'S.No.': index + 1,
                 'Zone': row.zone,
                 'Ward': row.ward,
+                'Supervisor': row.supervisor,
                 'Route Name': row.routeName,
                 'Change Count': row.vehicleChanges === 0 ? 'No change' : row.vehicleChanges,
                 'Unique Vehicles': row.uniqueVehicles.join(', ')
@@ -272,8 +349,10 @@ export const VehicleChangeReport: React.FC = () => {
 
         // Add Grand Total row
         const totalRow: any = {
+            'S.No.': '',
             'Zone': 'GRAND TOTAL',
             'Ward': '',
+            'Supervisor': '',
             'Route Name': '',
             'Change Count': '',
             'Unique Vehicles': ''
@@ -291,6 +370,46 @@ export const VehicleChangeReport: React.FC = () => {
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Vehicle Changes");
         XLSX.writeFile(wb, "Vehicle_Change_Report.xlsx");
+    };
+    const handleExportPDF = async () => {
+        if (!reportRef.current) return;
+        try {
+            const element = reportRef.current;
+            const table = element.querySelector('table');
+
+            // Calculate total dimensions required
+            // We use the table's scrollWidth to ensure we capture all columns
+            const totalWidth = table ? Math.max(element.scrollWidth, table.scrollWidth) + 40 : element.scrollWidth;
+            const totalHeight = element.scrollHeight + 20;
+
+            const dataUrl = await toJpeg(element, {
+                quality: 0.95,
+                backgroundColor: '#ffffff',
+                width: totalWidth,
+                height: totalHeight,
+                style: {
+                    overflow: 'visible', // Ensure no internal scrollbars clip content
+                    height: 'auto',
+                    maxHeight: 'none',
+                    width: `${totalWidth}px`,
+                    maxWidth: 'none'
+                }
+            });
+
+            // Create PDF with custom dimensions matching the content
+            // This ensures no shrinking occurs and all data is visible
+            const pdf = new jsPDF({
+                orientation: totalWidth > totalHeight ? 'l' : 'p',
+                unit: 'px',
+                format: [totalWidth, totalHeight]
+            });
+
+            pdf.addImage(dataUrl, 'JPEG', 0, 0, totalWidth, totalHeight);
+            pdf.save(`Vehicle_Change_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+        } catch (e) {
+            console.error("PDF Export Error", e);
+            alert("Export failed. Please try again or use Excel export.");
+        }
     };
 
     return (
@@ -318,13 +437,22 @@ export const VehicleChangeReport: React.FC = () => {
                         </label>
                     </div>
                     {data.length > 0 && (
-                        <button
-                            onClick={exportToExcel}
-                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                        >
-                            <Download className="w-4 h-4" />
-                            Export Excel
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleExportPDF}
+                                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                            >
+                                <FileDown className="w-4 h-4" />
+                                Export PDF
+                            </button>
+                            <button
+                                onClick={exportToExcel}
+                                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                            >
+                                <Download className="w-4 h-4" />
+                                Export Excel
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>
@@ -337,13 +465,23 @@ export const VehicleChangeReport: React.FC = () => {
             )}
 
             {data.length > 0 ? (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div ref={reportRef} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                     {/* Report Header */}
                     <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
                         <img src={NagarNigamLogo} alt="Nagar Nigam" className="h-10 object-contain md:h-12" />
                         <div className="text-center">
                             <h2 className="text-lg font-bold text-gray-800 uppercase md:text-xl">Vehicle Change Report</h2>
                             <p className="text-xs font-medium text-gray-500 md:text-sm">Mathura-Vrindavan Nagar Nigam</p>
+                            {(selectedZones.length > 0 || selectedWards.length > 0 || selectedZonalIncharge.length > 0 || selectedSupervisors.length > 0 || selectedChangeCounts.length > 0) && (
+                                <div className="mt-2 text-[10px] md:text-xs text-blue-700 bg-blue-50 px-3 py-1 rounded-full inline-block border border-blue-100 font-medium">
+                                    <span className="font-bold text-gray-600">Applied Filters: </span>
+                                    {selectedZones.length > 0 && <span className="mr-2">Zone: {selectedZones.length > 2 ? `${selectedZones.length} Selected` : selectedZones.join(', ')}</span>}
+                                    {selectedZonalIncharge.length > 0 && <span className="mr-2">Incharge: {selectedZonalIncharge.length > 2 ? `${selectedZonalIncharge.length} Selected` : selectedZonalIncharge.join(', ')}</span>}
+                                    {selectedWards.length > 0 && <span className="mr-2">Ward: {selectedWards.length > 2 ? `${selectedWards.length} Selected` : selectedWards.join(', ')}</span>}
+                                    {selectedSupervisors.length > 0 && <span className="mr-2">Sup: {selectedSupervisors.length > 2 ? `${selectedSupervisors.length} Selected` : selectedSupervisors.join(', ')}</span>}
+                                    {selectedChangeCounts.length > 0 && <span>Changes: {selectedChangeCounts.join(', ')}</span>}
+                                </div>
+                            )}
                         </div>
                         <img src={NatureGreenLogo} alt="Nature Green" className="h-10 object-contain md:h-12" />
                     </div>
@@ -367,14 +505,26 @@ export const VehicleChangeReport: React.FC = () => {
                             onChange={setSelectedWards}
                         />
                         <MultiSelect
+                            label="Zonal Incharge"
+                            options={uniqueZonalIncharges}
+                            selected={selectedZonalIncharge}
+                            onChange={setSelectedZonalIncharge}
+                        />
+                        <MultiSelect
+                            label="Supervisor"
+                            options={uniqueSupervisors}
+                            selected={selectedSupervisors}
+                            onChange={setSelectedSupervisors}
+                        />
+                        <MultiSelect
                             label="Change Count"
                             options={uniqueChangeCounts}
                             selected={selectedChangeCounts}
                             onChange={setSelectedChangeCounts}
                         />
-                        {(selectedZones.length > 0 || selectedWards.length > 0 || selectedChangeCounts.length > 0) && (
+                        {(selectedZones.length > 0 || selectedWards.length > 0 || selectedChangeCounts.length > 0 || selectedZonalIncharge.length > 0 || selectedSupervisors.length > 0) && (
                             <button
-                                onClick={() => { setSelectedZones([]); setSelectedWards([]); setSelectedChangeCounts([]); }}
+                                onClick={() => { setSelectedZones([]); setSelectedWards([]); setSelectedChangeCounts([]); setSelectedZonalIncharge([]); setSelectedSupervisors([]); }}
                                 className="flex items-center gap-1 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-auto"
                             >
                                 <X className="w-4 h-4" />
@@ -387,9 +537,11 @@ export const VehicleChangeReport: React.FC = () => {
                         <table className="w-full text-xs text-left border-collapse">
                             <thead className="bg-gray-100 text-gray-700 font-semibold sticky top-0 z-30">
                                 <tr>
-                                    <th className="px-2 py-1 border border-black min-w-[80px] sticky left-0 z-20 bg-gray-100">Zone</th>
-                                    <th className="px-2 py-1 border border-black min-w-[140px] sticky left-[80px] z-20 bg-gray-100">Ward</th>
-                                    <th className="px-2 py-1 border border-black min-w-[180px] sticky left-[220px] z-20 bg-gray-100">Route Name</th>
+                                    <th className="px-2 py-1 border border-black min-w-[50px] sticky left-0 z-20 bg-gray-100 text-center">S.No.</th>
+                                    <th className="px-2 py-1 border border-black min-w-[80px] sticky left-[50px] z-20 bg-gray-100">Zone</th>
+                                    <th className="px-2 py-1 border border-black min-w-[140px] sticky left-[130px] z-20 bg-gray-100">Ward</th>
+                                    <th className="px-2 py-1 border border-black min-w-[120px] sticky left-[270px] z-20 bg-gray-100">Supervisor</th>
+                                    <th className="px-2 py-1 border border-black min-w-[180px] sticky left-[390px] z-20 bg-gray-100">Route Name</th>
                                     <th className="px-2 py-1 border border-black min-w-[70px] text-center bg-gray-100">Chg</th>
                                     <th className="px-2 py-1 border border-black min-w-[200px] bg-gray-100">Vehicles Used</th>
                                     {dates.map(date => (
@@ -402,13 +554,19 @@ export const VehicleChangeReport: React.FC = () => {
                             <tbody className="bg-white">
                                 {filteredData.map((row, idx) => (
                                     <tr key={idx} className="hover:bg-blue-50/50 transition-colors">
-                                        <td className="px-2 py-1.5 border border-black sticky left-0 bg-white z-10 font-medium text-gray-700 whitespace-nowrap">
+                                        <td className="px-2 py-1.5 border border-black sticky left-0 bg-white z-10 text-center text-gray-500 font-medium">
+                                            {idx + 1}
+                                        </td>
+                                        <td className="px-2 py-1.5 border border-black sticky left-[50px] bg-white z-10 font-medium text-gray-700 whitespace-nowrap">
                                             {row.zone}
                                         </td>
-                                        <td className="px-2 py-1.5 border border-black sticky left-[80px] bg-white z-10 text-gray-700 truncate max-w-[140px]" title={row.ward}>
+                                        <td className="px-2 py-1.5 border border-black sticky left-[130px] bg-white z-10 text-gray-700 truncate max-w-[140px]" title={row.ward}>
                                             {row.ward}
                                         </td>
-                                        <td className="px-2 py-1.5 border border-black sticky left-[220px] bg-white z-10 font-medium text-gray-900 truncate max-w-[180px]" title={row.routeName}>
+                                        <td className="px-2 py-1.5 border border-black sticky left-[270px] bg-white z-10 text-gray-700 truncate max-w-[120px]" title={row.supervisor}>
+                                            {row.supervisor}
+                                        </td>
+                                        <td className="px-2 py-1.5 border border-black sticky left-[390px] bg-white z-10 font-medium text-gray-900 truncate max-w-[180px]" title={row.routeName}>
                                             {row.routeName}
                                         </td>
                                         <td className="px-1 py-1 border border-black text-center font-mono">
@@ -465,7 +623,7 @@ export const VehicleChangeReport: React.FC = () => {
                             </tbody>
                             <tfoot className="bg-gray-100 font-bold sticky bottom-0 z-40 border-t-2 border-black shadow-[0_-2px_4px_rgba(0,0,0,0.1)]">
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-3 text-right bg-gray-200 border border-black text-gray-800 uppercase tracking-wider text-xs">
+                                    <td colSpan={7} className="px-4 py-3 text-right bg-gray-200 border border-black text-gray-800 uppercase tracking-wider text-xs">
                                         Grand Total
                                     </td>
                                     {dates.map(date => {

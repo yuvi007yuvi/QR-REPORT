@@ -565,6 +565,11 @@ const WardWiseStatusReport = () => {
                             <div className="inline-block border-b-4 border-green-500 pb-1 mt-1">
                                 <h2 className="text-lg font-bold text-green-700 uppercase tracking-wide">Ward Wise KYC Status Report</h2>
                             </div>
+                            {selectedZonals.length > 0 && (
+                                <div className="mt-2 text-sm font-semibold text-gray-600">
+                                    Zone: <span className="text-gray-900">{selectedZonals.join(', ')}</span>
+                                </div>
+                            )}
                         </div>
                         <img src={NatureGreenLogo} alt="NG" className="h-16 object-contain" />
                     </div>

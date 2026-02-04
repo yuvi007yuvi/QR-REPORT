@@ -34,31 +34,25 @@ const DateWiseCoverageReport = () => {
     const [isWardDropdownOpen, setIsWardDropdownOpen] = useState(false);
     const [selectedZone, setSelectedZone] = useState<string>('All');
     const [selectedZonal, setSelectedZonal] = useState<string>('All');
-    const [sortOrder, setSortOrder] = useState<'ward' | 'high-to-low' | 'low-to-high'>('ward');
+    const [sortOrder, setSortOrder] = useState<'ward' | 'high-to-low' | 'low-to-high' | 'total-high-to-low' | 'total-low-to-high'>('ward');
     const [minPercentage, setMinPercentage] = useState<number>(0);
     const [maxPercentage, setMaxPercentage] = useState<number>(100);
+    const [minTotal, setMinTotal] = useState<number | ''>('');
+    const [maxTotal, setMaxTotal] = useState<number | ''>('');
 
     // Helper function to get supervisor and zonal from ward name
     const getSupervisorInfo = (wardName: string) => {
-        // Extract ward number using regex to handle various formats (e.g. "65-Holi Gali", "Ward 25", "025", etc)
         const match = wardName.match(/(\d+)/);
         if (!match) return { supervisor: '-', zonal: '-' };
 
-        // Normalize to string representation of number (removes leading zeros)
         const wardNumber = String(parseInt(match[0], 10));
 
-        // Find supervisor for this ward (C&T department only)
         const supervisor = MASTER_SUPERVISORS.find(s => {
-            // Only C&T department
             if (s.department !== 'C&T') return false;
-
-            // Allow for basic matching of comma-separated wards
-            // Also robustly parse master data wards just in case of formatting diffs
             const wards = s.ward.split(',').map(w => {
                 const m = w.match(/(\d+)/);
                 return m ? String(parseInt(m[0], 10)) : w.trim();
             });
-
             return wards.includes(wardNumber);
         });
 
@@ -70,8 +64,7 @@ const DateWiseCoverageReport = () => {
 
     // Helper function to convert Excel serial date to DD-MM-YYYY
     const excelDateToJSDate = (serial: number): string => {
-        // Excel date formula: days since 1900-01-01 (with 1900 leap year bug)
-        const excelEpoch = new Date(1899, 11, 30); // December 30, 1899
+        const excelEpoch = new Date(1899, 11, 30);
         const days = Math.floor(serial);
         const milliseconds = days * 24 * 60 * 60 * 1000;
         const date = new Date(excelEpoch.getTime() + milliseconds);
@@ -129,15 +122,12 @@ const DateWiseCoverageReport = () => {
             const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
             const records: POIRecord[] = jsonData.map((row: any) => {
-                // Handle date - could be string or Excel serial number
                 let dateValue = row['Date'];
                 let formattedDate = '';
 
                 if (typeof dateValue === 'number') {
-                    // It's an Excel serial date
                     formattedDate = excelDateToJSDate(dateValue);
                 } else if (typeof dateValue === 'string') {
-                    // It's already a string, use as-is
                     formattedDate = dateValue;
                 } else {
                     formattedDate = String(dateValue || '');
@@ -168,12 +158,10 @@ const DateWiseCoverageReport = () => {
         }
     };
 
-    // Get unique values for filters
     const { wards, zones, dates, zonals } = useMemo(() => {
         const wards = Array.from(new Set(poiData.map(r => r.wardName))).sort();
         const zones = Array.from(new Set(poiData.map(r => r.zone))).sort();
         const dates = Array.from(new Set(poiData.map(r => r.date))).sort((a, b) => {
-            // Parse DD-MM-YYYY format
             const [dayA, monthA, yearA] = a.split('-').map(Number);
             const [dayB, monthB, yearB] = b.split('-').map(Number);
             const dateA = new Date(yearA, monthA - 1, dayA);
@@ -181,7 +169,6 @@ const DateWiseCoverageReport = () => {
             return dateA.getTime() - dateB.getTime();
         });
 
-        // Get unique zonals from C&T supervisors
         const zonalSet = new Set<string>();
         wards.forEach(ward => {
             const { zonal } = getSupervisorInfo(ward);
@@ -192,23 +179,18 @@ const DateWiseCoverageReport = () => {
         return { wards, zones, dates, zonals };
     }, [poiData]);
 
-    // Filter data based on selections
     const filteredData = useMemo(() => {
         return poiData.filter(record => {
             if (!selectedWards.includes('All') && !selectedWards.includes(record.wardName)) return false;
             if (selectedZone !== 'All' && record.zone !== selectedZone) return false;
-
-            // Filter by zonal
             if (selectedZonal !== 'All') {
                 const { zonal } = getSupervisorInfo(record.wardName);
                 if (zonal !== selectedZonal) return false;
             }
-
             return true;
         });
     }, [poiData, selectedWards, selectedZone, selectedZonal]);
 
-    // Table data: Each unique route as a row with date values as columns
     const tableData = useMemo(() => {
         const routeMap = new Map<string, {
             wardName: string;
@@ -222,7 +204,6 @@ const DateWiseCoverageReport = () => {
         }>();
 
         filteredData.forEach(record => {
-            // Create unique key for each route
             const key = `${record.wardName}|${record.vehicleNumber}|${record.routeName}`;
 
             if (!routeMap.has(key)) {
@@ -240,15 +221,13 @@ const DateWiseCoverageReport = () => {
             }
 
             const routeData = routeMap.get(key)!;
-            routeData.total = record.total; // Use total from record (same for all dates)
+            routeData.total = record.total;
             const coverage = record.total > 0 ? Math.round((record.covered / record.total) * 100) : 0;
             routeData.dateValues.set(record.date, coverage);
         });
 
-        // Convert to array
         let result = Array.from(routeMap.entries())
             .map(([key, data]) => {
-                // Calculate average coverage across all dates
                 const coverages = Array.from(data.dateValues.values());
                 const avgCoverage = coverages.length > 0
                     ? Math.round(coverages.reduce((sum, val) => sum + val, 0) / coverages.length)
@@ -261,19 +240,30 @@ const DateWiseCoverageReport = () => {
             row.avgCoverage >= minPercentage && row.avgCoverage <= maxPercentage
         );
 
+        // Apply Total POI filter
+        if (minTotal !== '') {
+            result = result.filter(row => row.total >= Number(minTotal));
+        }
+        if (maxTotal !== '') {
+            result = result.filter(row => row.total <= Number(maxTotal));
+        }
+
         // Apply sorting
         if (sortOrder === 'high-to-low') {
             result.sort((a, b) => b.avgCoverage - a.avgCoverage);
         } else if (sortOrder === 'low-to-high') {
             result.sort((a, b) => a.avgCoverage - b.avgCoverage);
+        } else if (sortOrder === 'total-high-to-low') {
+            result.sort((a, b) => b.total - a.total);
+        } else if (sortOrder === 'total-low-to-high') {
+            result.sort((a, b) => a.total - b.total);
         } else {
             result.sort((a, b) => a.wardName.localeCompare(b.wardName));
         }
 
         return result;
-    }, [filteredData, dates, sortOrder, minPercentage, maxPercentage]);
+    }, [filteredData, dates, sortOrder, minPercentage, maxPercentage, minTotal, maxTotal]);
 
-    // Helper to load image for PDF with dimensions
     const loadImage = (src: string): Promise<{ dataUrl: string; width: number; height: number }> => {
         return new Promise((resolve, reject) => {
             const img = new Image();
@@ -296,152 +286,120 @@ const DateWiseCoverageReport = () => {
         });
     };
 
-    // Export to Excel
     const exportToExcel = () => {
         if (tableData.length === 0) return;
 
-        // Create header rows
         const headerRows = [
             ['Mathura Vrindavan Nagar Nigam'],
             ['Date Wise Coverage Report'],
-            [`Generated on: ${new Date().toLocaleDateString()}`],
+            [`Generated on: \${new Date().toLocaleDateString()}`],
             ['Active Filters:',
-                `Ward: ${selectedWards.includes('All') ? 'All' : selectedWards.join(', ')}`,
-                `Zone: ${selectedZone !== 'All' ? selectedZone : 'None'}`,
-                `Zonal: ${selectedZonal !== 'All' ? selectedZonal : 'None'}`,
-                `Coverage: ${minPercentage}% - ${maxPercentage}%`
+                `Ward: \${selectedWards.includes('All') ? 'All' : selectedWards.join(', ')}`,
+                `Zone: \${selectedZone !== 'All' ? selectedZone : 'None'}`,
+                `Zonal: \${selectedZonal !== 'All' ? selectedZonal : 'None'}`,
+                `Coverage: \${minPercentage}% - \${maxPercentage}%`,
+                `Total POIs: \${minTotal || '0'} - \${maxTotal || 'Max'}`
             ],
-            [''] // Empty row for spacing
+            ['']
         ];
 
-        // Prepare data rows
         const dataRows = tableData.map((row, index) => {
             const rowData: any = {
                 'Sr. No.': index + 1,
                 'Ward Name': row.wardName,
-                'Vehicle Number': `${row.vehicleNumber} (${row.avgCoverage}%)`,
+                'Vehicle Number': `\${row.vehicleNumber} (\${row.avgCoverage}%)`,
                 'Route Name': row.routeName,
                 'Supervisor': row.supervisor,
                 'Zonal': row.zonal,
                 'Zone Name': row.zone,
                 'Total': row.total,
-                'Avg Coverage': `${row.avgCoverage}%`,
+                'Avg Coverage': `\${row.avgCoverage}%`,
             };
 
             dates.forEach(date => {
                 const coverage = row.dateValues.get(date);
-                rowData[date] = coverage !== undefined ? `${coverage}%` : '0%';
+                rowData[date] = coverage !== undefined ? `\${coverage}%` : '0%';
             });
 
             return rowData;
         });
 
-        // Convert data rows to AoA (Array of Arrays) to merge with headers
-
-
-        // Create a new workbook
         const wb = XLSX.utils.book_new();
-
-        // We need to manually construct the sheet to add custom headers at the top
-        // But for simplicity with xlsx, we can't easily prepend without recreating the sheet data
-        // Let's create a new sheet with headers + data
-
-        // Extract headers from the first data row keys
         const dataKeys = Object.keys(dataRows[0]);
         const finalData = [
             ...headerRows,
-            dataKeys, // The table headers
-            ...dataRows.map(row => dataKeys.map(key => (row as any)[key])) // Map data to array based on keys
+            dataKeys,
+            ...dataRows.map(row => dataKeys.map(key => (row as any)[key]))
         ];
 
         const ws = XLSX.utils.aoa_to_sheet(finalData);
         XLSX.utils.book_append_sheet(wb, ws, 'Route Coverage');
-        XLSX.writeFile(wb, `Coverage_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(wb, `Coverage_Report_\${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
-    // Export to PDF
     const exportToPDF = async () => {
         if (tableData.length === 0) return;
 
-        const doc = new jsPDF('l', 'mm', 'a4'); // Landscape orientation
+        const doc = new jsPDF('l', 'mm', 'a4');
         const pageWidth = doc.internal.pageSize.getWidth();
         const headerHeight = 40;
 
-        // Add Header Background
-        doc.setFillColor(240, 253, 244); // Light Green Background (green-50)
+        doc.setFillColor(240, 253, 244);
         doc.rect(0, 0, pageWidth, headerHeight, 'F');
-
-        // Add Border line
-        doc.setDrawColor(34, 197, 94); // Green-500
+        doc.setDrawColor(34, 197, 94);
         doc.setLineWidth(0.5);
         doc.line(0, headerHeight, pageWidth, headerHeight);
 
-        // Add Logos and Header
         try {
             const nagarNigamImg = await loadImage(nagarNigamLogo);
             const natureGreenImg = await loadImage(natureGreenLogo);
-
-            // Calculate ratios to fit within a 25mm height box, maintaining aspect ratio
             const maxLogoHeight = 25;
-
             const nnRatio = nagarNigamImg.width / nagarNigamImg.height;
             const nnWidth = maxLogoHeight * nnRatio;
-
             const ngRatio = natureGreenImg.width / natureGreenImg.height;
             const ngWidth = maxLogoHeight * ngRatio;
 
-            // Logos
             doc.addImage(nagarNigamImg.dataUrl, 'PNG', 14, 7, nnWidth, maxLogoHeight);
             doc.addImage(natureGreenImg.dataUrl, 'PNG', pageWidth - ngWidth - 14, 7, ngWidth, maxLogoHeight);
 
-            // Text
             doc.setFontSize(22);
             doc.setFont('helvetica', 'bold');
-            doc.setTextColor(31, 41, 55); // Gray-800
+            doc.setTextColor(31, 41, 55);
             doc.text('Mathura Vrindavan Nagar Nigam', pageWidth / 2, 15, { align: 'center' });
 
             doc.setFontSize(14);
-            doc.setTextColor(22, 101, 52); // Green-800
+            doc.setTextColor(22, 101, 52);
             doc.text('Date Wise Coverage Report', pageWidth / 2, 22, { align: 'center' });
 
-            // Generated Details & Filters
             doc.setFontSize(9);
-            doc.setTextColor(75, 85, 99); // Gray-600
+            doc.setTextColor(75, 85, 99);
             doc.setFont('helvetica', 'normal');
 
-            const dateText = `Generated on: ${new Date().toLocaleDateString()}`;
+            const dateText = `Generated on: \${new Date().toLocaleDateString()}`;
             doc.text(dateText, 14, headerHeight - 8);
 
-            // Filter Text Construction
             doc.setFont('helvetica', 'bold');
             doc.text('Active Filters:', 14, headerHeight - 3);
 
             doc.setFont('helvetica', 'normal');
             let filterText = '';
-            if (!selectedWards.includes('All')) filterText += ` Ward: ${selectedWards.join(', ')} |`;
-            if (selectedZone !== 'All') filterText += ` Zone: ${selectedZone} |`;
-            if (selectedZonal !== 'All') filterText += ` Zonal: ${selectedZonal} |`;
-            filterText += ` Coverage: ${minPercentage}%-${maxPercentage}%`;
+            if (!selectedWards.includes('All')) filterText += ` Ward: \${selectedWards.join(', ')} |`;
+            if (selectedZone !== 'All') filterText += ` Zone: \${selectedZone} |`;
+            if (selectedZonal !== 'All') filterText += ` Zonal: \${selectedZonal} |`;
+            filterText += ` Coverage: \${minPercentage}%-\${maxPercentage}% |`;
+            if (minTotal || maxTotal) filterText += ` POIs: \${minTotal || '0'}-\${maxTotal || 'Max'}`;
 
             doc.text(filterText, 36, headerHeight - 3);
 
         } catch (e) {
             console.error("Error loading images for PDF", e);
-            // Fallback text if images fail
             doc.setFontSize(16);
             doc.text('Mathura Vrindavan Nagar Nigam', pageWidth / 2, 15, { align: 'center' });
         }
 
         const tableColumn = [
-            "Sr. No.",
-            "Ward Name",
-            "Vehicle Number",
-            "Route Name",
-            "Supervisor",
-            "Zonal",
-            "Zone Name",
-            "Total",
-            ...dates
+            "Sr. No.", "Ward Name", "Vehicle Number", "Route Name", "Supervisor",
+            "Zonal", "Zone Name", "Total", ...dates
         ];
 
         const tableRows: any[][] = [];
@@ -450,7 +408,7 @@ const DateWiseCoverageReport = () => {
             const rowData = [
                 index + 1,
                 row.wardName,
-                `${row.vehicleNumber}\n(${row.avgCoverage}%)`,
+                `\${row.vehicleNumber}\n(\${row.avgCoverage}%)`,
                 row.routeName,
                 row.supervisor,
                 row.zonal,
@@ -458,7 +416,7 @@ const DateWiseCoverageReport = () => {
                 row.total,
                 ...dates.map(date => {
                     const val = row.dateValues.get(date);
-                    return val !== undefined ? `${val}%` : '0%';
+                    return val !== undefined ? `\${val}%` : '0%';
                 })
             ];
             tableRows.push(rowData);
@@ -467,85 +425,42 @@ const DateWiseCoverageReport = () => {
         autoTable(doc, {
             head: [tableColumn],
             body: tableRows,
-            startY: 40, // Move table down to accommodate header
-            styles: {
-                fontSize: 8,
-                cellPadding: 2,
-                valign: 'middle',
-                lineWidth: 0.1, // Border width
-                lineColor: [0, 0, 0] // Black border
-            },
-            headStyles: {
-                fillColor: [74, 222, 128], // Green-400
-                textColor: [255, 255, 255],
-                lineWidth: 0.1,
-                lineColor: [0, 0, 0]
-            },
+            startY: 40,
+            styles: { fontSize: 8, cellPadding: 2, valign: 'middle', lineWidth: 0.1, lineColor: [0, 0, 0] },
+            headStyles: { fillColor: [74, 222, 128], textColor: [255, 255, 255], lineWidth: 0.1, lineColor: [0, 0, 0] },
             theme: 'grid',
             didParseCell: (data) => {
-                // Ensure all cells have black borders
                 data.cell.styles.lineColor = [0, 0, 0];
                 data.cell.styles.lineWidth = 0.1;
-
-                // Check if it's a date column (index 8 and above)
                 if (data.section === 'body' && data.column.index >= 8) {
                     const cellText = data.cell.text[0];
                     const percentage = parseInt(cellText.replace('%', ''));
-
-                    if (percentage === 0) {
-                        data.cell.styles.fillColor = [254, 202, 202]; // Red-200
-                        data.cell.styles.textColor = [127, 29, 29]; // Red-900
-                    } else if (percentage < 50) {
-                        data.cell.styles.fillColor = [254, 242, 242]; // Red-50
-                        data.cell.styles.textColor = [153, 27, 27]; // Red-800
-                    } else if (percentage <= 70) {
-                        data.cell.styles.fillColor = [254, 252, 232]; // Yellow-100
-                        data.cell.styles.textColor = [133, 77, 14]; // Yellow-800
-                    } else if (percentage <= 90) {
-                        data.cell.styles.fillColor = [220, 252, 231]; // Green-100
-                        data.cell.styles.textColor = [22, 101, 52]; // Green-800
-                    } else {
-                        data.cell.styles.fillColor = [74, 222, 128]; // Green-400
-                        data.cell.styles.textColor = [255, 255, 255]; // White
-                    }
+                    if (percentage === 0) { data.cell.styles.fillColor = [254, 202, 202]; data.cell.styles.textColor = [127, 29, 29]; }
+                    else if (percentage < 50) { data.cell.styles.fillColor = [254, 242, 242]; data.cell.styles.textColor = [153, 27, 27]; }
+                    else if (percentage <= 70) { data.cell.styles.fillColor = [254, 252, 232]; data.cell.styles.textColor = [133, 77, 14]; }
+                    else if (percentage <= 90) { data.cell.styles.fillColor = [220, 252, 231]; data.cell.styles.textColor = [22, 101, 52]; }
+                    else { data.cell.styles.fillColor = [74, 222, 128]; data.cell.styles.textColor = [255, 255, 255]; }
                 }
             }
         });
 
-        doc.save(`Coverage_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+        doc.save(`Coverage_Report_\${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
-    // Export to JPEG
     const exportToImage = async () => {
         const element = document.getElementById('date-wise-coverage-report');
         const scrollContainer = document.getElementById('date-wise-coverage-scroll-container');
         if (!element) return;
-
         let originalOverflow = '';
-
-        if (scrollContainer) {
-            originalOverflow = scrollContainer.style.overflow;
-            scrollContainer.style.overflow = 'visible';
-        }
-
+        if (scrollContainer) { originalOverflow = scrollContainer.style.overflow; scrollContainer.style.overflow = 'visible'; }
         try {
-            const dataUrl = await toJpeg(element, {
-                quality: 0.95,
-                backgroundColor: '#ffffff',
-                pixelRatio: 2
-            });
+            const dataUrl = await toJpeg(element, { quality: 0.95, backgroundColor: '#ffffff', pixelRatio: 2 });
             const link = document.createElement('a');
-            link.download = `Coverage_Report_${new Date().toISOString().split('T')[0]}.jpeg`;
+            link.download = `Coverage_Report_\${new Date().toISOString().split('T')[0]}.jpeg`;
             link.href = dataUrl;
             link.click();
-        } catch (error) {
-            console.error('Error exporting JPEG:', error);
-            alert('Failed to export JPEG');
-        } finally {
-            if (scrollContainer) {
-                scrollContainer.style.overflow = originalOverflow;
-            }
-        }
+        } catch (error) { console.error('Error exporting JPEG:', error); alert('Failed to export JPEG'); }
+        finally { if (scrollContainer) { scrollContainer.style.overflow = originalOverflow; } }
     };
 
     const getCellColor = (percentage: number) => {
@@ -563,28 +478,10 @@ const DateWiseCoverageReport = () => {
                     <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">
                         <Calendar className="w-8 h-8 text-white" />
                     </div>
-                    <h2 className="text-3xl font-bold text-gray-900 mb-2 text-center">
-                        Date-wise Coverage Report
-                    </h2>
-                    <p className="text-gray-500 mb-8 text-center max-w-md mx-auto">
-                        Upload POI report CSV to view route-level coverage data across all dates.
-                    </p>
-
-                    <FileUpload
-                        label="POI Report CSV"
-                        file={poiFile}
-                        onFileSelect={setPoiFile}
-                        required
-                    />
-
-                    <button
-                        onClick={handleFileProcess}
-                        disabled={!poiFile || loading}
-                        className={`w-full mt-6 py-3 rounded-xl font-bold text-white transition-all shadow-lg ${!poiFile || loading
-                            ? 'bg-gray-300 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 hover:shadow-xl active:scale-95'
-                            }`}
-                    >
+                    <h2 className="text-3xl font-bold text-gray-900 mb-2 text-center">Date-wise Coverage Report</h2>
+                    <p className="text-gray-500 mb-8 text-center max-w-md mx-auto">Upload POI report CSV to view route-level coverage data across all dates.</p>
+                    <FileUpload label="POI Report CSV" file={poiFile} onFileSelect={setPoiFile} required />
+                    <button onClick={handleFileProcess} disabled={!poiFile || loading} className={`w-full mt-6 py-3 rounded-xl font-bold text-white transition-all shadow-lg \${!poiFile || loading ? 'bg-gray-300 cursor-not-allowed' : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 hover:shadow-xl active:scale-95'}`}>
                         {loading ? 'Processing...' : 'Generate Report'}
                     </button>
                 </div>
@@ -594,49 +491,28 @@ const DateWiseCoverageReport = () => {
 
     return (
         <div className="space-y-6" id="date-wise-coverage-report">
-            {/* Nagar Nigam Header */}
             <div className="bg-white border-b-4 border-gray-300 p-6">
                 <div className="flex items-center justify-between max-w-7xl mx-auto">
-                    {/* Left Logo - Nagar Nigam */}
                     <div className="flex-shrink-0">
                         <div className="flex flex-col items-center">
-                            <img
-                                src={nagarNigamLogo}
-                                alt="Nagar Nigam Logo"
-                                className="w-24 h-24 object-contain"
-                            />
-                            <div className="text-xs font-bold text-gray-800 mt-2 text-center uppercase tracking-wider">
-                                Nagar Nigam<br />Mathura-Vrindavan
-                            </div>
+                            <img src={nagarNigamLogo} alt="Nagar Nigam Logo" className="w-24 h-24 object-contain" />
+                            <div className="text-xs font-bold text-gray-800 mt-2 text-center uppercase tracking-wider">Nagar Nigam<br />Mathura-Vrindavan</div>
                         </div>
                     </div>
-
-                    {/* Center Heading */}
                     <div className="flex-1 text-center px-8">
-                        <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight mb-2 uppercase scale-y-110">
-                            Mathura Vrindavan Nagar Nigam
-                        </h1>
+                        <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight mb-2 uppercase scale-y-110">Mathura Vrindavan Nagar Nigam</h1>
                         <div className="inline-block border-b-2 border-green-600 pb-1">
-                            <h2 className="text-xl md:text-2xl font-bold text-green-700 tracking-widest uppercase">
-                                Date Wise Coverage Report
-                            </h2>
+                            <h2 className="text-xl md:text-2xl font-bold text-green-700 tracking-widest uppercase">Date Wise Coverage Report</h2>
                         </div>
                     </div>
-
-                    {/* Right Logo - Nature Green */}
                     <div className="flex-shrink-0">
                         <div className="flex flex-col items-center">
-                            <img
-                                src={natureGreenLogo}
-                                alt="Nature Green Logo"
-                                className="w-24 h-24 object-contain"
-                            />
+                            <img src={natureGreenLogo} alt="Nature Green Logo" className="w-24 h-24 object-contain" />
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Header */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
@@ -649,72 +525,37 @@ const DateWiseCoverageReport = () => {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <button
-                            onClick={exportToExcel}
-                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm"
-                            title="Export to Excel"
-                        >
-                            <Download className="w-4 h-4" />
-                            Excel
+                        <button onClick={exportToExcel} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm" title="Export to Excel">
+                            <Download className="w-4 h-4" /> Excel
                         </button>
-                        <button
-                            onClick={exportToPDF}
-                            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm"
-                            title="Export to PDF"
-                        >
-                            <FileText className="w-4 h-4" />
-                            PDF
+                        <button onClick={exportToPDF} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm" title="Export to PDF">
+                            <FileText className="w-4 h-4" /> PDF
                         </button>
-                        <button
-                            onClick={exportToImage}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-                            title="Export to JPEG"
-                        >
-                            <FileImage className="w-4 h-4" />
-                            JPEG
+                        <button onClick={exportToImage} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm" title="Export to JPEG">
+                            <FileImage className="w-4 h-4" /> JPEG
                         </button>
                     </div>
                 </div>
 
-                {/* Filters */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                            <Filter className="w-4 h-4" />
-                            Filter by Ward
-                        </label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><Filter className="w-4 h-4" /> Filter by Ward</label>
                         <div className="relative group">
-                            <button
-                                onClick={() => setIsWardDropdownOpen(!isWardDropdownOpen)}
-                                className="w-full text-left pl-4 pr-10 py-2.5 text-sm font-medium border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white transition-all shadow-sm flex justify-between items-center text-gray-700 h-11"
-                            >
-                                <span className="truncate">
-                                    {selectedWards.includes('All')
-                                        ? 'All Wards'
-                                        : `Selected Wards (${selectedWards.length})`
-                                    }
-                                </span>
-                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isWardDropdownOpen ? 'rotate-180' : ''}`} />
+                            <button onClick={() => setIsWardDropdownOpen(!isWardDropdownOpen)} className="w-full text-left pl-4 pr-10 py-2.5 text-sm font-medium border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white transition-all shadow-sm flex justify-between items-center text-gray-700 h-11">
+                                <span className="truncate">{selectedWards.includes('All') ? 'All Wards' : `Selected Wards (\${selectedWards.length})`}</span>
+                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform \${isWardDropdownOpen ? 'rotate-180' : ''}`} />
                             </button>
-
                             {isWardDropdownOpen && (
                                 <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-xl max-h-60 overflow-y-auto p-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                                    <div
-                                        className={`px-3 py-2.5 cursor-pointer rounded-lg flex items-center gap-3 transition-colors ${selectedWards.includes('All') ? 'bg-purple-50 text-purple-700' : 'hover:bg-gray-50 text-gray-700'}`}
-                                        onClick={() => toggleWard('All')}
-                                    >
-                                        <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${selectedWards.includes('All') ? 'bg-purple-600 border-purple-600' : 'border-gray-300 bg-white'}`}>
+                                    <div className={`px-3 py-2.5 cursor-pointer rounded-lg flex items-center gap-3 transition-colors \${selectedWards.includes('All') ? 'bg-purple-50 text-purple-700' : 'hover:bg-gray-50 text-gray-700'}`} onClick={() => toggleWard('All')}>
+                                        <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors \${selectedWards.includes('All') ? 'bg-purple-600 border-purple-600' : 'border-gray-300 bg-white'}`}>
                                             {selectedWards.includes('All') && <Check className="w-3.5 h-3.5 text-white" />}
                                         </div>
                                         <span className="font-medium">All Wards</span>
                                     </div>
                                     {wards.map(ward => (
-                                        <div
-                                            key={ward}
-                                            className={`px-3 py-2.5 cursor-pointer rounded-lg flex items-center gap-3 transition-colors ${selectedWards.includes(ward) ? 'bg-purple-50 text-purple-700' : 'hover:bg-gray-50 text-gray-700'}`}
-                                            onClick={() => toggleWard(ward)}
-                                        >
-                                            <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${selectedWards.includes(ward) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 bg-white'}`}>
+                                        <div key={ward} className={`px-3 py-2.5 cursor-pointer rounded-lg flex items-center gap-3 transition-colors \${selectedWards.includes(ward) ? 'bg-purple-50 text-purple-700' : 'hover:bg-gray-50 text-gray-700'}`} onClick={() => toggleWard(ward)}>
+                                            <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors \${selectedWards.includes(ward) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 bg-white'}`}>
                                                 {selectedWards.includes(ward) && <Check className="w-3.5 h-3.5 text-white" />}
                                             </div>
                                             <span className="font-medium">{ward}</span>
@@ -726,225 +567,93 @@ const DateWiseCoverageReport = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                            <Filter className="w-4 h-4" />
-                            Filter by Zone
-                        </label>
-                        <select
-                            value={selectedZone}
-                            onChange={(e) => setSelectedZone(e.target.value)}
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                        >
+                        <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><Filter className="w-4 h-4" /> Filter by Zone</label>
+                        <select value={selectedZone} onChange={(e) => setSelectedZone(e.target.value)} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all">
                             <option value="All">All Zones ({zones.length})</option>
-                            {zones.map(zone => (
-                                <option key={zone} value={zone}>Zone {zone}</option>
-                            ))}
+                            {zones.map(zone => <option key={zone} value={zone}>Zone {zone}</option>)}
                         </select>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                            <Filter className="w-4 h-4" />
-                            Filter by Zonal
-                        </label>
-                        <select
-                            value={selectedZonal}
-                            onChange={(e) => setSelectedZonal(e.target.value)}
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                        >
+                        <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><Filter className="w-4 h-4" /> Filter by Zonal</label>
+                        <select value={selectedZonal} onChange={(e) => setSelectedZonal(e.target.value)} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all">
                             <option value="All">All Zonals ({zonals.length})</option>
-                            {zonals.map(zonal => (
-                                <option key={zonal} value={zonal}>{zonal}</option>
-                            ))}
+                            {zonals.map(zonal => <option key={zonal} value={zonal}>{zonal}</option>)}
                         </select>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Sort Order
-                        </label>
-                        <select
-                            value={sortOrder}
-                            onChange={(e) => setSortOrder(e.target.value as 'ward' | 'high-to-low' | 'low-to-high')}
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                        >
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Sort Order</label>
+                        <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'ward' | 'high-to-low' | 'low-to-high' | 'total-high-to-low' | 'total-low-to-high')} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all">
                             <option value="ward">Ward Name (A-Z)</option>
                             <option value="high-to-low">Coverage: High to Low</option>
                             <option value="low-to-high">Coverage: Low to High</option>
+                            <option value="total-high-to-low">Total POIs: High to Low</option>
+                            <option value="total-low-to-high">Total POIs: Low to High</option>
                         </select>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Coverage Range
-                        </label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Coverage Range</label>
                         <div className="flex gap-2 items-center">
-                            <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={minPercentage}
-                                onChange={(e) => setMinPercentage(Number(e.target.value))}
-                                className="w-20 px-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                placeholder="Min"
-                            />
+                            <input type="number" min="0" max="100" value={minPercentage} onChange={(e) => setMinPercentage(Number(e.target.value))} className="w-20 px-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="Min" />
                             <span className="text-gray-500">-</span>
-                            <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={maxPercentage}
-                                onChange={(e) => setMaxPercentage(Number(e.target.value))}
-                                className="w-20 px-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                placeholder="Max"
-                            />
-                            <span className="text-xs text-gray-500">%</span>
+                            <input type="number" min="0" max="100" value={maxPercentage} onChange={(e) => setMaxPercentage(Number(e.target.value))} className="w-20 px-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="Max" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Total POIs Range</label>
+                        <div className="flex gap-2 items-center">
+                            <input type="number" min="0" value={minTotal} onChange={(e) => setMinTotal(e.target.value === '' ? '' : Number(e.target.value))} className="w-20 px-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="Min" />
+                            <span className="text-gray-500">-</span>
+                            <input type="number" min="0" value={maxTotal} onChange={(e) => setMaxTotal(e.target.value === '' ? '' : Number(e.target.value))} className="w-20 px-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="Max" />
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                {/* Report Header with Logos and Filters */}
-                <div className="mb-6">
-                    <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-100">
-                        <img src={nagarNigamLogo} alt="Nagar Nigam" className="w-20 h-20 object-contain" />
-                        <div className="text-center">
-                            <h3 className="text-2xl font-black text-gray-800 uppercase tracking-tight mb-1">Date Wise Coverage Report</h3>
-                            <p className="text-sm font-bold text-gray-500 tracking-wider uppercase">Mathura Vrindavan Nagar Nigam</p>
-                        </div>
-                        <img src={natureGreenLogo} alt="Nature Green" className="w-20 h-20 object-contain" />
-                    </div>
-
-                    <div className="bg-green-50 rounded-lg p-4 border border-green-100 mb-6">
-                        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
-                            <span className="font-bold text-green-800 uppercase tracking-wider text-xs">Active Filters:</span>
-                            {selectedWards.length === 1 && selectedWards[0] === 'All' && selectedZone === 'All' && selectedZonal === 'All' && minPercentage === 0 && maxPercentage === 100 ? (
-                                <span className="text-gray-400 italic font-medium">None Applied</span>
-                            ) : (
-                                <>
-                                    {!selectedWards.includes('All') && (
-                                        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border border-green-200 shadow-sm">
-                                            <span className="text-xs text-gray-500 uppercase font-bold">Wards</span>
-                                            <span className="font-bold text-gray-800">
-                                                {selectedWards.length > 3 ? `${selectedWards.slice(0, 3).join(', ')} +${selectedWards.length - 3}` : selectedWards.join(', ')}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {selectedZone !== 'All' && (
-                                        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border border-green-200 shadow-sm">
-                                            <span className="text-xs text-gray-500 uppercase font-bold">Zone</span>
-                                            <span className="font-bold text-gray-800">{selectedZone}</span>
-                                        </div>
-                                    )}
-                                    {selectedZonal !== 'All' && (
-                                        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border border-green-200 shadow-sm">
-                                            <span className="text-xs text-gray-500 uppercase font-bold">Zonal</span>
-                                            <span className="font-bold text-gray-800">{selectedZonal}</span>
-                                        </div>
-                                    )}
-                                    {(minPercentage > 0 || maxPercentage < 100) && (
-                                        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border border-green-200 shadow-sm">
-                                            <span className="text-xs text-gray-500 uppercase font-bold">Coverage</span>
-                                            <span className="font-bold text-gray-800">{minPercentage}% - {maxPercentage}%</span>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                <div id="date-wise-coverage-scroll-container" className="overflow-x-auto">
-                    <table className="w-full border-collapse text-xs border border-black font-sans">
-                        <thead>
-                            <tr className="bg-green-400 text-white shadow-sm">
-                                <th className="px-3 py-3 text-center font-bold border border-black sticky left-0 bg-green-400 z-10 min-w-[60px]">
-                                    Sr. No.
-                                </th>
-                                <th className="px-3 py-3 text-left font-bold border border-black min-w-[150px]">
-                                    Ward Name
-                                </th>
-                                <th className="px-3 py-3 text-left font-bold border border-black min-w-[120px]">
-                                    Vehicle Number
-                                </th>
-                                <th className="px-3 py-3 text-left font-bold border border-black min-w-[100px]">
-                                    Route Name
-                                </th>
-                                <th className="px-3 py-3 text-left font-bold border border-black min-w-[100px]">
-                                    Supervisor
-                                </th>
-                                <th className="px-3 py-3 text-left font-bold border border-black min-w-[100px]">
-                                    Zonal
-                                </th>
-                                <th className="px-3 py-3 text-center font-bold border border-black">
-                                    Zone Name
-                                </th>
-                                <th className="px-3 py-3 text-center font-bold border border-black">
-                                    Total
-                                </th>
-                                {dates.map((date) => (
-                                    <th key={date} className="px-2 py-3 text-center font-bold border border-black min-w-[90px]">
-                                        {date}
-                                    </th>
-                                ))}
+            <div id="date-wise-coverage-scroll-container" className="overflow-x-auto">
+                <table className="w-full border-collapse text-xs border border-black font-sans">
+                    <thead>
+                        <tr className="bg-green-400 text-white shadow-sm">
+                            <th className="px-3 py-3 text-center font-bold border border-black sticky left-0 bg-green-400 z-10 min-w-[60px]">Sr. No.</th>
+                            <th className="px-3 py-3 text-left font-bold border border-black min-w-[150px]">Ward Name</th>
+                            <th className="px-3 py-3 text-left font-bold border border-black min-w-[120px]">Vehicle Number</th>
+                            <th className="px-3 py-3 text-left font-bold border border-black min-w-[100px]">Route Name</th>
+                            <th className="px-3 py-3 text-left font-bold border border-black min-w-[100px]">Supervisor</th>
+                            <th className="px-3 py-3 text-left font-bold border border-black min-w-[100px]">Zonal</th>
+                            <th className="px-3 py-3 text-center font-bold border border-black">Zone Name</th>
+                            <th className="px-3 py-3 text-center font-bold border border-black">Total</th>
+                            {dates.map((date) => <th key={date} className="px-2 py-3 text-center font-bold border border-black min-w-[90px]">{date}</th>)}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                        {tableData.map((row, rowIndex) => (
+                            <tr key={row.key} className="hover:bg-green-50/50 transition-colors">
+                                <td className="px-3 py-3 text-center font-bold text-gray-700 border border-black bg-gray-50/50 sticky left-0 z-0">{rowIndex + 1}</td>
+                                <td className="px-3 py-3 font-bold text-gray-900 border border-black">{row.wardName}</td>
+                                <td className="px-3 py-3 text-gray-800 border border-black font-semibold text-xs bg-green-50/30">
+                                    <div>{row.vehicleNumber}</div>
+                                    <div className={`text-[10px] font-bold mt-1 \${row.avgCoverage >= 90 ? 'text-green-700' : row.avgCoverage >= 70 ? 'text-green-700' : row.avgCoverage >= 50 ? 'text-yellow-700' : row.avgCoverage === 0 ? 'text-red-800' : 'text-red-700'}`}>
+                                        Avg: {row.avgCoverage}%
+                                    </div>
+                                </td>
+                                <td className="px-3 py-3 text-gray-800 border border-black font-semibold text-xs uppercase">{row.routeName}</td>
+                                <td className="px-3 py-3 text-gray-700 border border-black font-medium uppercase bg-blue-50/20">{row.supervisor}</td>
+                                <td className="px-3 py-3 text-gray-700 border border-black font-medium uppercase">{row.zonal}</td>
+                                <td className="px-3 py-3 text-center text-gray-800 font-bold border border-black bg-gray-50">{row.zone}</td>
+                                <td className="px-3 py-3 text-center font-black text-gray-900 border border-black bg-gray-100/50">{row.total}</td>
+                                {dates.map(date => {
+                                    const value = row.dateValues.get(date) || 0;
+                                    return <td key={date} className={`px-2 py-3 text-center font-bold border border-black \${getCellColor(value)}`}>{value}%</td>;
+                                })}
                             </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                            {tableData.map((row, rowIndex) => (
-                                <tr key={row.key} className="hover:bg-green-50/50 transition-colors">
-                                    <td className="px-3 py-3 text-center font-bold text-gray-700 border border-black bg-gray-50/50 sticky left-0 z-0">
-                                        {rowIndex + 1}
-                                    </td>
-                                    <td className="px-3 py-3 font-bold text-gray-900 border border-black">
-                                        {row.wardName}
-                                    </td>
-                                    <td className="px-3 py-3 text-gray-800 border border-black font-semibold text-xs bg-green-50/30">
-                                        <div>{row.vehicleNumber}</div>
-                                        <div className={`text-[10px] font-bold mt-1 ${row.avgCoverage >= 90 ? 'text-green-700' :
-                                            row.avgCoverage >= 70 ? 'text-green-700' :
-                                                row.avgCoverage >= 50 ? 'text-yellow-700' :
-                                                    row.avgCoverage === 0 ? 'text-red-800' :
-                                                        'text-red-700'
-                                            }`}>
-                                            Avg: {row.avgCoverage}%
-                                        </div>
-                                    </td>
-                                    <td className="px-3 py-3 text-gray-800 border border-black font-semibold text-xs uppercase">
-                                        {row.routeName}
-                                    </td>
-                                    <td className="px-3 py-3 text-gray-700 border border-black font-medium uppercase bg-blue-50/20">
-                                        {row.supervisor}
-                                    </td>
-                                    <td className="px-3 py-3 text-gray-700 border border-black font-medium uppercase">
-                                        {row.zonal}
-                                    </td>
-                                    <td className="px-3 py-3 text-center text-gray-800 font-bold border border-black bg-gray-50">
-                                        {row.zone}
-                                    </td>
-                                    <td className="px-3 py-3 text-center font-black text-gray-900 border border-black bg-gray-100/50">
-                                        {row.total}
-                                    </td>
-                                    {dates.map(date => {
-                                        const value = row.dateValues.get(date) || 0;
-                                        return (
-                                            <td
-                                                key={date}
-                                                className={`px-2 py-3 text-center font-bold border border-black ${getCellColor(value)}`}
-                                            >
-                                                {value}%
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                        ))}
+                    </tbody>
+                </table>
             </div>
-            {/* Footer */}
-            {/* Footer */}
+
             <div className="mt-12 mb-6 text-center">
                 <div className="inline-block bg-white px-8 py-4 rounded-2xl shadow-sm border border-slate-100">
                     <p className="text-slate-600 font-medium text-lg tracking-wide">

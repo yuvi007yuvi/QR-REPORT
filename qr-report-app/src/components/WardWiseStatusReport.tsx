@@ -164,11 +164,15 @@ const WardWiseStatusReport = () => {
             const matchesZonal = selectedZonals.length === 0 || selectedZonals.includes(row.zoneName || 'Unmapped');
             const matchesWard = selectedWards.length === 0 || selectedWards.includes(row.wardNo.toString());
 
-            return matchesSearch && matchesZonal && matchesWard;
+            const min = minCoverage === '' ? 0 : minCoverage;
+            const max = maxCoverage === '' ? 100 : maxCoverage;
+            const matchesCoverage = row.coverage >= min && row.coverage <= max;
+
+            return matchesSearch && matchesZonal && matchesWard && matchesCoverage;
         }).sort((a, b) => {
             return sortOrder === 'asc' ? a.coverage - b.coverage : b.coverage - a.coverage;
         });
-    }, [data, searchTerm, selectedZonals, selectedWards, sortOrder]);
+    }, [data, searchTerm, selectedZonals, selectedWards, sortOrder, minCoverage, maxCoverage]);
 
     const totals = useMemo(() => {
         return filteredData.reduce((acc, row) => ({
@@ -407,6 +411,28 @@ const WardWiseStatusReport = () => {
                                 <option value="asc">Coverage: Low to High</option>
                                 <option value="desc">Coverage: High to Low</option>
                             </select>
+
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    placeholder="Min %"
+                                    value={minCoverage}
+                                    onChange={(e) => setMinCoverage(e.target.value === '' ? '' : Number(e.target.value))}
+                                    className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-20 p-2.5 shadow-sm"
+                                    min="0"
+                                    max="100"
+                                />
+                                <span className="text-gray-400">-</span>
+                                <input
+                                    type="number"
+                                    placeholder="Max %"
+                                    value={maxCoverage}
+                                    onChange={(e) => setMaxCoverage(e.target.value === '' ? '' : Number(e.target.value))}
+                                    className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-20 p-2.5 shadow-sm"
+                                    min="0"
+                                    max="100"
+                                />
+                            </div>
                         </div>
 
                         {/* Search & Exports */}

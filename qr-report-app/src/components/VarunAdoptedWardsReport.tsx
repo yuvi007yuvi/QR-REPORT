@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Download, FileDown, Upload, ImageIcon, Loader2, ChevronDown, Check, Calendar, MapPin, Filter, FileText, Wand2 } from 'lucide-react';
+import { Download, FileDown, Upload, ImageIcon, Loader2, Calendar, FileText, Wand2 } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -44,12 +44,31 @@ interface DateAggregate {
     totalRoutes: number;
 }
 
-const POIWardWiseReport: React.FC = () => {
+interface VehicleAggregate {
+    vehicleNumber: string;
+    wardName: string;
+    totalScheduled: number;
+    totalCovered: number;
+    totalNotCovered: number;
+    averageCoverage: number;
+    totalRoutes: number;
+    routes: Set<string>;
+}
+
+const ADOPTED_WARDS = [
+    "29-Koyla Alipur",
+    "08-Atas",
+    "28-Aurangabad Second",
+    "57-Balajipuram",
+    "45-Birla Mandir"
+];
+
+const VarunAdoptedWardsReport: React.FC = () => {
     const [poiData, setPoiData] = useState<POIRecord[]>([]);
     const [loading, setLoading] = useState(false);
     const [fileName, setFileName] = useState<string>('');
     const reportRef = useRef<HTMLDivElement>(null);
-    const [viewMode, setViewMode] = useState<'ward' | 'date' | 'matrix'>('ward');
+    const [viewMode, setViewMode] = useState<'ward' | 'date' | 'matrix' | 'vehicle'>('ward');
     const originalDataRef = useRef<POIRecord[]>([]);
     const [isSimulated, setIsSimulated] = useState(false);
 
@@ -59,63 +78,9 @@ const POIWardWiseReport: React.FC = () => {
 
 
     // Filters
-    const [selectedZones, setSelectedZones] = useState<string[]>(['All']);
-    const [selectedWards, setSelectedWards] = useState<string[]>(['All']);
-    const [isWardDropdownOpen, setIsWardDropdownOpen] = useState(false);
+    // Filters
     const [dateFrom, setDateFrom] = useState<string>('');
     const [dateTo, setDateTo] = useState<string>('');
-    const [isZoneDropdownOpen, setIsZoneDropdownOpen] = useState(false);
-
-    const toggleZone = (zone: string) => {
-        if (zone === 'All') {
-            setSelectedZones(['All']);
-            // Reset wards when changing zones if strictly filtered,
-            // but usually we might want to keep "All" wards or reset to "All"
-            // For now, let's leave wards as is or reset if needed.
-            return;
-        }
-
-        let newZones = [...selectedZones];
-        if (newZones.includes('All')) {
-            newZones = [];
-        }
-
-        if (newZones.includes(zone)) {
-            newZones = newZones.filter(z => z !== zone);
-        } else {
-            newZones.push(zone);
-        }
-
-        if (newZones.length === 0) {
-            newZones = ['All'];
-        }
-
-        setSelectedZones(newZones);
-    };
-
-    const toggleWard = (ward: string) => {
-        if (ward === 'All') {
-            setSelectedWards(['All']);
-            return;
-        }
-
-        let newWards = [...selectedWards];
-        if (newWards.includes('All')) {
-            newWards = [];
-        }
-
-        if (newWards.includes(ward)) {
-            newWards = newWards.filter(w => w !== ward);
-        } else {
-            newWards.push(ward);
-        }
-
-        if (newWards.length === 0) {
-            newWards = ['All'];
-        }
-
-        setSelectedWards(newWards);
-    };
 
     // Parse helper
     const parseNumber = (val: string | number) => {
@@ -178,7 +143,6 @@ const POIWardWiseReport: React.FC = () => {
         if (dateFrom || dateTo) {
             filtered = filtered.filter(item => {
                 const [day, month, year] = item.date.split('-').map(Number);
-                // Create local date object at 00:00:00
                 const itemDate = new Date(year, month - 1, day);
                 itemDate.setHours(0, 0, 0, 0);
 
@@ -201,15 +165,11 @@ const POIWardWiseReport: React.FC = () => {
             });
         }
 
-        if (!selectedZones.includes('All')) {
-            filtered = filtered.filter(item => selectedZones.includes(item.zoneCircle));
-        }
+        // Strictly filter for Adopted Wards
+        filtered = filtered.filter(item => ADOPTED_WARDS.includes(item.wardName));
 
-        if (!selectedWards.includes('All')) {
-            filtered = filtered.filter(item => selectedWards.includes(item.wardName));
-        }
         return filtered;
-    }, [poiData, selectedZones, selectedWards, dateFrom, dateTo]);
+    }, [poiData, dateFrom, dateTo]);
 
     // Derived Data: Aggregated by Ward
     const wardAggregatedData = useMemo(() => {
@@ -345,6 +305,73 @@ const POIWardWiseReport: React.FC = () => {
         return result;
     }, [filteredData, dateFrom, dateTo]);
 
+    // Derived Data: Aggregated by Vehicle
+    const vehicleAggregatedData = useMemo(() => {
+        let targetRecords = filteredData;
+
+        // Similar to Ward view, we might want to prioritize "Today's" snapshot if we aren't filtering dates?
+        // Or should we show aggregate over selected date range? The user didn't specify, but usually "Vehicle Wise Coverage" implies aggregate performance or daily snapshot.
+        // Let's stick to the same logic as Ward view: latest date snapshot if no custom date filters (or even if there are filters, finding the latest in that range is safer for "current status").
+        // actually, for coverage reports over a period, we often sum up. But coverage % is tricky.
+        // Let's follow Ward View Pattern: "Latest Snapshot" strategy for consistency.
+
+        if (filteredData.length > 0) {
+            const sortedDates = [...new Set(filteredData.map(r => r.date))].sort((a, b) => {
+                const [d1, m1, y1] = a.split('-').map(Number);
+                const [d2, m2, y2] = b.split('-').map(Number);
+                return new Date(y2, m2 - 1, d2).getTime() - new Date(y1, m1 - 1, d1).getTime();
+            });
+            const latestDateStr = sortedDates[0];
+            targetRecords = filteredData.filter(r => r.date === latestDateStr);
+        }
+
+        const vehicleMap = new Map<string, VehicleAggregate>();
+
+        targetRecords.forEach(record => {
+            // Group Key: Vehicle + Ward (since a vehicle might cover parts of different wards, though usually 1:1)
+            // Ideally Vehicle Number is unique enough. Let's group by Vehicle Number primarily.
+            const key = record.vehicleNumber || 'Unknown';
+
+            if (!vehicleMap.has(key)) {
+                vehicleMap.set(key, {
+                    vehicleNumber: key,
+                    wardName: record.wardName, // taking first ward encountered
+                    totalScheduled: 0,
+                    totalCovered: 0,
+                    totalNotCovered: 0,
+                    averageCoverage: 0,
+                    totalRoutes: 0,
+                    routes: new Set()
+                });
+            }
+            const current = vehicleMap.get(key)!;
+            // If vehicle spans multiple wards, maybe append ward name?
+            if (!current.wardName.includes(record.wardName)) {
+                // For now, simple keeps the first one or we can concat (e.g. Ward A, Ward B)
+                // maximizing simplicity: if it's different, maybe it's better to group by Ward? 
+                // User asked "Vehicle Wise", so Vehicle is the primary key.
+            }
+
+            current.totalScheduled += record.total;
+            current.totalCovered += record.covered;
+            current.totalNotCovered += record.notCovered;
+            if (record.routeName) {
+                current.routes.add(record.routeName);
+            }
+        });
+
+        const result = Array.from(vehicleMap.values()).map(v => ({
+            ...v,
+            totalRoutes: v.routes.size,
+            averageCoverage: v.totalScheduled > 0
+                ? (v.totalCovered / v.totalScheduled) * 100
+                : 0
+        }));
+
+        result.sort((a, b) => a.vehicleNumber.localeCompare(b.vehicleNumber));
+        return result;
+    }, [filteredData]);
+
     // Derived Data: Matrix View (Rows = Wards, Cols = Dates)
     const matrixData = useMemo(() => {
         // 1. Get all dates from dateAggregatedData (which already handles range filling and sorting)
@@ -398,9 +425,7 @@ const POIWardWiseReport: React.FC = () => {
         };
     }, [dateAggregatedData, wardAggregatedData, filteredData]);
 
-    // Unique values for filters
-    const zones = useMemo(() => Array.from(new Set(poiData.map(d => d.zoneCircle))).sort(), [poiData]);
-    const wards = useMemo(() => Array.from(new Set(poiData.map(d => d.wardName))).sort(), [poiData]);
+
 
     // Export Excel
     const handleSimulate70 = () => {
@@ -441,10 +466,10 @@ const POIWardWiseReport: React.FC = () => {
                     }
                 }
 
-                const matchesZone = selectedZones.includes('All') || selectedZones.includes(item.zoneCircle);
-                const matchesWard = selectedWards.includes('All') || selectedWards.includes(item.wardName);
+                // Match only Adopted Wards
+                const matchesWard = ADOPTED_WARDS.includes(item.wardName);
 
-                return matchesDate && matchesZone && matchesWard;
+                return matchesDate && matchesWard;
             };
 
             // Calculate stats for FILTERED set
@@ -505,8 +530,22 @@ const POIWardWiseReport: React.FC = () => {
                 'Coverage %': item.averageCoverage.toFixed(2)
             })));
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Ward POI Report');
-            XLSX.writeFile(wb, `Ward_POI_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+            XLSX.utils.book_append_sheet(wb, ws, 'Varun Adopted Ward Report');
+            XLSX.writeFile(wb, `Varun_Adopted_Ward_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+        } else if (viewMode === 'vehicle') {
+            const ws = XLSX.utils.json_to_sheet(vehicleAggregatedData.map((item, index) => ({
+                'S.No': index + 1,
+                'Vehicle Number': item.vehicleNumber,
+                'Ward Name': item.wardName,
+                'Total Routes': item.totalRoutes,
+                'Total POI': item.totalScheduled,
+                'Covered POI': item.totalCovered,
+                'Not Covered': item.totalNotCovered,
+                'Coverage %': item.averageCoverage.toFixed(2)
+            })));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Vehicle Wise Adopted Report');
+            XLSX.writeFile(wb, `Vehicle_Wise_Adopted_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
         } else {
             const ws = XLSX.utils.json_to_sheet(dateAggregatedData.map((item, index) => ({
                 'S.No': index + 1,
@@ -517,8 +556,8 @@ const POIWardWiseReport: React.FC = () => {
                 'Coverage %': `${item.averageCoverage.toFixed(2)}% (${item.totalCovered})`
             })));
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Date Wise POI Report');
-            XLSX.writeFile(wb, `Date_Wise_POI_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+            XLSX.utils.book_append_sheet(wb, ws, 'Date Wise Adopted Report');
+            XLSX.writeFile(wb, `Date_Wise_Adopted_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
     };
 
@@ -546,7 +585,7 @@ const POIWardWiseReport: React.FC = () => {
         const ws = XLSX.utils.json_to_sheet(csvData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "POI Data");
-        XLSX.writeFile(wb, `Filtered_POI_Report_${new Date().toISOString().split('T')[0]}.csv`);
+        XLSX.writeFile(wb, `Filtered_Adopted_Report_${new Date().toISOString().split('T')[0]}.csv`);
     };
 
     const handleExportGeneric = async (type: 'jpeg' | 'pdf_image') => {
@@ -573,7 +612,7 @@ const POIWardWiseReport: React.FC = () => {
 
             if (type === 'jpeg') {
                 const link = document.createElement('a');
-                link.download = `${viewMode}_Wise_POI_Report.jpeg`;
+                link.download = `${viewMode}_Varun_Adopted_Report.jpeg`;
                 link.href = dataUrl;
                 link.click();
             } else {
@@ -582,7 +621,7 @@ const POIWardWiseReport: React.FC = () => {
                 const pdfWidth = pdf.internal.pageSize.getWidth();
                 const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
                 pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-                pdf.save(`${viewMode}_Wise_POI_Report.pdf`);
+                pdf.save(`${viewMode}_Varun_Adopted_Report.pdf`);
             }
         } catch (e) {
             console.error("Export Error", e);
@@ -590,7 +629,9 @@ const POIWardWiseReport: React.FC = () => {
         }
     }
 
-    const aggregatedData = viewMode === 'ward' ? wardAggregatedData : dateAggregatedData;
+    const aggregatedData = viewMode === 'ward' ? wardAggregatedData
+        : viewMode === 'vehicle' ? vehicleAggregatedData
+            : dateAggregatedData;
 
     return (
         <div className="flex flex-col min-h-screen bg-gray-50 items-center relative">
@@ -609,7 +650,7 @@ const POIWardWiseReport: React.FC = () => {
                     <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Mathura Vrindavan Nagar Nigam</h1>
                     <div className="inline-block border-b-4 border-emerald-500 pb-1 mt-1">
                         <h2 className="text-xl font-bold text-emerald-700 uppercase tracking-wide">
-                            {viewMode === 'ward' ? 'Ward Wise POI Coverage Report' : 'Date Wise POI Coverage Report'}
+                            {viewMode === 'ward' ? 'Varun Adopted Ward Report' : 'Date Wise Adopted Report'}
                         </h2>
                     </div>
                     <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-2">{dateFrom && dateTo ? `${dateFrom} to ${dateTo} ` : 'Monthly Report'}</h3>
@@ -683,100 +724,16 @@ const POIWardWiseReport: React.FC = () => {
                         >
                             Day Wise Matrix
                         </button>
+                        <button
+                            onClick={() => setViewMode('vehicle')}
+                            className={`px - 4 py - 2 text - sm font - semibold rounded - md transition - all ${viewMode === 'vehicle' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'} `}
+                        >
+                            Vehicle Wise
+                        </button>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1">
-                        {/* Custom Multi-Select for Zones */}
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <MapPin className="h-5 w-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
-                            </div>
-                            <button
-                                onClick={() => setIsZoneDropdownOpen(!isZoneDropdownOpen)}
-                                className="w-full text-left pl-10 pr-10 py-2.5 text-sm font-medium border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-gray-50 hover:bg-white transition-all shadow-sm flex justify-between items-center text-gray-700 h-11"
-                            >
-                                <span className="truncate">
-                                    {selectedZones.includes('All')
-                                        ? 'All Zones'
-                                        : `Selected Zones (${selectedZones.length})`
-                                    }
-                                </span>
-                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isZoneDropdownOpen ? 'rotate-180' : ''}`} />
-                            </button>
-
-                            {isZoneDropdownOpen && (
-                                <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-xl max-h-60 overflow-y-auto p-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                                    <div
-                                        className={`px-3 py-2.5 cursor-pointer rounded-lg flex items-center gap-3 transition-colors ${selectedZones.includes('All') ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'}`}
-                                        onClick={() => toggleZone('All')}
-                                    >
-                                        <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${selectedZones.includes('All') ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
-                                            {selectedZones.includes('All') && <Check className="w-3.5 h-3.5 text-white" />}
-                                        </div>
-                                        <span className="font-medium">All Zones</span>
-                                    </div>
-                                    {zones.map(z => (
-                                        <div
-                                            key={z}
-                                            className={`px-3 py-2.5 cursor-pointer rounded-lg flex items-center gap-3 transition-colors ${selectedZones.includes(z) ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'}`}
-                                            onClick={() => toggleZone(z)}
-                                        >
-                                            <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${selectedZones.includes(z) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
-                                                {selectedZones.includes(z) && <Check className="w-3.5 h-3.5 text-white" />}
-                                            </div>
-                                            <span className="font-medium">{z}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Ward Select */}
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Filter className="h-5 w-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
-                            </div>
-                            <button
-                                onClick={() => setIsWardDropdownOpen(!isWardDropdownOpen)}
-                                className="w-full text-left pl-10 pr-10 py-2.5 text-sm font-medium border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-gray-50 hover:bg-white transition-all shadow-sm flex justify-between items-center text-gray-700 h-11"
-                            >
-                                <span className="truncate">
-                                    {selectedWards.includes('All')
-                                        ? 'All Wards'
-                                        : `Selected Wards (${selectedWards.length})`
-                                    }
-                                </span>
-                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isWardDropdownOpen ? 'rotate-180' : ''}`} />
-                            </button>
-
-                            {isWardDropdownOpen && (
-                                <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-xl max-h-60 overflow-y-auto p-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                                    <div
-                                        className={`px-3 py-2.5 cursor-pointer rounded-lg flex items-center gap-3 transition-colors ${selectedWards.includes('All') ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'}`}
-                                        onClick={() => toggleWard('All')}
-                                    >
-                                        <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${selectedWards.includes('All') ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
-                                            {selectedWards.includes('All') && <Check className="w-3.5 h-3.5 text-white" />}
-                                        </div>
-                                        <span className="font-medium">All Wards</span>
-                                    </div>
-                                    {wards
-                                        .filter(w => selectedZones.includes('All') || poiData.find(d => d.wardName === w && selectedZones.includes(d.zoneCircle)))
-                                        .map(w => (
-                                            <div
-                                                key={w}
-                                                className={`px-3 py-2.5 cursor-pointer rounded-lg flex items-center gap-3 transition-colors ${selectedWards.includes(w) ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'}`}
-                                                onClick={() => toggleWard(w)}
-                                            >
-                                                <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${selectedWards.includes(w) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
-                                                    {selectedWards.includes(w) && <Check className="w-3.5 h-3.5 text-white" />}
-                                                </div>
-                                                <span className="font-medium">{w}</span>
-                                            </div>
-                                        ))}
-                                </div>
-                            )}
-                        </div>
+                        {/* Zone/Ward Filters Removed for Adopted Report */}
 
                         {/* From Date */}
                         <div className="relative group">
@@ -859,19 +816,14 @@ const POIWardWiseReport: React.FC = () => {
                     <div className="text-center flex-1">
                         <h1 className="text-xl font-black text-gray-900 uppercase tracking-tight">Mathura Vrindavan Nagar Nigam</h1>
                         <h2 className="text-sm font-bold text-emerald-700 uppercase tracking-wide mt-1">
-                            {viewMode === 'ward' ? 'Ward Wise POI Coverage Report' : viewMode === 'date' ? 'Date Wise POI Coverage Report' : 'Day Wise Matrix Coverage Report'}
+                            {viewMode === 'ward' ? 'Ward Wise POI Coverage Report' : viewMode === 'vehicle' ? 'Vehicle Wise Coverage Report' : viewMode === 'date' ? 'Date Wise POI Coverage Report' : 'Day Wise Matrix Coverage Report'}
                         </h2>
 
                         <div className="flex flex-wrap justify-center gap-2 mt-2 text-xs font-medium text-gray-600">
                             {dateFrom && dateTo && (
                                 <span className="bg-gray-100 px-2 py-1 rounded">Date: {dateFrom} to {dateTo}</span>
                             )}
-                            {!selectedZones.includes('All') && (
-                                <span className="bg-gray-100 px-2 py-1 rounded">Zone: {selectedZones.join(', ')}</span>
-                            )}
-                            {!selectedWards.includes('All') && (
-                                <span className="bg-gray-100 px-2 py-1 rounded">Ward: {selectedWards.join(', ')}</span>
-                            )}
+                            <span className="bg-gray-100 px-2 py-1 rounded">Filter: Adopted Wards Only</span>
                             {/* Summary count */}
                             <span className="bg-gray-100 px-2 py-1 rounded">
                                 {viewMode === 'ward' ? `Total Wards: ${aggregatedData.length} ` : viewMode === 'date' ? `Total Days: ${aggregatedData.length} ` : `Total Wards: ${matrixData.rows.length} `}
@@ -893,6 +845,17 @@ const POIWardWiseReport: React.FC = () => {
                                     <th className="px-3 py-3 border-b border-gray-600 bg-gray-800">S.No.</th>
                                     <th className="px-3 py-3 border-b border-gray-600 bg-gray-800">Zone</th>
                                     <th className="px-3 py-3 border-b border-gray-600 text-left bg-gray-800">Wards</th>
+                                    <th className="px-3 py-3 border-b border-gray-600 bg-gray-800">Total Routes</th>
+                                    <th className="px-3 py-3 border-b border-gray-600 bg-gray-800">Assigned POI</th>
+                                    <th className="px-3 py-3 border-b border-gray-600 bg-gray-800">Covered</th>
+                                    <th className="px-3 py-3 border-b border-gray-600 bg-gray-800">Not Covered</th>
+                                    <th className="px-3 py-3 border-b border-gray-600 bg-gray-800">Coverage %</th>
+                                </tr>
+                            ) : viewMode === 'vehicle' ? (
+                                <tr>
+                                    <th className="px-3 py-3 border-b border-gray-600 bg-gray-800">S.No.</th>
+                                    <th className="px-3 py-3 border-b border-gray-600 bg-gray-800">Vehicle Number</th>
+                                    <th className="px-3 py-3 border-b border-gray-600 text-left bg-gray-800">Ward Name</th>
                                     <th className="px-3 py-3 border-b border-gray-600 bg-gray-800">Total Routes</th>
                                     <th className="px-3 py-3 border-b border-gray-600 bg-gray-800">Assigned POI</th>
                                     <th className="px-3 py-3 border-b border-gray-600 bg-gray-800">Covered</th>
@@ -944,6 +907,31 @@ const POIWardWiseReport: React.FC = () => {
                                                     />
                                                 </div>
                                                 <span className={`text - xs font - bold ${row.averageCoverage >= 90 ? 'text-emerald-700' : row.averageCoverage >= 75 ? 'text-yellow-700' : 'text-red-700'} `}>
+                                                    {row.averageCoverage.toFixed(1)}%
+                                                </span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : viewMode === 'vehicle' ? (
+                                (aggregatedData as VehicleAggregate[]).map((row, index) => (
+                                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-3 py-2 font-medium text-gray-500">{index + 1}</td>
+                                        <td className="px-3 py-2 font-bold text-gray-800">{row.vehicleNumber}</td>
+                                        <td className="px-3 py-2 text-left font-semibold text-gray-800">{row.wardName}</td>
+                                        <td className="px-3 py-2 font-mono text-gray-600">{(row as VehicleAggregate).totalRoutes}</td>
+                                        <td className="px-3 py-2 font-mono text-gray-600">{row.totalScheduled}</td>
+                                        <td className="px-3 py-2 font-bold text-emerald-600">{row.totalCovered}</td>
+                                        <td className="px-3 py-2 font-bold text-red-500">{row.totalNotCovered}</td>
+                                        <td className="px-3 py-2">
+                                            <div className="flex items-center justify-center gap-2">
+                                                <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full ${row.averageCoverage >= 90 ? 'bg-emerald-500' : row.averageCoverage >= 75 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                                        style={{ width: `${Math.min(row.averageCoverage, 100)}%` }}
+                                                    />
+                                                </div>
+                                                <span className={`text-xs font-bold ${row.averageCoverage >= 90 ? 'text-emerald-700' : row.averageCoverage >= 75 ? 'text-yellow-700' : 'text-red-700'}`}>
                                                     {row.averageCoverage.toFixed(1)}%
                                                 </span>
                                             </div>
@@ -1080,7 +1068,7 @@ const POIWardWiseReport: React.FC = () => {
                                 </tr>
                             ) : (
                                 <tr>
-                                    <td colSpan={viewMode === 'ward' ? 3 : 2} className="px-3 py-4 text-right uppercase tracking-wider text-gray-300 border-t border-gray-600">Grand Total</td>
+                                    <td colSpan={viewMode === 'ward' || viewMode === 'vehicle' ? 3 : 2} className="px-3 py-4 text-right uppercase tracking-wider text-gray-300 border-t border-gray-600">Grand Total</td>
                                     <td className="px-3 py-4 border-t border-gray-600 font-mono text-lg text-center" >
                                         {aggregatedData.reduce((acc: number, curr: any) => acc + (curr.totalRoutes || 0), 0)}
                                     </td>
@@ -1102,6 +1090,7 @@ const POIWardWiseReport: React.FC = () => {
                 </div>
             </div>
 
+
             {/* Footer */}
             <div className="mb-6 text-center">
                 <div className="inline-block bg-white px-8 py-4 rounded-full shadow-sm border border-slate-100">
@@ -1110,8 +1099,8 @@ const POIWardWiseReport: React.FC = () => {
                     </p>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 
-export default POIWardWiseReport;
+export default VarunAdoptedWardsReport;

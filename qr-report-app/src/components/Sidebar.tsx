@@ -43,6 +43,7 @@ export type ViewMode =
     | 'coverage-date-wise'
     | 'vehicle-change-report' // Added
     | 'poi-ward-monthly' // New Report
+    | 'varun-adopted-wards' // Adopted Wards
     | 'kyc-survey'
     | 'kyc-calendar'
     | 'kyc-whatsapp'
@@ -124,6 +125,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 { id: 'coverage-supervisor', label: 'Supervisor Report', icon: Users },
                 { id: 'coverage-ward', label: 'Ward Wise Report (KYC)', icon: Building2 },
                 { id: 'poi-ward-monthly', label: 'Ward POI Monthly', icon: FileSpreadsheet },
+                { id: 'varun-adopted-wards', label: 'Adopted Wards (Varun)', icon: Building2 },
                 { id: 'coverage-all-wards', label: 'All Wards Summary', icon: FileSpreadsheet },
                 { id: 'coverage-mapping', label: 'POI Mapping', icon: Map },
                 { id: 'coverage-date-wise', label: 'Date Wise Coverage', icon: Calendar },

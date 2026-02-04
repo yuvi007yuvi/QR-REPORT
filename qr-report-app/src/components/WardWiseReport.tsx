@@ -15,6 +15,7 @@ export const WardWiseReport: React.FC = () => {
     const [selectedZone, setSelectedZone] = useState<string>('All');
     const [selectedSupervisor, setSelectedSupervisor] = useState<string>('All');
     const [selectedWard, setSelectedWard] = useState<string>('All');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -113,6 +114,8 @@ export const WardWiseReport: React.FC = () => {
         const matchesWard = selectedWard === 'All' || s.wardNo.toString() === selectedWard;
 
         return matchesSearch && matchesZone && matchesSupervisor && matchesWard;
+    }).sort((a, b) => {
+        return sortOrder === 'asc' ? a.coverage - b.coverage : b.coverage - a.coverage;
     });
 
     const totalTarget = filteredStats.reduce((sum, s) => sum + s.target, 0);
@@ -291,8 +294,7 @@ export const WardWiseReport: React.FC = () => {
                             />
                         </div>
 
-                        {/* Dropdowns */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full md:w-auto">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 w-full md:w-auto">
                             <select
                                 value={selectedZone}
                                 onChange={(e) => setSelectedZone(e.target.value)}
@@ -318,6 +320,15 @@ export const WardWiseReport: React.FC = () => {
                             >
                                 <option value="All">All Wards</option>
                                 {WARD_TARGETS.map(w => <option key={w.wardNo} value={w.wardNo}>{w.wardNo} - {w.wardName}</option>)}
+                            </select>
+
+                            <select
+                                value={sortOrder}
+                                onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                                className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm min-w-[140px]"
+                            >
+                                <option value="asc">Coverage: Low to High</option>
+                                <option value="desc">Coverage: High to Low</option>
                             </select>
                         </div>
 

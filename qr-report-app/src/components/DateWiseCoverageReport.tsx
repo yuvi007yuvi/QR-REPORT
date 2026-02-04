@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { FileUpload } from './FileUpload';
-import { Calendar, Filter, Table as TableIcon, Download, FileImage, FileText } from 'lucide-react';
+import { Calendar, Filter, Table as TableIcon, Download, FileImage, FileText, Check, ChevronDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -30,7 +30,8 @@ const DateWiseCoverageReport = () => {
     const [loading, setLoading] = useState(false);
 
     // Filters
-    const [selectedWard, setSelectedWard] = useState<string>('All');
+    const [selectedWards, setSelectedWards] = useState<string[]>(['All']);
+    const [isWardDropdownOpen, setIsWardDropdownOpen] = useState(false);
     const [selectedZone, setSelectedZone] = useState<string>('All');
     const [selectedZonal, setSelectedZonal] = useState<string>('All');
     const [sortOrder, setSortOrder] = useState<'ward' | 'high-to-low' | 'low-to-high'>('ward');
@@ -91,6 +92,30 @@ const DateWiseCoverageReport = () => {
             '4': '4-Vrindavan'
         };
         return mapping[v] || v;
+    };
+
+    const toggleWard = (ward: string) => {
+        if (ward === 'All') {
+            setSelectedWards(['All']);
+            return;
+        }
+
+        let newWards = [...selectedWards];
+        if (newWards.includes('All')) {
+            newWards = [];
+        }
+
+        if (newWards.includes(ward)) {
+            newWards = newWards.filter(w => w !== ward);
+        } else {
+            newWards.push(ward);
+        }
+
+        if (newWards.length === 0) {
+            newWards = ['All'];
+        }
+
+        setSelectedWards(newWards);
     };
 
     const handleFileProcess = async () => {
@@ -170,7 +195,7 @@ const DateWiseCoverageReport = () => {
     // Filter data based on selections
     const filteredData = useMemo(() => {
         return poiData.filter(record => {
-            if (selectedWard !== 'All' && record.wardName !== selectedWard) return false;
+            if (!selectedWards.includes('All') && !selectedWards.includes(record.wardName)) return false;
             if (selectedZone !== 'All' && record.zone !== selectedZone) return false;
 
             // Filter by zonal
@@ -181,7 +206,7 @@ const DateWiseCoverageReport = () => {
 
             return true;
         });
-    }, [poiData, selectedWard, selectedZone, selectedZonal]);
+    }, [poiData, selectedWards, selectedZone, selectedZonal]);
 
     // Table data: Each unique route as a row with date values as columns
     const tableData = useMemo(() => {
@@ -281,7 +306,7 @@ const DateWiseCoverageReport = () => {
             ['Date Wise Coverage Report'],
             [`Generated on: ${new Date().toLocaleDateString()}`],
             ['Active Filters:',
-                `Ward: ${selectedWard !== 'All' ? selectedWard : 'None'}`,
+                `Ward: ${selectedWards.includes('All') ? 'All' : selectedWards.join(', ')}`,
                 `Zone: ${selectedZone !== 'All' ? selectedZone : 'None'}`,
                 `Zonal: ${selectedZonal !== 'All' ? selectedZonal : 'None'}`,
                 `Coverage: ${minPercentage}% - ${maxPercentage}%`
@@ -393,7 +418,7 @@ const DateWiseCoverageReport = () => {
 
             doc.setFont('helvetica', 'normal');
             let filterText = '';
-            if (selectedWard !== 'All') filterText += ` Ward: ${selectedWard} |`;
+            if (!selectedWards.includes('All')) filterText += ` Ward: ${selectedWards.join(', ')} |`;
             if (selectedZone !== 'All') filterText += ` Zone: ${selectedZone} |`;
             if (selectedZonal !== 'All') filterText += ` Zonal: ${selectedZonal} |`;
             filterText += ` Coverage: ${minPercentage}%-${maxPercentage}%`;
@@ -658,16 +683,46 @@ const DateWiseCoverageReport = () => {
                             <Filter className="w-4 h-4" />
                             Filter by Ward
                         </label>
-                        <select
-                            value={selectedWard}
-                            onChange={(e) => setSelectedWard(e.target.value)}
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                        >
-                            <option value="All">All Wards ({wards.length})</option>
-                            {wards.map(ward => (
-                                <option key={ward} value={ward}>{ward}</option>
-                            ))}
-                        </select>
+                        <div className="relative group">
+                            <button
+                                onClick={() => setIsWardDropdownOpen(!isWardDropdownOpen)}
+                                className="w-full text-left pl-4 pr-10 py-2.5 text-sm font-medium border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white transition-all shadow-sm flex justify-between items-center text-gray-700 h-11"
+                            >
+                                <span className="truncate">
+                                    {selectedWards.includes('All')
+                                        ? 'All Wards'
+                                        : `Selected Wards (${selectedWards.length})`
+                                    }
+                                </span>
+                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isWardDropdownOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {isWardDropdownOpen && (
+                                <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-xl max-h-60 overflow-y-auto p-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div
+                                        className={`px-3 py-2.5 cursor-pointer rounded-lg flex items-center gap-3 transition-colors ${selectedWards.includes('All') ? 'bg-purple-50 text-purple-700' : 'hover:bg-gray-50 text-gray-700'}`}
+                                        onClick={() => toggleWard('All')}
+                                    >
+                                        <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${selectedWards.includes('All') ? 'bg-purple-600 border-purple-600' : 'border-gray-300 bg-white'}`}>
+                                            {selectedWards.includes('All') && <Check className="w-3.5 h-3.5 text-white" />}
+                                        </div>
+                                        <span className="font-medium">All Wards</span>
+                                    </div>
+                                    {wards.map(ward => (
+                                        <div
+                                            key={ward}
+                                            className={`px-3 py-2.5 cursor-pointer rounded-lg flex items-center gap-3 transition-colors ${selectedWards.includes(ward) ? 'bg-purple-50 text-purple-700' : 'hover:bg-gray-50 text-gray-700'}`}
+                                            onClick={() => toggleWard(ward)}
+                                        >
+                                            <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${selectedWards.includes(ward) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 bg-white'}`}>
+                                                {selectedWards.includes(ward) && <Check className="w-3.5 h-3.5 text-white" />}
+                                            </div>
+                                            <span className="font-medium">{ward}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div>
@@ -765,14 +820,16 @@ const DateWiseCoverageReport = () => {
                     <div className="bg-green-50 rounded-lg p-4 border border-green-100 mb-6">
                         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
                             <span className="font-bold text-green-800 uppercase tracking-wider text-xs">Active Filters:</span>
-                            {selectedWard === 'All' && selectedZone === 'All' && selectedZonal === 'All' && minPercentage === 0 && maxPercentage === 100 ? (
+                            {selectedWards.length === 1 && selectedWards[0] === 'All' && selectedZone === 'All' && selectedZonal === 'All' && minPercentage === 0 && maxPercentage === 100 ? (
                                 <span className="text-gray-400 italic font-medium">None Applied</span>
                             ) : (
                                 <>
-                                    {selectedWard !== 'All' && (
+                                    {!selectedWards.includes('All') && (
                                         <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border border-green-200 shadow-sm">
-                                            <span className="text-xs text-gray-500 uppercase font-bold">Ward</span>
-                                            <span className="font-bold text-gray-800">{selectedWard}</span>
+                                            <span className="text-xs text-gray-500 uppercase font-bold">Wards</span>
+                                            <span className="font-bold text-gray-800">
+                                                {selectedWards.length > 3 ? `${selectedWards.slice(0, 3).join(', ')} +${selectedWards.length - 3}` : selectedWards.join(', ')}
+                                            </span>
                                         </div>
                                     )}
                                     {selectedZone !== 'All' && (

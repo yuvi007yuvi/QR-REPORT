@@ -29,6 +29,9 @@ const WardWiseStatusReport = () => {
     const [isZoneDropdownOpen, setIsZoneDropdownOpen] = useState(false);
     const [selectedWards, setSelectedWards] = useState<string[]>([]); // Empty = All
     const [isWardDropdownOpen, setIsWardDropdownOpen] = useState(false);
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const [minCoverage, setMinCoverage] = useState<number | ''>('');
+    const [maxCoverage, setMaxCoverage] = useState<number | ''>('');
 
     const reportRef = useRef<HTMLDivElement>(null);
     const headerRef = useRef<HTMLDivElement>(null);
@@ -162,8 +165,10 @@ const WardWiseStatusReport = () => {
             const matchesWard = selectedWards.length === 0 || selectedWards.includes(row.wardNo.toString());
 
             return matchesSearch && matchesZonal && matchesWard;
+        }).sort((a, b) => {
+            return sortOrder === 'asc' ? a.coverage - b.coverage : b.coverage - a.coverage;
         });
-    }, [data, searchTerm, selectedZonals, selectedWards]);
+    }, [data, searchTerm, selectedZonals, selectedWards, sortOrder]);
 
     const totals = useMemo(() => {
         return filteredData.reduce((acc, row) => ({
@@ -393,6 +398,15 @@ const WardWiseStatusReport = () => {
                                     </div>
                                 )}
                             </div>
+
+                            <select
+                                value={sortOrder}
+                                onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                                className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block p-2.5 shadow-sm min-w-[140px]"
+                            >
+                                <option value="asc">Coverage: Low to High</option>
+                                <option value="desc">Coverage: High to Low</option>
+                            </select>
                         </div>
 
                         {/* Search & Exports */}

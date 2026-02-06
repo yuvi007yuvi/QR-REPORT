@@ -24,6 +24,14 @@ interface POIRecord {
     routeOutTime: string;
 }
 
+export const getCellColor = (percentage: number) => {
+    if (percentage === 0) return 'bg-red-200 text-red-900';
+    if (percentage < 50) return 'bg-red-50 text-red-800';
+    if (percentage <= 70) return 'bg-yellow-100 text-yellow-800';
+    if (percentage <= 90) return 'bg-green-100 text-green-800';
+    return 'bg-green-400 text-white';
+};
+
 const DateWiseCoverageReport = () => {
     const [poiFile, setPoiFile] = useState<File | null>(null);
     const [poiData, setPoiData] = useState<POIRecord[]>([]);
@@ -463,13 +471,7 @@ const DateWiseCoverageReport = () => {
         finally { if (scrollContainer) { scrollContainer.style.overflow = originalOverflow; } }
     };
 
-    const getCellColor = (percentage: number) => {
-        if (percentage === 0) return 'bg-red-200 text-red-900';
-        if (percentage < 50) return 'bg-red-50 text-red-800';
-        if (percentage <= 70) return 'bg-yellow-100 text-yellow-800';
-        if (percentage <= 90) return 'bg-green-100 text-green-800';
-        return 'bg-green-400 text-white';
-    };
+
 
     if (poiData.length === 0) {
         return (
@@ -537,7 +539,7 @@ const DateWiseCoverageReport = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><Filter className="w-4 h-4" /> Filter by Ward</label>
                         <div className="relative group">

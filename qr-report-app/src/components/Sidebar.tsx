@@ -57,7 +57,8 @@ export type ViewMode =
     | 'cd-waste-complaint' // Added for C&D Waste Complaint Report
     | 'kpi-checker' // Added
     | 'supervisor-count-report' // Added
-    | 'ucc-report'; // Added
+    | 'ucc-report' // Added
+    | 'supervisor-daily-report'; // Added
 
 interface SidebarProps {
     currentSection: AppSection;
@@ -91,6 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 { id: 'zonalUnderground', label: 'Zonal Underground', icon: Trash2 },
                 { id: 'distance-report', label: 'Distance Report', icon: Route },
                 { id: 'trip-report', label: 'Trip Report', icon: Route },
+                { id: 'supervisor-daily-report', label: 'Supervisor Daily Analysis', icon: BarChart3 },
             ]
         },
         {

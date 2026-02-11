@@ -27,13 +27,18 @@ import { KPIChecker } from './components/KPIChecker';
 import POIWardWiseReport from './components/POIWardWiseReport';
 import VarunAdoptedWardsReport from './components/VarunAdoptedWardsReport';
 import { VehicleChangeReport } from './components/VehicleChangeReport';
+import { UCCReport } from './components/UCCReport';
 import type { ReportRecord, SummaryStats } from './utils/dataProcessor';
 import './App.css';
 
+import { LoadingScreen } from './components/LoadingScreen';
+
 const App: React.FC = () => {
   const [currentSection, setCurrentSection] = useState<AppSection>('daily');
-  const [currentView, setCurrentView] = useState<'dashboard' | 'detailed' | 'zonal' | 'beforeAfter' | 'mapping' | 'underground' | 'zonalUnderground' | 'distance-report' | 'coverage-dashboard' | 'coverage-supervisor' | 'coverage-ward' | 'coverage-all-wards' | 'coverage-mapping' | 'coverage-date-wise' | 'poi-ward-monthly' | 'varun-adopted-wards' | 'kyc-survey' | 'kyc-calendar' | 'kyc-whatsapp' | 'ward-household-status' | 'ward-status-new' | 'trip-report' | 'qr-status-view' | 'secondary-trip-view' | 'secondary-vehicle-history' | 'cd-waste-complaint' | 'kpi-checker' | 'supervisor-count-report' | 'vehicle-change-report'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'detailed' | 'zonal' | 'beforeAfter' | 'mapping' | 'underground' | 'zonalUnderground' | 'distance-report' | 'coverage-dashboard' | 'coverage-supervisor' | 'coverage-ward' | 'coverage-all-wards' | 'coverage-mapping' | 'coverage-date-wise' | 'poi-ward-monthly' | 'varun-adopted-wards' | 'kyc-survey' | 'kyc-calendar' | 'kyc-whatsapp' | 'ward-household-status' | 'ward-status-new' | 'trip-report' | 'qr-status-view' | 'secondary-trip-view' | 'secondary-vehicle-history' | 'cd-waste-complaint' | 'kpi-checker' | 'supervisor-count-report' | 'vehicle-change-report' | 'ucc-report'>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [pendingView, setPendingView] = useState<string | null>(null);
 
   // Mock stats for dashboard - in a real app, this would come from a data source
   const mockStats: SummaryStats = {
@@ -49,6 +54,16 @@ const App: React.FC = () => {
 
   const mockReportData: ReportRecord[] = [];
   const mockDate = "";
+
+  const handleViewChange = (newView: any) => {
+    setPendingView(newView);
+    setIsLoading(true);
+    setTimeout(() => {
+      setCurrentView(newView);
+      setPendingView(null);
+      setIsLoading(false);
+    }, 1500);
+  };
 
   const renderCurrentView = () => {
     switch (currentView) {
@@ -110,18 +125,25 @@ const App: React.FC = () => {
         return <VarunAdoptedWardsReport />;
       case 'kpi-checker':
         return <KPIChecker />;
+      case 'ucc-report':
+        return <UCCReport />;
       default:
         return <Dashboard stats={mockStats} />;
     }
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-screen bg-gray-100 overflow-hidden relative">
+      {isLoading && (
+        <LoadingScreen
+          title={(pendingView || currentView).split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+        />
+      )}
       <Sidebar
         currentSection={currentSection}
         onSectionChange={setCurrentSection}
         currentView={currentView}
-        onViewChange={setCurrentView as any}
+        onViewChange={handleViewChange}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

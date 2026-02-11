@@ -20,11 +20,12 @@ import {
     FileSearch, // Added
     CheckSquare, // Added
     PieChart, // Added
-    ArrowRightLeft // Added
+    ArrowRightLeft, // Added
+    Banknote // Added
 } from 'lucide-react';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 
-export type AppSection = 'daily' | 'coverage' | 'kyc' | 'qr-status' | 'secondary-trip' | 'complaint' | 'kpi';
+export type AppSection = 'daily' | 'coverage' | 'kyc' | 'qr-status' | 'secondary-trip' | 'complaint' | 'kpi' | 'collection';
 
 export type ViewMode =
     | 'dashboard'
@@ -55,7 +56,8 @@ export type ViewMode =
     | 'secondary-vehicle-history' // Added
     | 'cd-waste-complaint' // Added for C&D Waste Complaint Report
     | 'kpi-checker' // Added
-    | 'supervisor-count-report'; // Added
+    | 'supervisor-count-report' // Added
+    | 'ucc-report'; // Added
 
 interface SidebarProps {
     currentSection: AppSection;
@@ -114,6 +116,14 @@ const Sidebar: React.FC<SidebarProps> = ({
             icon: FileText,
             items: [
                 { id: 'cd-waste-complaint', label: 'C&D Waste Complaint', icon: FileText },
+            ]
+        },
+        {
+            id: 'collection',
+            label: 'Collection Reports',
+            icon: Banknote,
+            items: [
+                { id: 'ucc-report', label: 'UCC Collection Analysis', icon: BarChart3 },
             ]
         },
         {

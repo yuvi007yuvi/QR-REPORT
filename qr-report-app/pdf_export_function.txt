@@ -1,0 +1,95 @@
+    const exportToPDF = async () => {
+        if (!processedData) return;
+        
+        const tableElement = document.getElementById('ucc-report-table');
+        if (!tableElement) {
+            alert('Table not found for export');
+            return;
+        }
+
+        try {
+            // Show loading indicator
+            const originalCursor = document.body.style.cursor;
+            document.body.style.cursor = 'wait';
+            
+            // Capture the table as PNG using html-to-image
+            const dataUrl = await toPng(tableElement, {
+                quality: 1.0,
+                pixelRatio: 2,
+                cacheBust: true
+            });
+
+            // Create a temporary image to get dimensions
+            const img = new Image();
+            img.src = dataUrl;
+            
+            await new Promise((resolve) => {
+                img.onload = resolve;
+            });
+            
+            // A4 landscape dimensions in mm
+            const pdfWidth = 297;
+            const pdfHeight = 210;
+            const margin = 5;
+            const availableWidth = pdfWidth - (2 * margin);
+            const availableHeight = pdfHeight - (2 * margin);
+            
+            // Calculate scaled dimensions
+            let imgWidth = availableWidth;
+            let imgHeight = (img.height * imgWidth) / img.width;
+            
+            // Create PDF in landscape mode
+            const pdf = new jsPDF('l', 'mm', 'a4');
+            
+            // If image fits on one page
+            if (imgHeight <= availableHeight) {
+                pdf.addImage(dataUrl, 'PNG', margin, margin, imgWidth, imgHeight);
+            } else {
+                // Split across multiple pages
+                let currentY = 0;
+                let pageNum = 0;
+                
+                while (currentY < img.height) {
+                    if (pageNum > 0) {
+                        pdf.addPage();
+                    }
+                    
+                    // Calculate slice height
+                    const sliceHeight = (availableHeight * img.width) / availableWidth;
+                    const remainingHeight = img.height - currentY;
+                    const actualSliceHeight = Math.min(sliceHeight, remainingHeight);
+                    
+                    // Create canvas for this slice
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = actualSliceHeight;
+                    const ctx = canvas.getContext('2d');
+                    
+                    if (ctx) {
+                        // Draw the slice
+                        ctx.drawImage(
+                            img,
+                            0, currentY,
+                            img.width, actualSliceHeight,
+                            0, 0,
+                            img.width, actualSliceHeight
+                        );
+                        
+                        const sliceDataUrl = canvas.toDataURL('image/png');
+                        const sliceImgHeight = (actualSliceHeight * availableWidth) / img.width;
+                        pdf.addImage(sliceDataUrl, 'PNG', margin, margin, availableWidth, sliceImgHeight);
+                    }
+                    
+                    currentY += actualSliceHeight;
+                    pageNum++;
+                }
+            }
+            
+            pdf.save('UCC_Collection_Report.pdf');
+            document.body.style.cursor = originalCursor;
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            document.body.style.cursor = 'default';
+            alert('Failed to generate PDF. Please try again.');
+        }
+    };

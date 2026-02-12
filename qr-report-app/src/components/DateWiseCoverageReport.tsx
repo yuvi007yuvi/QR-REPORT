@@ -26,10 +26,10 @@ interface POIRecord {
 
 export const getCellColor = (percentage: number) => {
     if (percentage === 0) return 'bg-red-200 text-red-900';
-    if (percentage < 50) return 'bg-red-50 text-red-800';
+    if (percentage < 50) return 'bg-red-100 text-red-800';
     if (percentage <= 70) return 'bg-yellow-100 text-yellow-800';
-    if (percentage <= 90) return 'bg-green-100 text-green-800';
-    return 'bg-green-400 text-white';
+    if (percentage <= 90) return 'bg-green-200 text-green-800';
+    return 'bg-green-500 text-white';
 };
 
 const DateWiseCoverageReport = () => {
@@ -444,10 +444,10 @@ const DateWiseCoverageReport = () => {
                     const cellText = data.cell.text[0];
                     const percentage = parseInt(cellText.replace('%', ''));
                     if (percentage === 0) { data.cell.styles.fillColor = [254, 202, 202]; data.cell.styles.textColor = [127, 29, 29]; }
-                    else if (percentage < 50) { data.cell.styles.fillColor = [254, 242, 242]; data.cell.styles.textColor = [153, 27, 27]; }
-                    else if (percentage <= 70) { data.cell.styles.fillColor = [254, 252, 232]; data.cell.styles.textColor = [133, 77, 14]; }
-                    else if (percentage <= 90) { data.cell.styles.fillColor = [220, 252, 231]; data.cell.styles.textColor = [22, 101, 52]; }
-                    else { data.cell.styles.fillColor = [74, 222, 128]; data.cell.styles.textColor = [255, 255, 255]; }
+                    else if (percentage < 50) { data.cell.styles.fillColor = [254, 226, 226]; data.cell.styles.textColor = [153, 27, 27]; }
+                    else if (percentage <= 70) { data.cell.styles.fillColor = [254, 249, 195]; data.cell.styles.textColor = [133, 77, 14]; }
+                    else if (percentage <= 90) { data.cell.styles.fillColor = [187, 247, 208]; data.cell.styles.textColor = [22, 101, 52]; }
+                    else { data.cell.styles.fillColor = [34, 197, 94]; data.cell.styles.textColor = [255, 255, 255]; }
                 }
             }
         });

@@ -1,74 +1,155 @@
 import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import { Upload, FileDown, Search, Filter, MapPin, CheckCircle, AlertCircle } from 'lucide-react';
+import autoTable from 'jspdf-autotable';
+import { Upload, FileDown, Search, CheckCircle, FileSpreadsheet, ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import natureGreenLogo from '../assets/NatureGreen_Logo.png';
 
-interface TripData {
+interface MergedData {
     sNo: number;
     vehicleNumber: string;
     vehicleType: string;
+    zoneName: string;
     wardName: string;
-    tripCount: string;
+    tripCount: number;
     dumpSiteName: string;
     tripInTime: string;
     tripOutTime: string;
     tripDate: string;
+
+    // POI Data
+    totalPoints: string;
+    coveredPoints: string;
+    notCoveredPoints: string;
     coverage: string;
 }
 
-interface POIData {
+interface TripRaw {
     vehicleNumber: string;
+    vehicleType: string;
+    zoneName: string; // Add zoneName to TripRaw
+    wardName: string;
+    tripCount: number;
+    dumpSiteName: string;
+    tripDate: string;
+    tripInTime: string;
+    tripOutTime: string;
+}
+
+interface POIRaw {
+    vehicleNumber: string;
+    vehicleType: string;
+    zoneName: string;
+    wardName: string;
+    totalPoints: string;
+    coveredPoints: string;
+    notCoveredPoints: string;
     coverage: string;
 }
 
 const TripReport: React.FC = () => {
-    const [tripData, setTripData] = useState<TripData[]>([]);
-    const [poiData, setPoiData] = useState<POIData[]>([]);
-    const [mergedData, setMergedData] = useState<TripData[]>([]);
+    const [tripData, setTripData] = useState<TripRaw[]>([]);
+    const [poiData, setPoiData] = useState<POIRaw[]>([]);
+    const [mergedData, setMergedData] = useState<MergedData[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedVehicleType, setSelectedVehicleType] = useState('All');
+    const [selectedTripCount, setSelectedTripCount] = useState<string>('All');
+    const [selectedDumpSites, setSelectedDumpSites] = useState<string[]>([]);
+    const [selectedZones, setSelectedZones] = useState<string[]>([]);
+    const [isDumpSiteDropdownOpen, setIsDumpSiteDropdownOpen] = useState(false);
+    const [isZoneDropdownOpen, setIsZoneDropdownOpen] = useState(false);
+    const [showInTime, setShowInTime] = useState(true);
+    const [showOutTime, setShowOutTime] = useState(true);
+    const [hideZeroStats, setHideZeroStats] = useState(false);
+    const [sortConfig, setSortConfig] = useState<{ key: keyof MergedData; direction: 'asc' | 'desc' } | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
     const tripFileInputRef = useRef<HTMLInputElement>(null);
     const poiFileInputRef = useRef<HTMLInputElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const zoneDropdownRef = useRef<HTMLDivElement>(null);
 
-    // Merge data whenever tripData or poiData changes
+    // Close dropdown when clicking outside
     useEffect(() => {
-        if (tripData.length === 0) {
-            setMergedData([]);
-            return;
-        }
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDumpSiteDropdownOpen(false);
+            }
+            if (zoneDropdownRef.current && !zoneDropdownRef.current.contains(event.target as Node)) {
+                setIsZoneDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
-        if (poiData.length === 0) {
-            setMergedData(tripData);
-            return;
-        }
+    // Merge Logic: Full Outer Join
+    useEffect(() => {
+        const normalize = (str: string) => str ? String(str).replace(/[^A-Z0-9]/gi, '').toUpperCase() : '';
 
-        const normalize = (str: string) => str.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        // Create a map of normalized vehicle -> POI Data
+        const poiMap = new Map<string, POIRaw>();
+        poiData.forEach(poi => {
+            if (poi.vehicleNumber) {
+                poiMap.set(normalize(poi.vehicleNumber), poi);
+            }
+        });
 
-        const merged = tripData.map(trip => {
-            const tripVehicleNorm = normalize(trip.vehicleNumber);
+        // Let's simply collect ALL unique Normalized Vehicle Numbers from both sets
+        const allVehicles = new Set<string>();
+        tripData.forEach(t => allVehicles.add(normalize(t.vehicleNumber)));
+        poiData.forEach(p => allVehicles.add(normalize(p.vehicleNumber)));
 
-            // Find matching POI record
-            // Match logic: Exact match of normalized strings, or merged logic to handle prefixes
-            // POI usually has 'M...' prefixes, Trip sometimes doesn't.
-            const matchedPoi = poiData.find(poi => {
-                const poiVehicleNorm = normalize(poi.vehicleNumber);
-                return tripVehicleNorm === poiVehicleNorm ||
-                    tripVehicleNorm.endsWith(poiVehicleNorm) ||
-                    poiVehicleNorm.endsWith(tripVehicleNorm);
+        const merged: MergedData[] = [];
+        let counter = 1;
+
+        // Iterate through all unique vehicles found
+        allVehicles.forEach(normVeh => {
+            if (!normVeh) return;
+
+            // Find Trip Record
+            const tripRecord = tripData.find(t => normalize(t.vehicleNumber) === normVeh);
+
+            // Find POI Record
+            let poiRecord = poiMap.get(normVeh);
+            if (!poiRecord) {
+                // Try fuzzy match
+                for (const [key, val] of poiMap.entries()) {
+                    if (key.endsWith(normVeh) || normVeh.endsWith(key)) {
+                        poiRecord = val;
+                        break;
+                    }
+                }
+            }
+
+            // Construct Merged Record
+            const vehicleNumber = tripRecord?.vehicleNumber || poiRecord?.vehicleNumber || normVeh;
+            const vehicleType = tripRecord?.vehicleType || poiRecord?.vehicleType || '';
+            const zoneName = tripRecord?.zoneName || poiRecord?.zoneName || '';
+            const wardName = tripRecord?.wardName || poiRecord?.wardName || '';
+
+            merged.push({
+                sNo: counter++,
+                vehicleNumber: vehicleNumber,
+                vehicleType: vehicleType,
+                zoneName: zoneName,
+                wardName: wardName,
+                tripCount: tripRecord?.tripCount || 0,
+                dumpSiteName: tripRecord?.dumpSiteName || '',
+                tripDate: tripRecord?.tripDate || '',
+                tripInTime: tripRecord?.tripInTime || '',
+                tripOutTime: tripRecord?.tripOutTime || '',
+
+                totalPoints: poiRecord?.totalPoints || '0',
+                coveredPoints: poiRecord?.coveredPoints || '0',
+                notCoveredPoints: poiRecord?.notCoveredPoints || '0',
+                coverage: poiRecord?.coverage || '0'
             });
-
-            return {
-                ...trip,
-                coverage: matchedPoi ? matchedPoi.coverage : '0'
-            };
         });
 
         setMergedData(merged);
+
     }, [tripData, poiData]);
 
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>, type: 'trip' | 'poi') => {
@@ -85,13 +166,9 @@ const TripReport: React.FC = () => {
                     const workbook = XLSX.read(csvData, { type: 'string' });
                     const sheetName = workbook.SheetNames[0];
                     const sheet = workbook.Sheets[sheetName];
-                    const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
 
                     if (type === 'trip') {
-                        // Header mapping based on index from Trip Report:
-                        // 0: S.No, 1: Zone, 2: Vehicle Number, 3: Type, 4: Ward, 5: Trip Count
-                        // 6: Dump Site, 7: Date, 8: In Time, 9: Out Time
-
                         const formatDate = (val: any): string => {
                             if (!val) return '';
                             if (typeof val === 'number') {
@@ -112,40 +189,46 @@ const TripReport: React.FC = () => {
                             return strVal;
                         };
 
-                        const processedTripData: TripData[] = jsonData.slice(1).map((row: any) => ({
+                        const processed: TripRaw[] = jsonData.slice(1).map((row: any) => ({
                             sNo: row[0],
                             vehicleNumber: row[2] || '',
                             vehicleType: row[3] || '',
+                            zoneName: '', // Trip report usually doesn't have zone, or it needs to be mapped if present
                             wardName: row[4] || '',
-                            tripCount: row[5] || '0',
+                            tripCount: row[5] ? parseInt(row[5]) : 0,
                             dumpSiteName: row[6] || '',
                             tripDate: formatDate(row[7]),
                             tripInTime: row[8] || '',
-                            tripOutTime: row[9] || '',
-                            coverage: 'N/A' // Default
-                        })).filter((item: TripData) => item.vehicleNumber);
+                            tripOutTime: row[9] || ''
+                        })).filter(t => t.vehicleNumber);
 
-                        setTripData(processedTripData);
+                        setTripData(processed);
                     } else {
-                        // Header mapping based on POI Report:
-                        // "S.No.","Zone & Circle","Ward Name","Vehicle Number","Vehicle Type","Route Name","Total","Covered","Not Covered","Coverage","Date"...
-                        // Index: 0: S.No, 1: Zone, 2: Ward, 3: Vehicle Number, ..., 9: Coverage
+                        // POI Report
+                        const headers = jsonData[0].map(h => String(h).trim().toLowerCase());
 
-                        const headers = (jsonData[0] as any[]).map(h => String(h).trim().toLowerCase());
-                        const vehicleIdx = headers.findIndex(h => h.includes('vehicle number'));
-                        const coverageIdx = headers.findIndex(h => h === 'coverage');
+                        const vIdx = headers.findIndex(h => h.includes('vehicle number'));
+                        const typeIdx = headers.findIndex(h => h.includes('vehicle type'));
+                        const zoneIdx = headers.findIndex(h => h.includes('zone'));
+                        const wardIdx = headers.findIndex(h => h.includes('ward name'));
 
-                        // Fallback indices if not found (based on file structure provided)
-                        // vehicle: 3, coverage: 9
-                        const vIdx = vehicleIdx !== -1 ? vehicleIdx : 3;
-                        const cIdx = coverageIdx !== -1 ? coverageIdx : 9;
+                        const totalIdx = headers.findIndex(h => h.includes('total') || h === 'total');
+                        const coveredIdx = headers.findIndex(h => h.includes('covered') && !h.includes('not'));
+                        const notCoveredIdx = headers.findIndex(h => h.includes('not covered'));
+                        const coverageIdx = headers.findIndex(h => h === 'coverage' || h.includes('coverage'));
 
-                        const processedPoiData: POIData[] = jsonData.slice(1).map((row: any) => ({
-                            vehicleNumber: row[vIdx] || '',
-                            coverage: row[cIdx] || '0'
-                        })).filter((item: POIData) => item.vehicleNumber);
+                        const processed: POIRaw[] = jsonData.slice(1).map((row: any) => ({
+                            vehicleNumber: row[vIdx !== -1 ? vIdx : 3] || '',
+                            vehicleType: row[typeIdx !== -1 ? typeIdx : 4] || '',
+                            zoneName: row[zoneIdx !== -1 ? zoneIdx : 1] || '',
+                            wardName: row[wardIdx !== -1 ? wardIdx : 2] || '',
+                            totalPoints: row[totalIdx !== -1 ? totalIdx : 6] || '0',
+                            coveredPoints: row[coveredIdx !== -1 ? coveredIdx : 7] || '0',
+                            notCoveredPoints: row[notCoveredIdx !== -1 ? notCoveredIdx : 8] || '0',
+                            coverage: row[coverageIdx !== -1 ? coverageIdx : 9] || '0'
+                        })).filter(p => p.vehicleNumber);
 
-                        setPoiData(processedPoiData);
+                        setPoiData(processed);
                     }
                 }
             } catch (error) {
@@ -161,16 +244,21 @@ const TripReport: React.FC = () => {
 
     const exportToExcel = () => {
         const headers = [
-            "S.No", "Vehicle Number", "Vehicle Type", "Ward Name",
-            "Trip Count", "Coverage (%)", "Dump Site", "Date", "In Time", "Out Time"
+            "S.No", "Vehicle Number", "Vehicle Type", "Zone", "Ward Name",
+            "Trip Count", "Total HH", "Covered", "Left", "Coverage (%)",
+            "Dump Site", "Date", "In Time", "Out Time"
         ];
 
         const excelData = mergedData.map(row => [
             row.sNo,
             row.vehicleNumber,
             row.vehicleType,
+            row.zoneName,
             row.wardName,
             row.tripCount,
+            row.totalPoints,
+            row.coveredPoints,
+            row.notCoveredPoints,
             row.coverage,
             row.dumpSiteName,
             row.tripDate,
@@ -182,351 +270,450 @@ const TripReport: React.FC = () => {
 
         const ws = XLSX.utils.aoa_to_sheet([...reportTitle, headers, ...excelData]);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Trip Report");
+        XLSX.utils.book_append_sheet(wb, ws, "Trip_Coverage_Report");
         XLSX.writeFile(wb, "Trip_Coverage_Report.xlsx");
     };
 
     const exportToPDF = async () => {
         const doc = new jsPDF('landscape');
 
-        const loadImage = (src: string): Promise<HTMLImageElement> => {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = () => resolve(img);
-                img.onerror = reject;
-                img.src = src;
-            });
-        };
-
         try {
-            // Header
-            doc.setFillColor(250, 245, 255); // light purple background
-            doc.rect(0, 0, doc.internal.pageSize.width, 40, 'F');
-
-            try {
-                const nnLogo = await loadImage(nagarNigamLogo);
-                const ngLogo = await loadImage(natureGreenLogo);
-                doc.addImage(nnLogo, 'PNG', 14, 5, 25, 25);
-                doc.addImage(ngLogo, 'PNG', doc.internal.pageSize.width - 39, 5, 25, 25);
-            } catch (e) {
-                console.error("Error loading logos", e);
-            }
-
-            doc.setFontSize(22);
-            doc.setFont("helvetica", "bold");
-            doc.setTextColor(51, 65, 85);
-            doc.text("Mathura Vrindavan Nagar Nigam", doc.internal.pageSize.width / 2, 18, { align: "center" });
-
             doc.setFontSize(16);
-            doc.setTextColor(107, 33, 168); // Purple 800
-            doc.text("Daily Trip & Coverage Report", doc.internal.pageSize.width / 2, 28, { align: "center" });
-
+            doc.text("Daily Trip & Coverage Report", 14, 15);
             doc.setFontSize(10);
-            doc.setTextColor(100);
-            doc.text(`Generated on: ${new Date().toLocaleString()}`, doc.internal.pageSize.width / 2, 35, { align: "center" });
-
-            doc.setDrawColor(107, 33, 168);
-            doc.setLineWidth(0.5);
-            doc.line(14, 42, doc.internal.pageSize.width - 14, 42);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
 
             const tableHeaders = [
-                "Veh No.", "Type", "Ward", "Trips", "Cov (%)", "Dump Site", "Date", "In Time", "Out Time"
+                "Veh No.", "Type", "Ward", "Trips", "Total", "Done", "Left", "Cov %", "Dump Site", "In Time"
             ];
 
             const tableData = mergedData.map(row => [
                 row.vehicleNumber,
-                row.vehicleType.replace('Primary - ', '').replace('Secondary - ', ''),
+                row.vehicleType.substring(0, 15),
                 row.wardName,
                 row.tripCount,
-                row.coverage,
-                row.dumpSiteName,
-                row.tripDate,
-                row.tripInTime,
-                row.tripOutTime
+                row.totalPoints,
+                row.coveredPoints,
+                row.notCoveredPoints,
+                row.coverage + '%',
+                row.dumpSiteName.substring(0, 15),
+                row.tripInTime
             ]);
 
-            (doc as any).autoTable({
-                startY: 45,
+            autoTable(doc, {
+                startY: 25,
                 head: [tableHeaders],
                 body: tableData,
                 theme: 'grid',
-                styles: { fontSize: 8, cellPadding: 2, valign: 'middle' },
-                headStyles: { fillColor: [107, 33, 168], textColor: 255, fontStyle: 'bold' },
-                alternateRowStyles: { fillColor: [250, 245, 255] },
-                margin: { top: 45 },
+                styles: { fontSize: 8, cellPadding: 1, valign: 'middle', lineColor: [200, 200, 200], lineWidth: 0.1 },
+                headStyles: { fillColor: [240, 240, 240], textColor: 20, fontStyle: 'bold', lineColor: [150, 150, 150], lineWidth: 0.1 },
+                margin: { top: 25 },
             });
 
             doc.save("Trip_Coverage_Report.pdf");
         } catch (error) {
-            console.error("PDF Generation Error", error);
-            alert("Failed to generate PDF");
+            console.error("PDF Fail", error);
+            alert("PDF Export Failed");
         }
     };
 
-    const vehicleTypes = ['All', ...Array.from(new Set(mergedData.map(item => item.vehicleType).filter(Boolean)))];
+    const requestSort = (key: keyof MergedData) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getSortIcon = (key: keyof MergedData) => {
+        if (!sortConfig || sortConfig.key !== key) return <ArrowUpDown className="w-3 h-3 inline ml-1 text-gray-300" />;
+        return sortConfig.direction === 'asc'
+            ? <ChevronUp className="w-3 h-3 inline ml-1 text-black" />
+            : <ChevronDown className="w-3 h-3 inline ml-1 text-black" />;
+    };
+
 
     const filteredData = mergedData.filter(item => {
         const matchSearch = String(item.vehicleNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             String(item.wardName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             String(item.dumpSiteName || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-        const matchType = selectedVehicleType === 'All' || item.vehicleType === selectedVehicleType;
+        const typeStr = (item.vehicleType || '').toLowerCase();
+        let matchType = true;
+        if (selectedVehicleType === 'Primary') {
+            matchType = typeStr.includes('primary');
+        } else if (selectedVehicleType === 'Secondary') {
+            matchType = typeStr.includes('secondary');
+        }
 
-        return matchSearch && matchType;
+        const matchTripCount = selectedTripCount === 'All' || item.tripCount === parseInt(selectedTripCount);
+
+        const matchDumpSite = selectedDumpSites.length === 0 || selectedDumpSites.includes(item.dumpSiteName);
+        const matchZone = selectedZones.length === 0 || selectedZones.includes(item.zoneName);
+
+        let matchZeroStats = true;
+        if (hideZeroStats) {
+            // Hide if BOTH Trip Count is 0 AND Coverage is 0 (or N/A)
+            const isZeroTrips = item.tripCount === 0;
+            const isZeroCoverage = item.coverage === '0' || item.coverage === 'N/A' || !item.coverage;
+            if (isZeroTrips && isZeroCoverage) {
+                matchZeroStats = false;
+            }
+        }
+
+        return matchSearch && matchType && matchTripCount && matchDumpSite && matchZone && matchZeroStats;
+    }).sort((a, b) => {
+        if (!sortConfig) return 0;
+
+        const { key, direction } = sortConfig;
+        const valA = a[key];
+        const valB = b[key];
+
+        const isNumeric = ['tripCount', 'totalPoints', 'coveredPoints', 'notCoveredPoints', 'coverage', 'sNo'].includes(key);
+
+        if (isNumeric) {
+            const numA = parseFloat(String(valA).replace(/[^0-9.-]+/g, "")) || 0;
+            const numB = parseFloat(String(valB).replace(/[^0-9.-]+/g, "")) || 0;
+            if (numA < numB) return direction === 'asc' ? -1 : 1;
+            if (numA > numB) return direction === 'asc' ? 1 : -1;
+            return 0;
+        }
+
+        const strA = String(valA || '').toLowerCase();
+        const strB = String(valB || '').toLowerCase();
+
+        if (strA < strB) return direction === 'asc' ? -1 : 1;
+        if (strA > strB) return direction === 'asc' ? 1 : -1;
+        return 0;
     });
 
+    // Get unique values for filters
+    const tripCounts = Array.from(new Set(mergedData.map(m => m.tripCount))).sort((a, b) => a - b);
+    const dumpSites = Array.from(new Set(mergedData.map(m => m.dumpSiteName).filter(Boolean))).sort();
+    const zones = Array.from(new Set(mergedData.map(m => m.zoneName).filter(Boolean))).sort();
+
+    const toggleDumpSite = (site: string) => {
+        setSelectedDumpSites(prev =>
+            prev.includes(site) ? prev.filter(s => s !== site) : [...prev, site]
+        );
+    };
+
+    const toggleZone = (zone: string) => {
+        setSelectedZones(prev =>
+            prev.includes(zone) ? prev.filter(z => z !== zone) : [...prev, zone]
+        );
+    };
+
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <div className="flex flex-col h-full bg-white p-4 space-y-4">
+            {/* Header Controls */}
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-50 rounded-lg">
-                        <MapPin className="w-6 h-6 text-purple-600" />
-                    </div>
+                    <FileSpreadsheet className="w-8 h-8 text-green-600" />
                     <div>
-                        <h1 className="text-xl font-bold text-gray-800">Trip & Coverage Report</h1>
-                        <p className="text-sm text-gray-500">Daily trip counts combined with coverage analysis</p>
+                        <h1 className="text-xl font-bold text-gray-800">Trip & Coverage Analysis</h1>
+                        <p className="text-xs text-gray-500">Comprehensive Vehicle Performance Report</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap gap-3 items-center">
                     <button
                         onClick={() => tripFileInputRef.current?.click()}
-                        className={`flex items-center gap-2 px-4 py-2 ${tripData.length > 0 ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-purple-600 text-white hover:bg-purple-700'} rounded-lg transition-colors shadow-sm`}
+                        className={`px-3 py-2 text-sm rounded border flex items-center gap-2 ${tripData.length > 0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-gray-300 hover:bg-gray-50'}`}
                     >
                         {tripData.length > 0 ? <CheckCircle className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
-                        {tripData.length > 0 ? 'Trip Report Loaded' : 'Upload Trip Report'}
+                        Trip Report
                     </button>
-                    <input
-                        type="file"
-                        ref={tripFileInputRef}
-                        onChange={(e) => handleFileUpload(e, 'trip')}
-                        accept=".csv,.xlsx,.xls"
-                        className="hidden"
-                    />
+                    <input type="file" ref={tripFileInputRef} onChange={(e) => handleFileUpload(e, 'trip')} className="hidden" accept=".csv,.xlsx" />
 
                     <button
                         onClick={() => poiFileInputRef.current?.click()}
-                        className={`flex items-center gap-2 px-4 py-2 ${poiData.length > 0 ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-blue-600 text-white hover:bg-blue-700'} rounded-lg transition-colors shadow-sm`}
+                        className={`px-3 py-2 text-sm rounded border flex items-center gap-2 ${poiData.length > 0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-gray-300 hover:bg-gray-50'}`}
                     >
                         {poiData.length > 0 ? <CheckCircle className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
-                        {poiData.length > 0 ? 'POI Report Loaded' : 'Upload POI Report'}
+                        POI Report
                     </button>
-                    <input
-                        type="file"
-                        ref={poiFileInputRef}
-                        onChange={(e) => handleFileUpload(e, 'poi')}
-                        accept=".csv,.xlsx,.xls"
-                        className="hidden"
-                    />
+                    <input type="file" ref={poiFileInputRef} onChange={(e) => handleFileUpload(e, 'poi')} className="hidden" accept=".csv,.xlsx" />
 
-                    {mergedData.length > 0 && (
+                    {(mergedData.length > 0) && (
                         <>
-                            <button
-                                onClick={exportToExcel}
-                                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm"
-                            >
-                                <FileDown className="w-4 h-4" />
-                                Excel
+                            <div className="h-6 w-px bg-gray-300 mx-2"></div>
+                            <button onClick={exportToExcel} className="p-2 text-green-600 hover:bg-green-50 rounded border border-gray-200" title="Export Excel">
+                                <FileDown className="w-5 h-5" />
                             </button>
-                            <button
-                                onClick={exportToPDF}
-                                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm"
-                            >
-                                <FileDown className="w-4 h-4" />
-                                PDF
+                            <button onClick={exportToPDF} className="p-2 text-red-600 hover:bg-red-50 rounded border border-gray-200" title="Export PDF">
+                                <FileDown className="w-5 h-5" />
                             </button>
                         </>
                     )}
                 </div>
             </div>
 
-            {mergedData.length > 0 ? (
-                <div className="space-y-4">
-                    {/* Professional Logo Header */}
-                    <div className="bg-white rounded-xl shadow-lg border-2 border-purple-100 p-6 mb-8">
-                        <div className="grid grid-cols-3 items-center gap-6">
-                            <div className="flex flex-col items-center sm:items-start">
-                                <img
-                                    src={nagarNigamLogo}
-                                    alt="Nagar Nigam Logo"
-                                    className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
-                                />
-                                <p className="hidden sm:block text-[10px] font-bold text-blue-800 mt-2 uppercase tracking-tight text-center sm:text-left">
-                                    Nagar Nigam<br />Mathura-Vrindavan
-                                </p>
-                            </div>
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4 items-center">
+                <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="Search..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-4 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    />
+                </div>
 
-                            <div className="text-center flex flex-col items-center justify-center">
-                                <div className="bg-purple-50 px-4 py-1 rounded-full mb-3">
-                                    <span className="text-[10px] font-bold text-purple-600 uppercase tracking-[0.2em]">Official Report</span>
-                                </div>
-                                <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight leading-none mb-2">
-                                    DAILY TRIP &<br />
-                                    <span className="text-purple-600">COVERAGE REPORT</span>
-                                </h1>
-                                <div className="h-1 w-20 bg-purple-600 rounded-full mb-2"></div>
-                            </div>
+                {/* Sort Button Removed - Headers are now clickable */}
 
-                            <div className="flex flex-col items-center sm:items-end">
-                                <img
-                                    src={natureGreenLogo}
-                                    alt="Nature Green Logo"
-                                    className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
-                                />
-                                <p className="hidden sm:block text-[10px] font-bold text-green-700 mt-2 uppercase tracking-tight text-center sm:text-right">
-                                    Nature Green<br />Waste Management
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+                {/* Vehicle Type Filter */}
+                <select
+                    value={selectedVehicleType}
+                    onChange={e => setSelectedVehicleType(e.target.value)}
+                    className="py-1.5 px-3 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500 bg-white"
+                >
+                    <option value="All">All Types</option>
+                    <option value="Primary">Primary</option>
+                    <option value="Secondary">Secondary</option>
+                </select>
 
-                    {/* Status Info */}
-                    {poiData.length === 0 && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3 text-blue-800">
-                            <AlertCircle className="w-5 h-5" />
-                            <p>POI Report not uploaded. Coverage data will not be available. Please upload POI Report to see coverage details.</p>
+                {/* Trip Count Filter */}
+                <select
+                    value={selectedTripCount}
+                    onChange={e => setSelectedTripCount(e.target.value)}
+                    className="py-1.5 px-3 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500 bg-white min-w-[120px]"
+                >
+                    <option value="All">All Trips</option>
+                    {tripCounts.map(count => (
+                        <option key={count} value={count}>{count} Trips</option>
+                    ))}
+                </select>
+
+                {/* Zone Filter (Multi Select) */}
+                <div className="relative" ref={zoneDropdownRef}>
+                    <button
+                        onClick={() => setIsZoneDropdownOpen(!isZoneDropdownOpen)}
+                        className="py-1.5 px-3 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500 bg-white flex items-center gap-2 min-w-[150px] justify-between"
+                    >
+                        <span className="truncate max-w-[120px]">
+                            {selectedZones.length === 0 ? 'All Zones' : `${selectedZones.length} Selected`}
+                        </span>
+                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+
+                    {isZoneDropdownOpen && (
+                        <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded shadow-lg z-20 max-h-60 overflow-y-auto">
+                            <div className="p-2 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white">
+                                <span className="text-xs font-semibold text-gray-500">Select Zones</span>
+                                <button
+                                    onClick={() => setSelectedZones([])}
+                                    className="text-xs text-blue-600 hover:text-blue-800"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                            {zones.map(zone => (
+                                <label key={zone} className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedZones.includes(zone)}
+                                        onChange={() => toggleZone(zone)}
+                                        className="rounded border-gray-300 text-green-600 mr-2"
+                                    />
+                                    <span className="text-sm text-gray-700 truncate">{zone}</span>
+                                </label>
+                            ))}
+                            {zones.length === 0 && <div className="p-3 text-xs text-gray-400 text-center">No zones found</div>}
                         </div>
                     )}
+                </div>
 
-                    {/* Search & Filter */}
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
-                        <div className="relative flex-1 max-w-md">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Search by vehicle, ward, or dump site..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                            />
+                {/* Dump Site Filter (Multi Select) */}
+                <div className="relative" ref={dropdownRef}>
+                    <button
+                        onClick={() => setIsDumpSiteDropdownOpen(!isDumpSiteDropdownOpen)}
+                        className="py-1.5 px-3 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500 bg-white flex items-center gap-2 min-w-[150px] justify-between"
+                    >
+                        <span className="truncate max-w-[120px]">
+                            {selectedDumpSites.length === 0 ? 'All Dump Sites' : `${selectedDumpSites.length} Selected`}
+                        </span>
+                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+
+                    {isDumpSiteDropdownOpen && (
+                        <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded shadow-lg z-20 max-h-60 overflow-y-auto">
+                            <div className="p-2 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white">
+                                <span className="text-xs font-semibold text-gray-500">Select Dump Sites</span>
+                                <button
+                                    onClick={() => setSelectedDumpSites([])}
+                                    className="text-xs text-blue-600 hover:text-blue-800"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                            {dumpSites.map(site => (
+                                <label key={site} className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedDumpSites.includes(site)}
+                                        onChange={() => toggleDumpSite(site)}
+                                        className="rounded border-gray-300 text-green-600 mr-2"
+                                    />
+                                    <span className="text-sm text-gray-700 truncate">{site}</span>
+                                </label>
+                            ))}
+                            {dumpSites.length === 0 && <div className="p-3 text-xs text-gray-400 text-center">No dump sites found</div>}
                         </div>
+                    )}
+                </div>
 
-                        <div className="relative min-w-[200px]">
-                            <select
-                                value={selectedVehicleType}
-                                onChange={(e) => setSelectedVehicleType(e.target.value)}
-                                className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none appearance-none bg-white cursor-pointer"
-                            >
-                                {vehicleTypes.map(type => (
-                                    <option key={type} value={type}>{type}</option>
-                                ))}
-                            </select>
-                            <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                        </div>
+                {/* Column Visibility Toggle */}
+                <div className="flex items-center gap-3 bg-gray-50 px-3 py-1.5 rounded border border-gray-200">
+                    <span className="text-xs font-semibold text-gray-600">Show:</span>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={showInTime}
+                            onChange={e => setShowInTime(e.target.checked)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">In Time</span>
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={showOutTime}
+                            onChange={e => setShowOutTime(e.target.checked)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">Out Time</span>
+                    </label>
+                </div>
 
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <Filter className="w-4 h-4" />
-                            <span>Showing {filteredData.length} records</span>
-                        </div>
-                    </div>
+                {/* Hide Zero Stats Checkbox */}
+                <label className="flex items-center gap-2 cursor-pointer bg-red-50 px-3 py-1.5 rounded border border-red-200 hover:bg-red-100">
+                    <input
+                        type="checkbox"
+                        checked={hideZeroStats}
+                        onChange={e => setHideZeroStats(e.target.checked)}
+                        className="rounded border-red-300 text-red-600 focus:ring-red-500"
+                    />
+                    <span className="text-sm font-semibold text-red-700">Hide Zero Trips & Coverage</span>
+                </label>
 
-                    {/* Table */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-300 overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left border-collapse">
-                                <thead className="bg-purple-600 text-white font-bold text-xs uppercase tracking-wider">
-                                    <tr>
-                                        <th className="px-4 py-2 border border-purple-700 whitespace-nowrap text-center">S.No</th>
-                                        <th className="px-4 py-2 border border-purple-700 whitespace-nowrap">Vehicle Number</th>
-                                        <th className="px-4 py-2 border border-purple-700 whitespace-nowrap">Type</th>
-                                        <th className="px-4 py-2 border border-purple-700 whitespace-nowrap">Ward</th>
-                                        <th className="px-4 py-2 border border-purple-700 whitespace-nowrap text-center">Trip Count</th>
-                                        <th className="px-4 py-2 border border-purple-700 whitespace-nowrap text-center">Coverage</th>
-                                        <th className="px-4 py-2 border border-purple-700 whitespace-nowrap">Dump Site</th>
-                                        <th className="px-4 py-2 border border-purple-700 whitespace-nowrap text-center">Date</th>
-                                        <th className="px-4 py-2 border border-purple-700 whitespace-nowrap text-center w-32">In Time</th>
-                                        <th className="px-4 py-2 border border-purple-700 whitespace-nowrap text-center w-32">Out Time</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="text-xs">
-                                    {filteredData.map((row, index) => (
-                                        <tr key={index} className="odd:bg-white even:bg-purple-50 hover:bg-purple-100 transition-colors">
-                                            <td className="px-4 py-2 border border-gray-300 text-center text-gray-500 font-medium">{row.sNo}</td>
-                                            <td className="px-4 py-2 border border-gray-300 font-bold text-gray-900">{row.vehicleNumber}</td>
-                                            <td className="px-4 py-2 border border-gray-300 text-gray-600">{row.vehicleType}</td>
-                                            <td className="px-4 py-2 border border-gray-300 text-gray-700">{row.wardName}</td>
-                                            <td className="px-4 py-2 border border-gray-300 text-center font-bold text-purple-700 text-lg">{row.tripCount}</td>
-                                            <td className="px-4 py-2 border border-gray-300 text-center font-bold">
-                                                {row.coverage !== 'N/A' && row.coverage !== '0' ? (
-                                                    <span className={`px-2 py-1 rounded-full text-xs ${parseInt(row.coverage) >= 80 ? 'bg-green-100 text-green-700' :
-                                                            parseInt(row.coverage) >= 50 ? 'bg-yellow-100 text-yellow-700' :
-                                                                'bg-red-100 text-red-700'
+                <div className="ml-auto text-sm text-gray-500 self-center">
+                    Count: {filteredData.length}
+                </div>
+            </div>
+
+            {/* Excel-like Table */}
+            <div className="flex-1 overflow-auto border border-gray-300 bg-white shadow-sm">
+                <table className="w-full text-sm border-collapse text-black">
+                    <thead className="bg-gray-100 sticky top-0 z-10">
+                        {/* Report Header Row */}
+                        <tr className="bg-white border-b border-gray-300">
+                            <th colSpan={
+                                7 +
+                                (selectedVehicleType !== 'Secondary' ? 4 : 0) +
+                                (showInTime ? 1 : 0) +
+                                (showOutTime ? 1 : 0)
+                            } className="p-4">
+                                <div className="flex items-center justify-between px-4">
+                                    <img src={nagarNigamLogo} alt="Nagar Nigam" className="h-16 w-auto object-contain" />
+                                    <div className="text-center">
+                                        <h2 className="text-2xl font-bold text-gray-800 uppercase tracking-wide">Mathura-Vrindavan Nagar Nigam</h2>
+                                        <h3 className="text-lg font-semibold text-gray-600">Daily Trip & Coverage Report</h3>
+                                        <p className="text-sm text-gray-500 mt-1">Generated: {new Date().toLocaleString()}</p>
+                                    </div>
+                                    <img src={natureGreenLogo} alt="Nature Green" className="h-16 w-auto object-contain" />
+                                </div>
+                            </th>
+                        </tr>
+                        <tr>
+                            <th onClick={() => requestSort('sNo')} className="cursor-pointer hover:bg-gray-200 border border-gray-400 px-2 py-2 font-bold text-black text-center w-12 user-select-none">S.No {getSortIcon('sNo')}</th>
+                            <th onClick={() => requestSort('vehicleNumber')} className="cursor-pointer hover:bg-gray-200 border border-gray-400 px-2 py-2 font-bold text-black text-center min-w-[120px] user-select-none">Vehicle Number {getSortIcon('vehicleNumber')}</th>
+                            <th onClick={() => requestSort('vehicleType')} className="cursor-pointer hover:bg-gray-200 border border-gray-400 px-2 py-2 font-bold text-black text-center min-w-[180px] user-select-none">Type {getSortIcon('vehicleType')}</th>
+                            <th onClick={() => requestSort('zoneName')} className="cursor-pointer hover:bg-gray-200 border border-gray-400 px-2 py-2 font-bold text-black text-center user-select-none">Zone {getSortIcon('zoneName')}</th>
+                            <th onClick={() => requestSort('wardName')} className="cursor-pointer hover:bg-gray-200 border border-gray-400 px-2 py-2 font-bold text-black text-center user-select-none">Ward {getSortIcon('wardName')}</th>
+                            <th onClick={() => requestSort('tripCount')} className="cursor-pointer hover:bg-gray-200 border border-gray-400 px-2 py-2 font-bold text-black text-center w-16 user-select-none">Trips {getSortIcon('tripCount')}</th>
+                            {selectedVehicleType !== 'Secondary' && (
+                                <>
+                                    <th onClick={() => requestSort('totalPoints')} className="cursor-pointer hover:bg-blue-200 border border-gray-400 px-2 py-2 font-bold text-black text-center w-16 bg-blue-100 user-select-none">Total HH {getSortIcon('totalPoints')}</th>
+                                    <th onClick={() => requestSort('coveredPoints')} className="cursor-pointer hover:bg-green-200 border border-gray-400 px-2 py-2 font-bold text-black text-center w-16 bg-green-100 user-select-none">Cov {getSortIcon('coveredPoints')}</th>
+                                    <th onClick={() => requestSort('notCoveredPoints')} className="cursor-pointer hover:bg-red-200 border border-gray-400 px-2 py-2 font-bold text-black text-center w-16 bg-red-100 user-select-none">Left {getSortIcon('notCoveredPoints')}</th>
+                                    <th onClick={() => requestSort('coverage')} className="cursor-pointer hover:bg-gray-200 border border-gray-400 px-2 py-2 font-bold text-black text-center w-20 bg-gray-100 user-select-none">% {getSortIcon('coverage')}</th>
+                                </>
+                            )}
+                            <th onClick={() => requestSort('dumpSiteName')} className="cursor-pointer hover:bg-gray-200 border border-gray-400 px-2 py-2 font-bold text-black text-center user-select-none">Dump Site {getSortIcon('dumpSiteName')}</th>
+                            {showInTime && <th onClick={() => requestSort('tripInTime')} className="cursor-pointer hover:bg-gray-200 border border-gray-400 px-2 py-2 font-bold text-black text-center user-select-none">In Time {getSortIcon('tripInTime')}</th>}
+                            {showOutTime && <th onClick={() => requestSort('tripOutTime')} className="cursor-pointer hover:bg-gray-200 border border-gray-400 px-2 py-2 font-bold text-black text-center user-select-none">Out Time {getSortIcon('tripOutTime')}</th>}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-300">
+                        {isLoading ? (
+                            <tr>
+                                <td colSpan={
+                                    7 +
+                                    (selectedVehicleType !== 'Secondary' ? 4 : 0) +
+                                    (showInTime ? 1 : 0) +
+                                    (showOutTime ? 1 : 0)
+                                } className="p-12 text-center text-gray-500 font-medium">
+                                    <div className="flex flex-col items-center justify-center gap-2">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                                        <span>Processing data, please wait...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : filteredData.length > 0 ? (
+                            filteredData.map((row, index) => (
+                                <tr key={row.sNo} className="hover:bg-blue-50">
+                                    <td className="border border-gray-300 px-2 py-1.5 text-center font-medium">{index + 1}</td>
+                                    <td className="border border-gray-300 px-2 py-1.5 font-bold text-center">{row.vehicleNumber}</td>
+                                    <td className="border border-gray-300 px-2 py-1.5 text-center truncate max-w-[200px]" title={row.vehicleType}>{row.vehicleType}</td>
+                                    <td className="border border-gray-300 px-2 py-1.5 text-center truncate max-w-[150px]" title={row.zoneName}>{row.zoneName}</td>
+                                    <td className="border border-gray-300 px-2 py-1.5 text-center truncate max-w-[150px]" title={row.wardName}>{row.wardName}</td>
+                                    <td className="border border-gray-300 px-2 py-1.5 text-center font-bold">{row.tripCount > 0 ? row.tripCount : '-'}</td>
+                                    {selectedVehicleType !== 'Secondary' && (
+                                        <>
+                                            <td className="border border-gray-300 px-2 py-1.5 text-center bg-blue-50 font-medium">{row.totalPoints !== '0' ? row.totalPoints : '-'}</td>
+                                            <td className="border border-gray-300 px-2 py-1.5 text-center bg-green-50 text-green-800 font-bold">{row.coveredPoints !== '0' ? row.coveredPoints : '-'}</td>
+                                            <td className="border border-gray-300 px-2 py-1.5 text-center bg-red-50 text-red-700 font-medium">{row.notCoveredPoints !== '0' ? row.notCoveredPoints : '-'}</td>
+                                            <td className="border border-gray-300 px-2 py-1.5 text-center font-bold">
+                                                {row.coverage !== '0' && row.coverage !== 'N/A' ? (
+                                                    <span className={`${parseInt(row.coverage) >= 90 ? 'text-green-700' :
+                                                        parseInt(row.coverage) >= 70 ? 'text-blue-700' :
+                                                            parseInt(row.coverage) >= 50 ? 'text-yellow-700' : 'text-red-700'
                                                         }`}>
                                                         {row.coverage}%
                                                     </span>
-                                                ) : (
-                                                    <span className="text-gray-400">-</span>
-                                                )}
+                                                ) : '-'}
                                             </td>
-                                            <td className="px-4 py-2 border border-gray-300 text-gray-700 font-medium">{row.dumpSiteName}</td>
-                                            <td className="px-4 py-2 border border-gray-300 text-center font-bold text-gray-900 whitespace-nowrap">{row.tripDate}</td>
-                                            <td className="px-4 py-2 border border-gray-300 text-center font-bold text-gray-800 font-mono text-xs whitespace-pre-wrap min-w-[120px]">{row.tripInTime}</td>
-                                            <td className="px-4 py-2 border border-gray-300 text-center font-bold text-gray-800 font-mono text-xs whitespace-pre-wrap min-w-[120px]">{row.tripOutTime}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                        </>
+                                    )}
+                                    <td className="border border-gray-300 px-2 py-1.5 text-center truncate max-w-[150px]">{row.dumpSiteName}</td>
+                                    {showInTime && <td className="border border-gray-300 px-2 py-1.5 text-center font-mono whitespace-pre-wrap">{row.tripInTime}</td>}
+                                    {showOutTime && <td className="border border-gray-300 px-2 py-1.5 text-center font-mono whitespace-pre-wrap">{row.tripOutTime}</td>}
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan={
+                                    7 +
+                                    (selectedVehicleType !== 'Secondary' ? 4 : 0) +
+                                    (showInTime ? 1 : 0) +
+                                    (showOutTime ? 1 : 0)
+                                } className="p-8 text-center text-gray-500 font-medium">
+                                    {tripData.length === 0 && poiData.length === 0
+                                        ? "Please upload Trip and POI reports to view analysis"
+                                        : "No matching records found"}
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
 
-                    {/* Footer */}
-                    <div className="mt-12 mb-6 text-center">
-                        <div className="inline-block bg-white px-8 py-4 rounded-2xl shadow-sm border border-slate-100">
-                            <p className="text-slate-600 font-medium text-lg tracking-wide">
-                                Generated by <span className="font-extrabold text-indigo-600 mx-1">Reports Buddy Pro</span>
-                                <span className="text-slate-300 mx-3">|</span>
-                                Created by <span className="font-extrabold text-slate-800 mx-1 border-b-2 border-indigo-200">Yuvraj Singh Tomar</span>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                <div className="flex flex-col items-center justify-center p-8 bg-white rounded-xl border-2 border-dashed border-gray-300 text-gray-400 animate-in fade-in duration-500 gap-6">
-                    <div className={`p-4 rounded-full bg-gray-50 ${isLoading ? 'animate-pulse' : ''}`}>
-                        <Upload size={48} className="opacity-50" />
-                    </div>
-                    <div className="text-center">
-                        <p className="text-xl font-medium text-gray-700 mb-2">{isLoading ? 'Processing Files...' : 'Upload Reports'}</p>
-                        <p className="text-sm text-gray-500 max-w-md mx-auto">Please upload both your Trip Report and POI Report CSV/Excel files to combine them into a single comprehensive report with coverage details.</p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-4 w-full justify-center max-w-lg">
-                        <button
-                            onClick={() => tripFileInputRef.current?.click()}
-                            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all shadow-md hover:shadow-lg"
-                        >
-                            <Upload className="w-5 h-5" />
-                            Upload Trip Report
-                        </button>
-                        <input
-                            type="file"
-                            ref={tripFileInputRef}
-                            onChange={(e) => handleFileUpload(e, 'trip')}
-                            accept=".csv,.xlsx,.xls"
-                            className="hidden"
-                        />
-
-                        <button
-                            onClick={() => poiFileInputRef.current?.click()}
-                            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md hover:shadow-lg"
-                        >
-                            <Upload className="w-5 h-5" />
-                            Upload POI Report
-                        </button>
-                        <input
-                            type="file"
-                            ref={poiFileInputRef}
-                            onChange={(e) => handleFileUpload(e, 'poi')}
-                            accept=".csv,.xlsx,.xls"
-                            className="hidden"
-                        />
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-400 bg-gray-50 px-4 py-2 rounded-full">
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Supports .csv, .xlsx, .xls formats</span>
-                    </div>
-                </div>
-            )}
+            <div className="text-[10px] text-gray-400 text-center">
+                Reports Buddy Pro &bull; {new Date().toLocaleDateString()}
+            </div>
         </div>
     );
 };

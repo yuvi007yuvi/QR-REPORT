@@ -35,10 +35,11 @@ import { LoadingScreen } from './components/LoadingScreen';
 
 import SupervisorDailyReport from './components/SupervisorDailyReport';
 import { DailyKycStatusReport } from './components/DailyKycStatusReport';
+import { WardKYCCrossCheck } from './components/WardKYCCrossCheck';
 
 const App: React.FC = () => {
   const [currentSection, setCurrentSection] = useState<AppSection>('daily');
-  const [currentView, setCurrentView] = useState<'dashboard' | 'detailed' | 'zonal' | 'beforeAfter' | 'mapping' | 'underground' | 'zonalUnderground' | 'distance-report' | 'coverage-dashboard' | 'coverage-supervisor' | 'coverage-ward' | 'coverage-all-wards' | 'coverage-mapping' | 'coverage-date-wise' | 'poi-ward-monthly' | 'varun-adopted-wards' | 'kyc-survey' | 'kyc-calendar' | 'kyc-whatsapp' | 'ward-household-status' | 'ward-status-new' | 'trip-report' | 'qr-status-view' | 'secondary-trip-view' | 'secondary-vehicle-history' | 'cd-waste-complaint' | 'kpi-checker' | 'supervisor-count-report' | 'vehicle-change-report' | 'ucc-report' | 'supervisor-daily-report' | 'daily-kyc-status'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'detailed' | 'zonal' | 'beforeAfter' | 'mapping' | 'underground' | 'zonalUnderground' | 'distance-report' | 'coverage-dashboard' | 'coverage-supervisor' | 'coverage-ward' | 'coverage-all-wards' | 'coverage-mapping' | 'coverage-date-wise' | 'poi-ward-monthly' | 'varun-adopted-wards' | 'kyc-survey' | 'kyc-calendar' | 'kyc-whatsapp' | 'ward-household-status' | 'ward-status-new' | 'trip-report' | 'qr-status-view' | 'secondary-trip-view' | 'secondary-vehicle-history' | 'cd-waste-complaint' | 'kpi-checker' | 'supervisor-count-report' | 'vehicle-change-report' | 'ucc-report' | 'supervisor-daily-report' | 'daily-kyc-status' | 'ward-kyc-cross-check'>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingView, setPendingView] = useState<string | null>(null);
@@ -134,6 +135,8 @@ const App: React.FC = () => {
         return <SupervisorDailyReport />;
       case 'daily-kyc-status':
         return <DailyKycStatusReport />;
+      case 'ward-kyc-cross-check':
+        return <WardKYCCrossCheck />;
       default:
         return <Dashboard stats={mockStats} />;
     }

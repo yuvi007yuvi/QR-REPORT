@@ -9,10 +9,15 @@ import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import natureGreenLogo from '../assets/NatureGreen_Logo.png';
 
 
+interface WardInfo {
+    name: string;
+    count: number;
+}
+
 interface ProcessedRecord {
-    id: string; // Composite key
+    id: string; // Supervisor Name
     supervisorName: string;
-    ward: string;
+    wards: WardInfo[];
     kycCount: number;
     remark?: string;
     mobile?: string;
@@ -128,13 +133,13 @@ export const DailyKycStatusReport: React.FC = () => {
 
                 if (!name || name === 'UNKNOWN') return;
 
-                const key = `${name}|${ward}`;
+                const key = name; // Key by Name only
 
                 if (!map.has(key)) {
                     map.set(key, {
                         id: key,
                         supervisorName: name,
-                        ward: ward,
+                        wards: [],
                         kycCount: 0,
                         remark: remark
                     });
@@ -146,6 +151,14 @@ export const DailyKycStatusReport: React.FC = () => {
                 const rec = map.get(key)!;
                 rec.kycCount += countVal;
 
+                // Track Ward Info
+                const existingWard = rec.wards.find(w => w.name === ward);
+                if (existingWard) {
+                    existingWard.count += countVal;
+                } else {
+                    rec.wards.push({ name: ward, count: countVal });
+                }
+
                 if (!rec.remark && remark) {
                     rec.remark = remark;
                 }
@@ -154,42 +167,28 @@ export const DailyKycStatusReport: React.FC = () => {
             // Merge Deployment List if enabled
             if (showDeployment) {
                 DEPLOYMENT_LIST.forEach(target => {
-                    // Check if this supervisor exists in the map
-                    // WE NEED TO FIND ALL RECORDS FOR THIS SUPERVISOR
-                    const existingRecords = Array.from(map.values()).filter(r => r.supervisorName === target.name);
+                    const key = target.name;
+                    let rec = map.get(key);
 
-                    if (existingRecords.length === 0) {
-                        // Supervisor NOT found in CSV at all
-                        // Add them with 0 count and 'NA' ward (or target ward if known but they didn't work)
-                        // User request: "IF WARD NOT FOUND SHOW NA". Since they aren't in CSV, ward is not found in data.
-                        const key = `${target.name}|${target.ward}`;
-                        map.set(key, {
+                    if (!rec) {
+                        // Supervisor NOT found in CSV
+                        rec = {
                             id: key,
                             supervisorName: target.name,
-                            ward: 'NA', // Explicitly NA if not found in CSV data
+                            wards: [{ name: target.ward, count: 0 }], // Use target ward
                             kycCount: 0,
                             remark: target.remark,
                             mobile: target.mobile,
                             supervisorId: target.id,
                             isDeploymentTarget: true
-                        });
+                        };
+                        map.set(key, rec);
                     } else {
-                        // Supervisor FOUND in CSV
-                        // Enhance existing records with deployment info
-                        // The Ward is ALREADY populated from CSV data in the previous step processData
-                        existingRecords.forEach(rec => {
-                            if (!rec.remark) rec.remark = target.remark;
-                            if (!rec.mobile) rec.mobile = target.mobile;
-                            if (!rec.supervisorId) rec.supervisorId = target.id;
-                            rec.isDeploymentTarget = true;
-
-                            // Ensure Ward is not Unknown/empty
-                            if (!rec.ward || rec.ward === 'Unknown' || rec.ward === 'NA') {
-                                // If CSV had them but no ward, maybe use target ward as fallback or keep NA
-                                // User said: "WARD MUST BE FILLED BY CSV DATA" so we trust CSV first.
-                                // If CSV was empty/NA, we leave it as NA.
-                            }
-                        });
+                        // Supervisor FOUND
+                        if (!rec.remark) rec.remark = target.remark;
+                        if (!rec.mobile) rec.mobile = target.mobile;
+                        if (!rec.supervisorId) rec.supervisorId = target.id;
+                        rec.isDeploymentTarget = true;
                     }
                 });
             }
@@ -208,8 +207,8 @@ export const DailyKycStatusReport: React.FC = () => {
                     if (!a.isDeploymentTarget && b.isDeploymentTarget) return 1;
                 }
 
-                const wardA = parseInt(a.ward.replace(/\D/g, '')) || 0;
-                const wardB = parseInt(b.ward.replace(/\D/g, '')) || 0;
+                const wardA = parseInt((a.wards[0]?.name || '').replace(/\D/g, '')) || 0;
+                const wardB = parseInt((b.wards[0]?.name || '').replace(/\D/g, '')) || 0;
                 if (wardA !== wardB) return wardA - wardB;
                 return a.supervisorName.localeCompare(b.supervisorName);
             });
@@ -221,8 +220,12 @@ export const DailyKycStatusReport: React.FC = () => {
     };
 
     const totalKYC = useMemo(() => records.reduce((acc, r) => acc + r.kycCount, 0), [records]);
-    const totalSupervisors = useMemo(() => new Set(records.map(r => r.supervisorName)).size, [records]);
-    const totalWards = useMemo(() => new Set(records.map(r => r.ward)).size, [records]);
+    const totalSupervisors = useMemo(() => records.length, [records]);
+    const totalWards = useMemo(() => {
+        const uniqueWards = new Set<string>();
+        records.forEach(r => r.wards.forEach(w => uniqueWards.add(w.name)));
+        return uniqueWards.size;
+    }, [records]);
 
     // Export Functions
     const exportPDF = () => {
@@ -240,7 +243,7 @@ export const DailyKycStatusReport: React.FC = () => {
             r.supervisorName,
             r.supervisorId || '-',
             r.mobile || '-',
-            r.ward,
+            r.wards.map(w => w.name).join(', '),
             r.kycCount
         ]);
 
@@ -273,7 +276,7 @@ export const DailyKycStatusReport: React.FC = () => {
             "Supervisor Name": r.supervisorName,
             "ID": r.supervisorId || '-',
             "Mobile": r.mobile || '-',
-            "Ward": r.ward,
+            "Wards": r.wards.map(w => `${w.name} (${w.count})`).join(', '),
             "KYC Count": r.kycCount
         })));
         const wb = XLSX.utils.book_new();
@@ -439,7 +442,14 @@ export const DailyKycStatusReport: React.FC = () => {
                                                 <td className="px-4 py-3 text-center text-slate-600 font-mono text-xs border-r border-slate-200">{record.supervisorId || '-'}</td>
                                                 <td className="px-4 py-3 text-center text-slate-600 font-mono text-xs border-r border-slate-200">{record.mobile || '-'}</td>
                                                 <td className="px-4 py-3 font-medium text-slate-600 border-r border-slate-200 text-center">
-                                                    <span className="inline-block px-2 py-1 bg-white rounded text-xs font-bold border border-slate-200 shadow-sm">{record.ward}</span>
+                                                    <div className="flex flex-wrap gap-1 justify-center">
+                                                        {record.wards.map((w, wIdx) => (
+                                                            <span key={wIdx} className="inline-block px-2 py-1 bg-white rounded text-xs font-bold border border-slate-200 shadow-sm" title={`${w.count} records`}>
+                                                                {w.name}
+                                                                {record.wards.length > 1 && <span className="ml-1 text-[10px] text-gray-500">({w.count})</span>}
+                                                            </span>
+                                                        ))}
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
                                                     {record.kycCount > 0 ? (

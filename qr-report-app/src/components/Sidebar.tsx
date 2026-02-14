@@ -59,7 +59,8 @@ export type ViewMode =
     | 'supervisor-count-report' // Added
     | 'ucc-report' // Added
     | 'supervisor-daily-report' // Added
-    | 'daily-kyc-status'; // Added
+    | 'daily-kyc-status' // Added
+    | 'ward-kyc-cross-check'; // Added
 
 interface SidebarProps {
     currentSection: AppSection;
@@ -157,6 +158,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 { id: 'ward-household-status', label: 'Ward Household Status', icon: Home },
                 { id: 'ward-status-new', label: 'Ward Wise Status (New)', icon: BarChart3 },
                 { id: 'daily-kyc-status', label: 'Daily KYC Status', icon: FileText },
+                { id: 'ward-kyc-cross-check', label: 'Ward KYC Cross-Check', icon: BarChart3 },
             ]
         },
         {

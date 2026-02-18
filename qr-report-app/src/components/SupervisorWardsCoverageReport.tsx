@@ -370,67 +370,170 @@ const SupervisorWardsCoverageReport: React.FC = () => {
     };
 
     const exportToPDF = () => {
-        const doc = new jsPDF();
-        doc.setFontSize(16);
-        doc.text('Mathura Vrindavan Nagar Nigam', 14, 15);
-        doc.setFontSize(12);
-        doc.text('Supervisor Wards Coverage Report', 14, 23);
-        doc.setFontSize(9);
-        doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 30);
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.width;
 
-        let startY = 36;
+        // Title
+        doc.setFontSize(18);
+        doc.setTextColor(41, 128, 185);
+        doc.text('Mathura Vrindavan Nagar Nigam', pageWidth / 2, 15, { align: 'center' });
 
-        filteredSections.forEach(section => {
-            // Check if we need a new page
-            if (startY > 260) {
+        doc.setFontSize(14);
+        doc.setTextColor(60, 60, 60);
+        doc.text('Supervisor Wards Coverage Report', pageWidth / 2, 22, { align: 'center' });
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, pageWidth / 2, 28, { align: 'center' });
+
+        let startY = 35;
+
+        filteredSections.forEach((section, index) => {
+            // Calculate Section Stats
+            const secKycPoi = section.wards.reduce((s, w) => s + w.wardKycPoi, 0);
+            const secOnRoute = section.wards.reduce((s, w) => s + w.vehicles.reduce((vs, v) => vs + v.total, 0), 0);
+            const secVisited = section.wards.reduce((s, w) => s + w.vehicles.reduce((vs, v) => vs + v.covered, 0), 0);
+            const secCoverage = secOnRoute > 0 ? (secVisited / secOnRoute) * 100 : 0;
+            const totalRoutes = section.wards.reduce((s, w) => s + w.vehicles.length, 0);
+
+            // Add new page if not enough space for header + partial table
+            if (startY > 250) {
                 doc.addPage();
-                startY = 15;
+                startY = 20;
             }
 
-            // Supervisor header
-            doc.setFillColor(41, 128, 185);
-            doc.rect(14, startY, 182, 8, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(10);
-            doc.text(`${section.supervisor} | Zonal: ${section.zonal} | Coverage: ${section.coveragePercentage.toFixed(1)}%`, 16, startY + 5.5);
-            startY += 10;
+            // Supervisor Header Block
+            doc.setFillColor(245, 247, 250);
+            doc.setDrawColor(200, 200, 200);
+            doc.roundedRect(14, startY, 182, 25, 2, 2, 'FD');
 
-            const tableRows = section.wards.flatMap(ward =>
-                ward.vehicles.map((v, vi) => [
-                    vi === 0 ? ward.wardName : '',
-                    v.vehicleNumber,
-                    v.vehicleType,
-                    v.routeName,
-                    vi === 0 ? (ward.wardKycPoi || '-') : '',
-                    v.total,
-                    v.covered,
-                    `${v.coverage.toFixed(1)}%`,
-                    v.vehicleType ? (getVehicleRemark(v.vehicleType, v.total).isOk ? `OK` : `Low (${v.total}/${getCapacityTarget(v.vehicleType)})`) : ''
-                ])
-            );
+            // Name
+            doc.setFontSize(12);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${index + 1}. Supervisor :- ${section.supervisor}`, 18, startY + 8);
 
-            autoTable(doc, {
-                head: [['Ward', 'Vehicle', 'Type', 'Route', 'Ward POI', 'On Route', 'Visited', 'Coverage', 'Remark']],
-                body: tableRows,
-                startY,
-                theme: 'grid',
-                styles: { fontSize: 6, cellPadding: 2 },
-                headStyles: { fillColor: [52, 73, 94], fontSize: 6 },
-                margin: { left: 10, right: 10 },
-                didParseCell: (data) => {
-                    if (data.section === 'body' && data.column.index === 7) {
-                        const val = parseFloat(data.cell.raw as string);
-                        if (val < 50) data.cell.styles.textColor = [220, 38, 38];
-                        else if (val < 80) data.cell.styles.textColor = [217, 119, 6];
-                        else data.cell.styles.textColor = [22, 163, 74];
-                    }
-                }
+            // Stats Row
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+
+            const stats = [
+                { label: `Zonal: ${section.zonal}`, color: [107, 33, 168] }, // Purple
+                { label: `Wards: ${section.wards.length}`, color: [71, 85, 105] }, // Slate
+                { label: `Routes: ${totalRoutes}`, color: [8, 145, 178] }, // Cyan
+                { label: `Ward POI: ${secKycPoi.toLocaleString()}`, color: [180, 83, 9] }, // Amber
+                { label: `On Route: ${secOnRoute.toLocaleString()}`, color: [30, 64, 175] }, // Blue
+                { label: `Visited: ${secVisited.toLocaleString()}`, color: [5, 150, 105] }, // Emerald
+                { label: `Coverage: ${secCoverage.toFixed(1)}%`, color: [50, 50, 50] } // Gray
+            ];
+
+            let xPos = 18;
+            stats.forEach(stat => {
+                doc.setTextColor(stat.color[0], stat.color[1], stat.color[2]);
+                doc.text(stat.label, xPos, startY + 18);
+                xPos += (doc.getTextWidth(stat.label) + 6);
             });
 
-            startY = (doc as any).lastAutoTable.finalY + 8;
+            startY += 30;
+
+            // Prepare Table Data
+            const tableBody: any[] = [];
+
+            section.wards.forEach(ward => {
+                // Vehicle Rows
+                ward.vehicles.forEach((v, vi) => {
+                    const remarkNode = getVehicleRemark(v.vehicleType, v.total);
+                    const remarkText = remarkNode.isOk ? 'OK' : remarkNode.text;
+
+                    tableBody.push([
+                        vi === 0 ? ward.wardName : '', // Ward Name only on first vehicle
+                        v.vehicleNumber || '-',
+                        v.vehicleType || '-',
+                        v.routeName,
+                        vi === 0 && ward.wardKycPoi > 0 ? ward.wardKycPoi.toLocaleString() : '',
+                        v.total.toLocaleString(),
+                        v.covered.toLocaleString(),
+                        `${v.coverage.toFixed(1)}%`,
+                        remarkText
+                    ]);
+                });
+
+                // Ward Subtotal Row
+                const wTotal = ward.vehicles.reduce((s, v) => s + v.total, 0);
+                const wVisited = ward.vehicles.reduce((s, v) => s + v.covered, 0);
+                const wCoverage = wTotal > 0 ? (wVisited / wTotal) * 100 : 0;
+
+                tableBody.push([
+                    { content: `Ward ${ward.wardNumber} Subtotal`, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [239, 246, 255], textColor: [30, 64, 175] } },
+                    { content: ward.wardKycPoi > 0 ? ward.wardKycPoi.toLocaleString() : '-', styles: { fontStyle: 'bold', fillColor: [239, 246, 255], textColor: [30, 64, 175], halign: 'center' } },
+                    { content: wTotal.toLocaleString(), styles: { fontStyle: 'bold', fillColor: [239, 246, 255], textColor: [30, 64, 175], halign: 'center' } },
+                    { content: wVisited.toLocaleString(), styles: { fontStyle: 'bold', fillColor: [239, 246, 255], textColor: [30, 64, 175], halign: 'center' } },
+                    { content: `${wCoverage.toFixed(1)}%`, styles: { fontStyle: 'bold', fillColor: [239, 246, 255], textColor: [30, 64, 175], halign: 'center' } },
+                    { content: '', styles: { fillColor: [239, 246, 255] } }
+                ]);
+            });
+
+            // Grand Total Row
+            tableBody.push([
+                { content: `${section.supervisor} — Grand Total`, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [31, 41, 55], textColor: [255, 255, 255] } },
+                { content: secKycPoi > 0 ? secKycPoi.toLocaleString() : '-', styles: { fontStyle: 'bold', fillColor: [31, 41, 55], textColor: [255, 255, 255], halign: 'center' } },
+                { content: secOnRoute.toLocaleString(), styles: { fontStyle: 'bold', fillColor: [31, 41, 55], textColor: [255, 255, 255], halign: 'center' } },
+                { content: secVisited.toLocaleString(), styles: { fontStyle: 'bold', fillColor: [31, 41, 55], textColor: [255, 255, 255], halign: 'center' } },
+                { content: `${secCoverage.toFixed(1)}%`, styles: { fontStyle: 'bold', fillColor: [31, 41, 55], textColor: [255, 255, 255], halign: 'center' } },
+                { content: '', styles: { fillColor: [31, 41, 55] } }
+            ]);
+
+            autoTable(doc, {
+                startY: startY,
+                head: [['Ward', 'Vehicle', 'Type', 'Route', 'Ward POI', 'On Route', 'Visited', 'Coverage', 'Remark']],
+                body: tableBody,
+                theme: 'grid',
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 3,
+                    valign: 'middle',
+                    halign: 'center',
+                    lineColor: [220, 220, 220],
+                    lineWidth: 0.1
+                },
+                headStyles: {
+                    fillColor: [55, 65, 81],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    halign: 'center'
+                },
+                columnStyles: {
+                    0: { cellWidth: 30, halign: 'left' }, // Ward
+                    1: { cellWidth: 25 }, // Vehicle
+                    2: { cellWidth: 30 }, // Type
+                    3: { cellWidth: 15 }, // Route
+                    8: { cellWidth: 25, fontSize: 7 } // Remark
+                },
+                didParseCell: (data) => {
+                    // Color code coverage column
+                    if (data.section === 'body' && data.column.index === 7) {
+                        const raw = data.cell.raw as string;
+                        if (typeof raw === 'string' && raw.includes('%')) {
+                            const val = parseFloat(raw);
+                            if (val < 50) data.cell.styles.textColor = [220, 38, 38]; // Red
+                            else if (val < 80) data.cell.styles.textColor = [217, 119, 6]; // Orange
+                            else data.cell.styles.textColor = [22, 163, 74]; // Green
+                        }
+                    }
+                    // Color code remarks
+                    if (data.section === 'body' && data.column.index === 8) {
+                        const text = data.cell.raw as string;
+                        if (text === 'OK') data.cell.styles.textColor = [22, 163, 74];
+                        else data.cell.styles.textColor = [185, 28, 28];
+                    }
+                },
+                margin: { left: 14, right: 14 }
+            });
+
+            startY = (doc as any).lastAutoTable.finalY + 15;
         });
 
-        doc.save(`Supervisor_Wards_Coverage_${new Date().toISOString().split('T')[0]}.pdf`);
+        doc.save(`Supervisor_Wards_Coverage_Report_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
     if (loading) {
@@ -614,39 +717,71 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                         {viewMode === 'supervisor' ? (
                             /* ===== SUPERVISOR WISE VIEW ===== */
                             <>
-                                {filteredSections.map((section) => {
+                                {filteredSections.map((section, sIndex) => {
                                     const isExpanded = expandedSupervisors.has(section.supervisor);
-                                    const colors = getCoverageColor(section.coveragePercentage);
+                                    const secKycPoi = section.wards.reduce((s, w) => s + w.wardKycPoi, 0);
+                                    const secOnRoute = section.wards.reduce((s, w) => s + w.vehicles.reduce((vs, v) => vs + v.total, 0), 0);
+                                    const secVisited = section.wards.reduce((s, w) => s + w.vehicles.reduce((vs, v) => vs + v.covered, 0), 0);
+                                    const secCoverage = secOnRoute > 0 ? (secVisited / secOnRoute) * 100 : 0;
+                                    const colors = getCoverageColor(secCoverage);
 
                                     return (
-                                        <div key={section.supervisor} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                        <div key={section.supervisor} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-200">
                                             <div
-                                                className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                                                className="flex flex-col items-center p-4 cursor-pointer hover:bg-gradient-to-r hover:from-blue-50/60 hover:to-transparent transition-all duration-200 border-l-4 border-l-blue-500"
                                                 onClick={() => toggleSupervisor(section.supervisor)}
                                             >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                                                        <User className="w-5 h-5" />
+                                                {/* Top row: Sr.No + Icon + Name + Chevron */}
+                                                <div className="flex items-center justify-center w-full mb-3 relative">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-200 text-gray-700 text-xs font-bold">{sIndex + 1}</span>
+                                                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-sm">
+                                                            <User className="w-5 h-5" />
+                                                        </div>
+                                                        <h3 className="font-bold text-gray-900 text-base tracking-tight">Supervisor :- {section.supervisor}</h3>
                                                     </div>
-                                                    <div>
-                                                        <h3 className="font-bold text-gray-900">{section.supervisor}</h3>
-                                                        <p className="text-xs text-gray-500">Zonal: {section.zonal} &middot; {section.wards.length} ward{section.wards.length !== 1 ? 's' : ''}</p>
+                                                    <div className="absolute right-0">
+                                                        {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-4">
-                                                    <div className="text-right hidden md:block">
-                                                        <div className="text-xs text-gray-500">Total / Visited</div>
-                                                        <div className="text-sm font-semibold text-gray-800">{section.totalPoi.toLocaleString()} / {section.visitedPoi.toLocaleString()}</div>
+
+                                                {/* Bottom row: Stat chips centered */}
+                                                <div className="flex items-center justify-center gap-3 flex-wrap w-full">
+                                                    <div className="text-center px-3 py-1.5 rounded-lg bg-purple-50 border border-purple-100 min-w-[90px]">
+                                                        <div className="text-[10px] uppercase tracking-wider text-purple-500 font-semibold">Zonal</div>
+                                                        <div className="text-sm font-bold text-purple-800">{section.zonal}</div>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                                            <div className={`h-full rounded-full ${colors.bar}`} style={{ width: `${Math.min(section.coveragePercentage, 100)}%` }}></div>
+                                                    <div className="text-center px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 min-w-[70px]">
+                                                        <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Wards</div>
+                                                        <div className="text-sm font-bold text-slate-800">{section.wards.length}</div>
+                                                    </div>
+                                                    <div className="text-center px-3 py-1.5 rounded-lg bg-cyan-50 border border-cyan-100 min-w-[70px]">
+                                                        <div className="text-[10px] uppercase tracking-wider text-cyan-500 font-semibold">Routes</div>
+                                                        <div className="text-sm font-bold text-cyan-800">{section.wards.reduce((s, w) => s + w.vehicles.length, 0)}</div>
+                                                    </div>
+                                                    <div className="text-center px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-100 min-w-[80px]">
+                                                        <div className="text-[10px] uppercase tracking-wider text-amber-500 font-semibold">Ward POI</div>
+                                                        <div className="text-sm font-bold text-amber-800">{secKycPoi > 0 ? secKycPoi.toLocaleString() : '-'}</div>
+                                                    </div>
+                                                    <div className="text-center px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-100 min-w-[80px]">
+                                                        <div className="text-[10px] uppercase tracking-wider text-blue-500 font-semibold">On Route</div>
+                                                        <div className="text-sm font-bold text-blue-800">{secOnRoute.toLocaleString()}</div>
+                                                    </div>
+                                                    <div className="text-center px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100 min-w-[80px]">
+                                                        <div className="text-[10px] uppercase tracking-wider text-emerald-500 font-semibold">Visited</div>
+                                                        <div className="text-sm font-bold text-emerald-800">{secVisited.toLocaleString()}</div>
+                                                    </div>
+                                                    <div className="text-center px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 min-w-[100px]">
+                                                        <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Coverage</div>
+                                                        <div className="flex items-center justify-center gap-2 mt-0.5">
+                                                            <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                                                                <div className={`h-full rounded-full ${colors.bar} transition-all duration-500`} style={{ width: `${Math.min(secCoverage, 100)}%` }}></div>
+                                                            </div>
+                                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-extrabold ${colors.bg} ${colors.text}`}>
+                                                                {secCoverage.toFixed(1)}%
+                                                            </span>
                                                         </div>
-                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${colors.bg} ${colors.text}`}>
-                                                            {section.coveragePercentage.toFixed(1)}%
-                                                        </span>
                                                     </div>
-                                                    {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                                                 </div>
                                             </div>
 
@@ -711,18 +846,26 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                                                                     </tr>
                                                                 </React.Fragment>
                                                             ))}
-                                                            <tr className="bg-gray-900 text-white">
-                                                                <td className="px-4 py-3 text-sm font-bold border border-black" colSpan={4}>{section.supervisor} — Grand Total</td>
-                                                                <td className="px-4 py-3 text-sm font-bold text-right border border-black">{section.wardKycPoi > 0 ? section.wardKycPoi.toLocaleString() : '-'}</td>
-                                                                <td className="px-4 py-3 text-sm font-bold text-right border border-black">{section.totalPoi.toLocaleString()}</td>
-                                                                <td className="px-4 py-3 text-sm font-bold text-right border border-black">{section.visitedPoi.toLocaleString()}</td>
-                                                                <td className="px-4 py-3 text-right border border-black">
-                                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-white text-gray-900">
-                                                                        {section.coveragePercentage.toFixed(1)}%
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-4 py-3 border border-black"></td>
-                                                            </tr>
+                                                            {(() => {
+                                                                const gtKyc = section.wards.reduce((s, w) => s + w.wardKycPoi, 0);
+                                                                const gtTotal = section.wards.reduce((s, w) => s + w.vehicles.reduce((vs, v) => vs + v.total, 0), 0);
+                                                                const gtVisited = section.wards.reduce((s, w) => s + w.vehicles.reduce((vs, v) => vs + v.covered, 0), 0);
+                                                                const gtCoverage = gtTotal > 0 ? (gtVisited / gtTotal) * 100 : 0;
+                                                                return (
+                                                                    <tr className="bg-gray-900 text-white">
+                                                                        <td className="px-4 py-3 text-sm font-bold border border-black" colSpan={4}>{section.supervisor} — Grand Total</td>
+                                                                        <td className="px-4 py-3 text-sm font-bold text-right border border-black">{gtKyc > 0 ? gtKyc.toLocaleString() : '-'}</td>
+                                                                        <td className="px-4 py-3 text-sm font-bold text-right border border-black">{gtTotal.toLocaleString()}</td>
+                                                                        <td className="px-4 py-3 text-sm font-bold text-right border border-black">{gtVisited.toLocaleString()}</td>
+                                                                        <td className="px-4 py-3 text-right border border-black">
+                                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-white text-gray-900">
+                                                                                {gtCoverage.toFixed(1)}%
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="px-4 py-3 border border-black"></td>
+                                                                    </tr>
+                                                                );
+                                                            })()}
                                                         </tbody>
                                                     </table>
                                                 </div>
@@ -737,39 +880,74 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                         ) : (
                             /* ===== WARD WISE VIEW ===== */
                             <>
-                                {wardSections.map((ward) => {
+                                {wardSections.map((ward, wIndex) => {
                                     const isExpanded = expandedSupervisors.has(ward.wardName);
-                                    const colors = getCoverageColor(ward.coveragePercentage);
+                                    const wTotal = ward.vehicles.reduce((s, v) => s + v.total, 0);
+                                    const wVisited = ward.vehicles.reduce((s, v) => s + v.covered, 0);
+                                    const wCoverage = wTotal > 0 ? (wVisited / wTotal) * 100 : 0;
+                                    const colors = getCoverageColor(wCoverage);
 
                                     return (
-                                        <div key={ward.wardName} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                        <div key={ward.wardName} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-200">
                                             <div
-                                                className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                                                className="flex flex-col items-center p-4 cursor-pointer hover:bg-gradient-to-r hover:from-indigo-50/60 hover:to-transparent transition-all duration-200 border-l-4 border-l-indigo-500"
                                                 onClick={() => toggleSupervisor(ward.wardName)}
                                             >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
-                                                        <Building2 className="w-5 h-5" />
+                                                {/* Top row: Sr.No + Icon + Name + Chevron */}
+                                                <div className="flex items-center justify-center w-full mb-3 relative">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-200 text-gray-700 text-xs font-bold">{wIndex + 1}</span>
+                                                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white shadow-sm">
+                                                            <Building2 className="w-5 h-5" />
+                                                        </div>
+                                                        <h3 className="font-bold text-gray-900 text-base tracking-tight">Ward :- {ward.wardName}</h3>
                                                     </div>
-                                                    <div>
-                                                        <h3 className="font-bold text-gray-900">{ward.wardName}</h3>
-                                                        <p className="text-xs text-gray-500">Supervisor: {ward.supervisor} &middot; Zonal: {ward.zonal} &middot; {ward.vehicles.length} vehicle{ward.vehicles.length !== 1 ? 's' : ''}</p>
+                                                    <div className="absolute right-0">
+                                                        {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-4">
-                                                    <div className="text-right hidden md:block">
-                                                        <div className="text-xs text-gray-500">Total / Visited</div>
-                                                        <div className="text-sm font-semibold text-gray-800">{ward.totalPoi.toLocaleString()} / {ward.visitedPoi.toLocaleString()}</div>
+
+                                                {/* Bottom row: Stat chips centered */}
+                                                <div className="flex items-center justify-center gap-3 flex-wrap w-full">
+                                                    <div className="text-center px-3 py-1.5 rounded-lg bg-orange-50 border border-orange-100 min-w-[90px]">
+                                                        <div className="text-[10px] uppercase tracking-wider text-orange-500 font-semibold">Supervisor</div>
+                                                        <div className="text-sm font-bold text-orange-800">{ward.supervisor}</div>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                                            <div className={`h-full rounded-full ${colors.bar}`} style={{ width: `${Math.min(ward.coveragePercentage, 100)}%` }}></div>
+                                                    <div className="text-center px-3 py-1.5 rounded-lg bg-purple-50 border border-purple-100 min-w-[90px]">
+                                                        <div className="text-[10px] uppercase tracking-wider text-purple-500 font-semibold">Zonal</div>
+                                                        <div className="text-sm font-bold text-purple-800">{ward.zonal}</div>
+                                                    </div>
+                                                    <div className="text-center px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 min-w-[70px]">
+                                                        <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Vehicles</div>
+                                                        <div className="text-sm font-bold text-slate-800">{ward.vehicles.length}</div>
+                                                    </div>
+                                                    <div className="text-center px-3 py-1.5 rounded-lg bg-cyan-50 border border-cyan-100 min-w-[70px]">
+                                                        <div className="text-[10px] uppercase tracking-wider text-cyan-500 font-semibold">Routes</div>
+                                                        <div className="text-sm font-bold text-cyan-800">{ward.vehicles.length}</div>
+                                                    </div>
+                                                    <div className="text-center px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-100 min-w-[80px]">
+                                                        <div className="text-[10px] uppercase tracking-wider text-amber-500 font-semibold">Ward POI</div>
+                                                        <div className="text-sm font-bold text-amber-800">{ward.wardKycPoi > 0 ? ward.wardKycPoi.toLocaleString() : '-'}</div>
+                                                    </div>
+                                                    <div className="text-center px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-100 min-w-[80px]">
+                                                        <div className="text-[10px] uppercase tracking-wider text-blue-500 font-semibold">On Route</div>
+                                                        <div className="text-sm font-bold text-blue-800">{wTotal.toLocaleString()}</div>
+                                                    </div>
+                                                    <div className="text-center px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100 min-w-[80px]">
+                                                        <div className="text-[10px] uppercase tracking-wider text-emerald-500 font-semibold">Visited</div>
+                                                        <div className="text-sm font-bold text-emerald-800">{wVisited.toLocaleString()}</div>
+                                                    </div>
+                                                    <div className="text-center px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 min-w-[100px]">
+                                                        <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Coverage</div>
+                                                        <div className="flex items-center justify-center gap-2 mt-0.5">
+                                                            <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                                                                <div className={`h-full rounded-full ${colors.bar} transition-all duration-500`} style={{ width: `${Math.min(wCoverage, 100)}%` }}></div>
+                                                            </div>
+                                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-extrabold ${colors.bg} ${colors.text}`}>
+                                                                {wCoverage.toFixed(1)}%
+                                                            </span>
                                                         </div>
-                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${colors.bg} ${colors.text}`}>
-                                                            {ward.coveragePercentage.toFixed(1)}%
-                                                        </span>
                                                     </div>
-                                                    {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                                                 </div>
                                             </div>
 
@@ -814,11 +992,11 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                                                             })}
                                                             <tr className="bg-gray-900 text-white">
                                                                 <td className="px-4 py-3 text-sm font-bold border border-black" colSpan={3}>Ward Total</td>
-                                                                <td className="px-4 py-3 text-sm font-bold text-right border border-black">{ward.totalPoi.toLocaleString()}</td>
-                                                                <td className="px-4 py-3 text-sm font-bold text-right border border-black">{ward.visitedPoi.toLocaleString()}</td>
+                                                                <td className="px-4 py-3 text-sm font-bold text-right border border-black">{wTotal.toLocaleString()}</td>
+                                                                <td className="px-4 py-3 text-sm font-bold text-right border border-black">{wVisited.toLocaleString()}</td>
                                                                 <td className="px-4 py-3 text-right border border-black">
                                                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-white text-gray-900">
-                                                                        {ward.coveragePercentage.toFixed(1)}%
+                                                                        {wCoverage.toFixed(1)}%
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-4 py-3 border border-black"></td>

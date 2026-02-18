@@ -128,11 +128,11 @@ const WARD_TARGETS: WardRecord[] = [
 ];
 
 const VEHICLE_TARGETS: Record<string, number> = {
-    'Primary - Three Wheeler (ER)': 250,
-    'Primary - Auto Tipper': 700,
-    'Primary - Euler Tipper': 700,
+    'Primary - Three Wheeler (ER)': 300,
+    'Primary - Auto Tipper': 800,
+    'Primary - Euler Tipper': 800,
     'Primary - Manual Rickshaw': 200,
-    'Primary - Wheel Barrow': 200
+    'Primary - Wheel Barrow': 120
 };
 
 export const WardKYCCrossCheck: React.FC = () => {
@@ -451,7 +451,7 @@ export const WardKYCCrossCheck: React.FC = () => {
                 </div>
 
                 <div className="bg-white p-4 space-y-6">
-                    {sortedWards.map(ward => {
+                    {sortedWards.map((ward, index) => {
                         const wardRoutes = groupedByWard[ward];
                         const totalRoutes = wardRoutes.length;
                         const totalAssigned = wardRoutes.reduce((acc, curr) => acc + parseInt(curr['Total'] || '0', 10), 0);
@@ -459,104 +459,124 @@ export const WardKYCCrossCheck: React.FC = () => {
                         const target = wardTargets[ward] || 0;
 
                         return (
-                            <div key={ward} className="border border-gray-300 rounded-sm">
-                                <div className="bg-white p-3 flex flex-col md:flex-row justify-between items-center border-b border-gray-300 gap-2">
-                                    <span className="font-bold text-gray-800 uppercase text-sm tracking-wide">{ward}</span>
-                                    <div className="flex flex-wrap gap-3 text-xs font-medium text-gray-600 justify-center">
-                                        <span className="bg-gray-100 px-2 py-1 rounded border border-gray-200">
-                                            Ward Target (KYC): <span className="text-gray-900 font-bold ml-1">{target > 0 ? target.toLocaleString() : 'N/A'}</span>
-                                        </span>
-                                        <span className="bg-gray-100 px-2 py-1 rounded border border-gray-200">
-                                            Assigned POI: <span className="text-blue-700 font-bold ml-1">{totalAssigned.toLocaleString()}</span>
-                                        </span>
-                                        <span className="bg-gray-100 px-2 py-1 rounded border border-gray-200">
-                                            KYC Covered: <span className="text-green-700 font-bold ml-1">{totalKYC.toLocaleString()}</span>
-                                        </span>
-                                        <span className="bg-gray-100 px-2 py-1 rounded border border-gray-200">
-                                            Routes: <span className="text-gray-900 font-bold ml-1">{totalRoutes}</span>
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="p-4 bg-gray-50 border-b border-gray-200">
-                                    <div className="bg-white p-4 border border-blue-100 rounded-lg shadow-sm">
-                                        <h4 className="font-bold text-gray-800 mb-1 text-sm flex items-center gap-2">
-                                            <FileText className="w-4 h-4 text-blue-600" />
-                                            Ward Performance Summary
-                                        </h4>
-                                        <p className="text-sm text-gray-600 leading-relaxed">
-                                            Ward <strong>{ward}</strong> has a total target of <strong>{target.toLocaleString()}</strong> households.
-                                            Currently, <strong>{totalKYC.toLocaleString()}</strong> KYCs are completed on routes ({target > 0 ? ((totalKYC / target) * 100).toFixed(1) : '0'}% of Ward Target).
-                                            <br />
-                                            Route Assignment: <strong>{totalAssigned.toLocaleString()}</strong> assigned vs <strong>{target.toLocaleString()}</strong> target (Gap: {target - totalAssigned > 0 ? (target - totalAssigned).toLocaleString() : '0'}).
-
-                                            <span className="block mt-2 font-medium text-blue-800 bg-blue-50 p-2 rounded border border-blue-100">
-                                                {target > totalKYC ? (
-                                                    <>
-                                                        <span className="font-bold text-red-600">Action Required: </span>
-                                                        We have to increase the KYC in this ward by <strong>{(target - totalKYC).toLocaleString()}</strong> so we can assign them on route to complete the route KYC count.
-                                                    </>
-                                                ) : (
-                                                    <span className="text-green-700">Ward KYC Target Met. Ensure all are correctly assigned to routes.</span>
-                                                )}
-                                                {(target - totalAssigned) > 0 && (
-                                                    <span className="block mt-1 text-orange-700">
-                                                        Also need to assign <strong>{(target - totalAssigned).toLocaleString()}</strong> more households to routes to cover the full ward.
-                                                    </span>
-                                                )}
-                                            </span>
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm text-left">
-                                        <thead className="text-xs text-black border-b border-gray-300 bg-white">
-                                            <tr>
-                                                <th className="px-4 py-2 border-r border-gray-300 w-12 text-center">S.No.</th>
-                                                <th className="px-4 py-2 border-r border-gray-300">Route Name</th>
-                                                <th className="px-4 py-2 border-r border-gray-300">Vehicle Number</th>
-                                                <th className="px-4 py-2 border-r border-gray-300">Vehicle Type</th>
-                                                <th className="px-4 py-2 border-r border-gray-300 text-center text-blue-800 font-bold">Target</th>
-                                                <th className="px-4 py-2 border-r border-gray-300 text-center">Assigned POI</th>
-                                                <th className="px-4 py-2 border-r border-gray-300 text-center">KYC Covered</th>
-                                                <th className="px-4 py-2 border-r border-gray-300 text-center">Coverage</th>
-                                                <th className="px-4 py-2 text-center">Remark</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-300">
-                                            {groupedByWard[ward].map((row, idx) => {
-                                                const vType = row['Vehicle Type']?.trim();
-                                                const minTarget = targets[vType] || 700;
-                                                const total = parseInt(row['Total'] || '0', 10);
-                                                const gap = minTarget - total;
-
-                                                return (
-                                                    <tr key={idx} className="hover:bg-gray-50">
-                                                        <td className="px-4 py-2 border-r border-gray-300 text-center">{idx + 1}</td>
-                                                        <td className="px-4 py-2 border-r border-gray-300 font-medium text-gray-900">{row['Route Name']}</td>
-                                                        <td className="px-4 py-2 border-r border-gray-300 text-gray-600">{row['Vehicle Number']}</td>
-                                                        <td className="px-4 py-2 border-r border-gray-300 text-gray-700">{row['Vehicle Type']}</td>
-                                                        <td className="px-4 py-2 border-r border-gray-300 text-center font-mono font-bold text-blue-800">{minTarget}</td>
-                                                        <td className="px-4 py-2 border-r border-gray-300 text-center font-mono font-bold">{row['Total']}</td>
-                                                        <td className="px-4 py-2 border-r border-gray-300 text-center font-mono font-bold text-green-700">{row['Covered']}</td>
-                                                        <td className="px-4 py-2 border-r border-gray-300 text-center text-gray-600 font-medium">{row['Coverage']}%</td>
-                                                        <td className="px-4 py-2 text-center text-xs font-bold w-48">
-                                                            {gap > 0 ? (
-                                                                <span className="text-red-600 bg-red-50 px-2 py-1 rounded block text-center border border-red-100">
-                                                                    Action Required: Increase KYC to assign {gap} more to route.
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-green-700 bg-green-50 px-2 py-1 rounded block text-center">
-                                                                    Target Met
-                                                                </span>
-                                                            )}
-                                                        </td>
+                            <React.Fragment key={ward}>
+                                <div className="border border-gray-300 rounded-sm shadow-sm bg-white">
+                                    <div className="bg-white p-3 flex flex-col md:flex-row justify-center items-center border-b border-gray-300 gap-8">
+                                        <span className="font-black text-blue-900 uppercase text-xl tracking-wider border-l-4 border-blue-600 pl-3 py-1">{ward}</span>
+                                        <div className="overflow-hidden rounded-md border border-gray-200 shadow-sm">
+                                            <table className="text-xs text-center bg-white divide-y divide-gray-200">
+                                                <thead className="bg-gray-50 text-gray-500 uppercase font-bold tracking-wider">
+                                                    <tr className="divide-x divide-gray-200">
+                                                        <th className="px-3 py-1.5">Ward Target</th>
+                                                        <th className="px-3 py-1.5">Assigned POI</th>
+                                                        <th className="px-3 py-1.5">Left to Assign</th>
+                                                        <th className="px-3 py-1.5">KYC Covered</th>
+                                                        <th className="px-3 py-1.5">Routes</th>
                                                     </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
+                                                </thead>
+                                                <tbody className="divide-x divide-gray-200 font-mono">
+                                                    <tr>
+                                                        <td className="px-3 py-1.5 font-bold text-gray-900">{target > 0 ? target.toLocaleString() : 'N/A'}</td>
+                                                        <td className="px-3 py-1.5 font-bold text-blue-700">{totalAssigned.toLocaleString()}</td>
+                                                        <td className="px-3 py-1.5 font-bold text-red-600">{(target - totalAssigned > 0 ? target - totalAssigned : 0).toLocaleString()}</td>
+                                                        <td className="px-3 py-1.5 font-bold text-green-700">{totalKYC.toLocaleString()}</td>
+                                                        <td className="px-3 py-1.5 font-bold text-gray-800">{totalRoutes}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div className="p-4 bg-gray-50 border-b border-gray-200">
+                                        <div className="bg-white p-4 border border-blue-100 rounded-lg shadow-sm">
+                                            <h4 className="font-bold text-gray-800 mb-1 text-sm flex items-center gap-2">
+                                                <FileText className="w-4 h-4 text-blue-600" />
+                                                Ward Performance Summary
+                                            </h4>
+                                            <p className="text-sm text-gray-600 leading-relaxed">
+                                                Ward <strong>{ward}</strong> has a total target of <strong>{target.toLocaleString()}</strong> households.
+                                                Currently, <strong>{totalKYC.toLocaleString()}</strong> KYCs are completed on routes ({target > 0 ? ((totalKYC / target) * 100).toFixed(1) : '0'}% of Ward Target).
+                                                <br />
+                                                Route Assignment: <strong>{totalAssigned.toLocaleString()}</strong> assigned vs <strong>{target.toLocaleString()}</strong> target (Gap: {target - totalAssigned > 0 ? (target - totalAssigned).toLocaleString() : '0'}).
+
+                                                <span className="block mt-2 font-medium text-blue-800 bg-blue-50 p-2 rounded border border-blue-100">
+                                                    {target > totalKYC ? (
+                                                        <>
+                                                            <span className="font-bold text-red-600">Action Required: </span>
+                                                            We have to increase the KYC in this ward by <strong>{(target - totalKYC).toLocaleString()}</strong> so we can assign them on route to complete the route KYC count.
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-green-700">Ward KYC Target Met. Ensure all are correctly assigned to routes.</span>
+                                                    )}
+                                                    {(target - totalAssigned) > 0 && (
+                                                        <span className="block mt-1 text-orange-700">
+                                                            Also need to assign <strong>{(target - totalAssigned).toLocaleString()}</strong> more households to routes to cover the full ward.
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="text-xs text-black border-b border-gray-300 bg-white">
+                                                <tr>
+                                                    <th className="px-4 py-2 border-r border-gray-300 w-12 text-center">S.No.</th>
+                                                    <th className="px-4 py-2 border-r border-gray-300">Route Name</th>
+                                                    <th className="px-4 py-2 border-r border-gray-300">Vehicle Number</th>
+                                                    <th className="px-4 py-2 border-r border-gray-300">Vehicle Type</th>
+                                                    <th className="px-4 py-2 border-r border-gray-300 text-center text-blue-800 font-bold">Target</th>
+                                                    <th className="px-4 py-2 border-r border-gray-300 text-center">Assigned POI</th>
+                                                    <th className="px-4 py-2 border-r border-gray-300 text-center text-red-600">Left to Assign</th>
+                                                    <th className="px-4 py-2 border-r border-gray-300 text-center">KYC Covered</th>
+                                                    <th className="px-4 py-2 border-r border-gray-300 text-center">Coverage</th>
+                                                    <th className="px-4 py-2 text-center">Remark</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-300">
+                                                {groupedByWard[ward].map((row, idx) => {
+                                                    const vType = row['Vehicle Type']?.trim();
+                                                    const minTarget = targets[vType] || 700;
+                                                    const total = parseInt(row['Total'] || '0', 10);
+                                                    const gap = minTarget - total;
+
+                                                    return (
+                                                        <tr key={idx} className="hover:bg-gray-50">
+                                                            <td className="px-4 py-2 border-r border-gray-300 text-center">{idx + 1}</td>
+                                                            <td className="px-4 py-2 border-r border-gray-300 font-medium text-gray-900">{row['Route Name']}</td>
+                                                            <td className="px-4 py-2 border-r border-gray-300 text-gray-600">{row['Vehicle Number']}</td>
+                                                            <td className="px-4 py-2 border-r border-gray-300 text-gray-700">{row['Vehicle Type']}</td>
+                                                            <td className="px-4 py-2 border-r border-gray-300 text-center font-mono font-bold text-blue-800">{minTarget}</td>
+                                                            <td className="px-4 py-2 border-r border-gray-300 text-center font-mono font-bold">{row['Total']}</td>
+                                                            <td className="px-4 py-2 border-r border-gray-300 text-center font-mono font-bold text-red-600">{gap > 0 ? gap : 0}</td>
+                                                            <td className="px-4 py-2 border-r border-gray-300 text-center font-mono font-bold text-green-700">{row['Covered']}</td>
+                                                            <td className="px-4 py-2 border-r border-gray-300 text-center text-gray-600 font-medium">{row['Coverage']}%</td>
+                                                            <td className="px-4 py-2 text-center text-xs font-bold w-48">
+                                                                {gap > 0 ? (
+                                                                    <span className="text-red-600 bg-red-50 px-2 py-1 rounded block text-center border border-red-100">
+                                                                        Action Required: Increase KYC to assign {gap} more to route.
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-green-700 bg-green-50 px-2 py-1 rounded block text-center">
+                                                                        Target Met
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                            </div>
+                                {index < sortedWards.length - 1 && (
+                                    <div className="relative py-8 flex items-center justify-center">
+                                        <div className="w-full border-t-4 border-double border-gray-300 absolute"></div>
+                                        <span className="relative bg-white px-4 text-xs font-black text-gray-400 uppercase tracking-widest border border-gray-200 rounded-full py-1 shadow-sm z-10">
+                                            End of {ward} Data
+                                        </span>
+                                    </div>
+                                )}
+                            </React.Fragment>
                         );
                     })}
                     {sortedWards.length === 0 && (

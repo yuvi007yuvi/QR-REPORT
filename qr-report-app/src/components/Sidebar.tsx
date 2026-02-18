@@ -42,6 +42,7 @@ export type ViewMode =
     | 'coverage-all-wards'
     | 'coverage-mapping' // Added back
     | 'coverage-date-wise'
+    | 'coverage-supervisor-wards' // Supervisor Wards Coverage Report
     | 'vehicle-change-report' // Added
     | 'poi-ward-monthly' // New Report
     | 'varun-adopted-wards' // Adopted Wards
@@ -139,6 +140,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 { id: 'coverage-supervisor', label: 'Supervisor Report', icon: Users },
                 { id: 'coverage-ward', label: 'Ward Wise Report (KYC)', icon: Building2 },
                 { id: 'poi-ward-monthly', label: 'Ward POI Monthly', icon: FileSpreadsheet },
+                { id: 'coverage-supervisor-wards', label: 'Supervisor Wards Coverage', icon: Users },
                 { id: 'varun-adopted-wards', label: 'Adopted Wards (Varun)', icon: Building2 },
                 { id: 'coverage-all-wards', label: 'All Wards Summary', icon: FileSpreadsheet },
                 { id: 'coverage-mapping', label: 'POI Mapping', icon: Map },

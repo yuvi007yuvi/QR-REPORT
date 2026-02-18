@@ -11,6 +11,7 @@ interface WardDetail {
     wardName: string;
     wardNumber: string;
     vehicles: { vehicleNumber: string; vehicleType: string; routeName: string; total: number; covered: number; coverage: number }[];
+    wardKycPoi: number;
     totalPoi: number;
     visitedPoi: number;
     coveragePercentage: number;
@@ -21,6 +22,7 @@ interface SupervisorSection {
     supervisor: string;
     zonal: string;
     wards: WardDetail[];
+    wardKycPoi: number;
     totalPoi: number;
     visitedPoi: number;
     coveragePercentage: number;
@@ -36,6 +38,7 @@ const SupervisorWardsCoverageReport: React.FC = () => {
     const [selectedWards, setSelectedWards] = useState<Set<string>>(new Set());
     const [wardDropdownOpen, setWardDropdownOpen] = useState(false);
     const wardDropdownRef = useRef<HTMLDivElement>(null);
+    const [kycWardData, setKycWardData] = useState<Record<string, number>>({});
 
     // Close ward dropdown on outside click
     useEffect(() => {
@@ -51,6 +54,21 @@ const SupervisorWardsCoverageReport: React.FC = () => {
     const extractWardNumber = (wardStr: string): string => {
         const match = wardStr.match(/(\d+)/);
         return match ? String(parseInt(match[0], 10)) : '';
+    };
+
+    // Capacity/KYC Target per vehicle type
+    const getCapacityTarget = (vehicleType: string): number => {
+        const t = vehicleType.toUpperCase();
+        if (t.includes('MANUAL RICKSHAW') || t.includes('WHEEL BARROW')) return 200;
+        if (t.includes('3 WHEELER') || t.includes('THREE WHEELER')) return 250;
+        // Auto Tipper, Euler Tipper, 4 Wheeler all get 700
+        return 700;
+    };
+
+    const getVehicleRemark = (vehicleType: string, onRoute: number): { text: string; isOk: boolean } => {
+        const target = getCapacityTarget(vehicleType);
+        if (onRoute >= target) return { text: `\u2713 OK (${target})`, isOk: true };
+        return { text: `\u26A0 Low (${onRoute}/${target})`, isOk: false };
     };
 
     const getSupervisorInfo = (wardName: string) => {
@@ -122,6 +140,7 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                     wardName: ward.wardName,
                     wardNumber: extractWardNumber(ward.wardName),
                     vehicles: ward.vehicles.sort((a, b) => b.coverage - a.coverage),
+                    wardKycPoi: 0,
                     totalPoi: ward.totalPoi,
                     visitedPoi: ward.visitedPoi,
                     coveragePercentage: ward.totalPoi > 0 ? (ward.visitedPoi / ward.totalPoi) * 100 : 0
@@ -135,6 +154,7 @@ const SupervisorWardsCoverageReport: React.FC = () => {
             const result: SupervisorSection[] = Object.values(supervisorMap).map(s => ({
                 ...s,
                 wards: s.wards.sort((a, b) => parseInt(a.wardNumber) - parseInt(b.wardNumber)),
+                wardKycPoi: 0,
                 coveragePercentage: s.totalPoi > 0 ? (s.visitedPoi / s.totalPoi) * 100 : 0
             }));
 
@@ -147,15 +167,53 @@ const SupervisorWardsCoverageReport: React.FC = () => {
             // Expand all by default
             setExpandedSupervisors(new Set(result.map(s => s.supervisor)));
         } catch (error) {
-            console.error(error);
+            console.error('Error processing file:', error);
             alert('Error processing file');
         } finally {
             setLoading(false);
         }
     };
 
+    // Handle KYC By Wards CSV upload
+    const handleKycUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(buffer);
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData: any[] = XLSX.utils.sheet_to_json(sheet);
+
+            const kycMap: Record<string, number> = {};
+            jsonData.forEach((row: any) => {
+                const wardNum = String(row['Ward Name'] || '').trim();
+                const customerCount = Number(row['Customer Count'] || 0);
+                if (wardNum) {
+                    kycMap[wardNum] = customerCount;
+                }
+            });
+            setKycWardData(kycMap);
+        } catch (err) {
+            console.error('Error processing KYC file:', err);
+            alert('Error processing KYC file');
+        }
+    };
+
     const hasData = sections.length > 0;
     const zonals = useMemo(() => Array.from(new Set(sections.map(s => s.zonal))).sort(), [sections]);
+
+    // Merge KYC data into sections
+    const sectionsWithKyc = useMemo(() => {
+        if (Object.keys(kycWardData).length === 0) return sections;
+        return sections.map(s => {
+            const wards = s.wards.map(w => {
+                const kycPoi = kycWardData[w.wardNumber] || 0;
+                return { ...w, wardKycPoi: kycPoi };
+            });
+            const totalKyc = wards.reduce((sum, w) => sum + w.wardKycPoi, 0);
+            return { ...s, wards, wardKycPoi: totalKyc };
+        });
+    }, [sections, kycWardData]);
 
     // All unique ward numbers for the multi-select dropdown
     const allWardNumbers = useMemo(() => {
@@ -181,7 +239,7 @@ const SupervisorWardsCoverageReport: React.FC = () => {
     };
 
     const filteredSections = useMemo(() => {
-        return sections.filter(s => {
+        return sectionsWithKyc.filter(s => {
             const matchesSearch = s.supervisor.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 s.wards.some(w => w.wardName.toLowerCase().includes(searchTerm.toLowerCase()) || w.wardNumber.includes(searchTerm));
             const matchesZonal = selectedZonal === 'All' || s.zonal === selectedZonal;
@@ -193,11 +251,11 @@ const SupervisorWardsCoverageReport: React.FC = () => {
             if (selectedWards.size === 0) return s;
             return { ...s, wards: s.wards.filter(w => selectedWards.has(w.wardNumber)) };
         });
-    }, [sections, searchTerm, selectedZonal, selectedWards]);
+    }, [sectionsWithKyc, searchTerm, selectedZonal, selectedWards]);
 
     // Ward-wise flat list for ward view mode
     const wardSections = useMemo(() => {
-        const allWards: { wardName: string; wardNumber: string; supervisor: string; zonal: string; vehicles: { vehicleNumber: string; vehicleType: string; routeName: string; total: number; covered: number; coverage: number }[]; totalPoi: number; visitedPoi: number; coveragePercentage: number }[] = [];
+        const allWards: { wardName: string; wardNumber: string; supervisor: string; zonal: string; vehicles: { vehicleNumber: string; vehicleType: string; routeName: string; total: number; covered: number; coverage: number }[]; wardKycPoi: number; totalPoi: number; visitedPoi: number; coveragePercentage: number }[] = [];
         filteredSections.forEach(s => {
             s.wards.forEach(w => {
                 allWards.push({ ...w, supervisor: s.supervisor, zonal: s.zonal });
@@ -242,9 +300,11 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                 'Vehicle': '',
                 'Vehicle Type': '',
                 'Route': '',
-                'Total POI': section.totalPoi,
-                'Visited POI': section.visitedPoi,
-                'Coverage %': `${section.coveragePercentage.toFixed(1)}%`
+                'Ward POI': section.wardKycPoi || '',
+                'On Route': section.totalPoi,
+                'Visited': section.visitedPoi,
+                'Coverage %': `${section.coveragePercentage.toFixed(1)}%`,
+                'Remark': ''
             });
             section.wards.forEach(ward => {
                 ward.vehicles.forEach((v, vi) => {
@@ -256,9 +316,11 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                         'Vehicle': v.vehicleNumber,
                         'Vehicle Type': v.vehicleType,
                         'Route': v.routeName,
-                        'Total POI': v.total,
-                        'Visited POI': v.covered,
-                        'Coverage %': `${v.coverage.toFixed(1)}%`
+                        'Ward POI': vi === 0 ? (ward.wardKycPoi || '') : '',
+                        'On Route': v.total,
+                        'Visited': v.covered,
+                        'Coverage %': `${v.coverage.toFixed(1)}%`,
+                        'Remark': v.vehicleType ? (getVehicleRemark(v.vehicleType, v.total).isOk ? `OK (${getCapacityTarget(v.vehicleType)})` : `Low (${v.total}/${getCapacityTarget(v.vehicleType)})`) : ''
                     });
                 });
                 // Ward subtotal
@@ -270,9 +332,11 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                     'Vehicle': '',
                     'Vehicle Type': '',
                     'Route': '',
-                    'Total POI': ward.totalPoi,
-                    'Visited POI': ward.visitedPoi,
-                    'Coverage %': `${ward.coveragePercentage.toFixed(1)}%`
+                    'Ward POI': ward.wardKycPoi || '',
+                    'On Route': ward.totalPoi,
+                    'Visited': ward.visitedPoi,
+                    'Coverage %': `${ward.coveragePercentage.toFixed(1)}%`,
+                    'Remark': ''
                 });
             });
             // Empty separator row
@@ -317,22 +381,24 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                     v.vehicleNumber,
                     v.vehicleType,
                     v.routeName,
+                    vi === 0 ? (ward.wardKycPoi || '-') : '',
                     v.total,
                     v.covered,
-                    `${v.coverage.toFixed(1)}%`
+                    `${v.coverage.toFixed(1)}%`,
+                    v.vehicleType ? (getVehicleRemark(v.vehicleType, v.total).isOk ? `OK` : `Low (${v.total}/${getCapacityTarget(v.vehicleType)})`) : ''
                 ])
             );
 
             autoTable(doc, {
-                head: [['Ward', 'Vehicle', 'Type', 'Route', 'Total', 'Visited', 'Coverage']],
+                head: [['Ward', 'Vehicle', 'Type', 'Route', 'Ward POI', 'On Route', 'Visited', 'Coverage', 'Remark']],
                 body: tableRows,
                 startY,
                 theme: 'grid',
-                styles: { fontSize: 7, cellPadding: 2 },
-                headStyles: { fillColor: [52, 73, 94], fontSize: 7 },
-                margin: { left: 14, right: 14 },
+                styles: { fontSize: 6, cellPadding: 2 },
+                headStyles: { fillColor: [52, 73, 94], fontSize: 6 },
+                margin: { left: 10, right: 10 },
                 didParseCell: (data) => {
-                    if (data.section === 'body' && data.column.index === 6) {
+                    if (data.section === 'body' && data.column.index === 7) {
                         const val = parseFloat(data.cell.raw as string);
                         if (val < 50) data.cell.styles.textColor = [220, 38, 38];
                         else if (val < 80) data.cell.styles.textColor = [217, 119, 6];
@@ -383,7 +449,12 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                     )}
 
                     {hasData && (
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 items-center">
+                            <label className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors shadow-sm cursor-pointer">
+                                <Upload className="w-4 h-4" />
+                                {Object.keys(kycWardData).length > 0 ? 'KYC ✓' : 'KYC File'}
+                                <input type="file" className="hidden" accept=".csv,.xlsx,.xls" onChange={handleKycUpload} />
+                            </label>
                             <button onClick={expandAll} className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">Expand All</button>
                             <button onClick={collapseAll} className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">Collapse All</button>
                             <button onClick={exportToExcel} className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors shadow-sm">
@@ -392,7 +463,7 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                             <button onClick={exportToPDF} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors shadow-sm">
                                 <Download className="w-4 h-4" /> PDF
                             </button>
-                            <button onClick={() => setSections([])} className="flex items-center gap-1.5 px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-sm">
+                            <button onClick={() => { setSections([]); setKycWardData({}); }} className="flex items-center gap-1.5 px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-sm">
                                 <Trash2 className="w-4 h-4" /> Clear
                             </button>
                         </div>
@@ -532,8 +603,8 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                                                 </div>
                                                 <div className="flex items-center gap-4">
                                                     <div className="text-right hidden md:block">
-                                                        <div className="text-xs text-gray-500">Total / Visited</div>
-                                                        <div className="text-sm font-semibold text-gray-800">{section.totalPoi.toLocaleString()} / {section.visitedPoi.toLocaleString()}</div>
+                                                        <div className="text-xs text-gray-500">Ward POI / On Route / Visited</div>
+                                                        <div className="text-sm font-semibold text-gray-800">{section.wardKycPoi > 0 ? section.wardKycPoi.toLocaleString() : '-'} / {section.totalPoi.toLocaleString()} / {section.visitedPoi.toLocaleString()}</div>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -548,17 +619,19 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                                             </div>
 
                                             {isExpanded && (
-                                                <div className="border-t border-gray-200">
-                                                    <table className="w-full text-left border-collapse">
+                                                <div className="border-t border-black">
+                                                    <table className="w-full text-left border-collapse border border-black">
                                                         <thead>
                                                             <tr className="bg-gray-800 text-white">
-                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider">Ward</th>
-                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider">Vehicle</th>
-                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider">Type</th>
-                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider">Route</th>
-                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-right">Total</th>
-                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-right">Visited</th>
-                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-right">Coverage</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border border-black">Ward</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border border-black">Vehicle</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border border-black">Type</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border border-black">Route</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-right border border-black">Ward POI</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-right border border-black">On Route</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-right border border-black">Visited</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-right border border-black">Coverage</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border border-black">Remark</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -567,44 +640,56 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                                                                     {ward.vehicles.map((v, vi) => {
                                                                         const vColors = getCoverageColor(v.coverage);
                                                                         return (
-                                                                            <tr key={`${ward.wardName}-${vi}`} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                                                                <td className="px-4 py-2 text-sm">
+                                                                            <tr key={`${ward.wardName}-${vi}`} className="hover:bg-gray-50 transition-colors">
+                                                                                <td className="px-4 py-2 text-sm border border-black">
                                                                                     {vi === 0 ? <span className="font-semibold text-gray-900">{ward.wardName}</span> : null}
                                                                                 </td>
-                                                                                <td className="px-4 py-2 text-sm text-gray-700 font-mono">{v.vehicleNumber || '-'}</td>
-                                                                                <td className="px-4 py-2 text-sm text-gray-500 text-xs">{v.vehicleType || '-'}</td>
-                                                                                <td className="px-4 py-2 text-sm text-gray-500">{v.routeName}</td>
-                                                                                <td className="px-4 py-2 text-sm text-gray-900 text-right font-medium">{v.total}</td>
-                                                                                <td className="px-4 py-2 text-sm text-gray-900 text-right font-medium">{v.covered}</td>
-                                                                                <td className="px-4 py-2 text-right">
+                                                                                <td className="px-4 py-2 text-sm text-gray-700 font-mono border border-black">{v.vehicleNumber || '-'}</td>
+                                                                                <td className="px-4 py-2 text-sm text-gray-500 text-xs border border-black">{v.vehicleType || '-'}</td>
+                                                                                <td className="px-4 py-2 text-sm text-gray-500 border border-black">{v.routeName}</td>
+                                                                                <td className="px-4 py-2 text-sm text-gray-900 text-right font-medium border border-black">{vi === 0 && ward.wardKycPoi > 0 ? ward.wardKycPoi.toLocaleString() : vi === 0 ? '-' : ''}</td>
+                                                                                <td className="px-4 py-2 text-sm text-gray-900 text-right font-medium border border-black">{v.total}</td>
+                                                                                <td className="px-4 py-2 text-sm text-gray-900 text-right font-medium border border-black">{v.covered}</td>
+                                                                                <td className="px-4 py-2 text-right border border-black">
                                                                                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${vColors.bg} ${vColors.text}`}>
                                                                                         {v.coverage.toFixed(1)}%
                                                                                     </span>
                                                                                 </td>
+                                                                                {(() => {
+                                                                                    const remark = getVehicleRemark(v.vehicleType, v.total); return (
+                                                                                        <td className={`px-4 py-2 text-xs font-semibold border border-black ${remark.isOk ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50'}`}>
+                                                                                            {remark.text}
+                                                                                        </td>
+                                                                                    );
+                                                                                })()}
                                                                             </tr>
                                                                         );
                                                                     })}
-                                                                    <tr className="bg-blue-50 border-b-2 border-blue-200">
-                                                                        <td className="px-4 py-2 text-xs font-bold text-blue-800" colSpan={4}>Ward {ward.wardNumber} Subtotal</td>
-                                                                        <td className="px-4 py-2 text-xs font-bold text-blue-800 text-right">{ward.totalPoi}</td>
-                                                                        <td className="px-4 py-2 text-xs font-bold text-blue-800 text-right">{ward.visitedPoi}</td>
-                                                                        <td className="px-4 py-2 text-right">
+                                                                    <tr className="bg-blue-50">
+                                                                        <td className="px-4 py-2 text-xs font-bold text-blue-800 border border-black" colSpan={4}>Ward {ward.wardNumber} Subtotal</td>
+                                                                        <td className="px-4 py-2 text-xs font-bold text-blue-800 text-right border border-black">{ward.wardKycPoi > 0 ? ward.wardKycPoi.toLocaleString() : '-'}</td>
+                                                                        <td className="px-4 py-2 text-xs font-bold text-blue-800 text-right border border-black">{ward.totalPoi}</td>
+                                                                        <td className="px-4 py-2 text-xs font-bold text-blue-800 text-right border border-black">{ward.visitedPoi}</td>
+                                                                        <td className="px-4 py-2 text-right border border-black">
                                                                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${getCoverageColor(ward.coveragePercentage).bg} ${getCoverageColor(ward.coveragePercentage).text}`}>
                                                                                 {ward.coveragePercentage.toFixed(1)}%
                                                                             </span>
                                                                         </td>
+                                                                        <td className="px-4 py-2 border border-black"></td>
                                                                     </tr>
                                                                 </React.Fragment>
                                                             ))}
                                                             <tr className="bg-gray-900 text-white">
-                                                                <td className="px-4 py-3 text-sm font-bold" colSpan={4}>{section.supervisor} — Grand Total</td>
-                                                                <td className="px-4 py-3 text-sm font-bold text-right">{section.totalPoi.toLocaleString()}</td>
-                                                                <td className="px-4 py-3 text-sm font-bold text-right">{section.visitedPoi.toLocaleString()}</td>
-                                                                <td className="px-4 py-3 text-right">
+                                                                <td className="px-4 py-3 text-sm font-bold border border-black" colSpan={4}>{section.supervisor} — Grand Total</td>
+                                                                <td className="px-4 py-3 text-sm font-bold text-right border border-black">{section.wardKycPoi > 0 ? section.wardKycPoi.toLocaleString() : '-'}</td>
+                                                                <td className="px-4 py-3 text-sm font-bold text-right border border-black">{section.totalPoi.toLocaleString()}</td>
+                                                                <td className="px-4 py-3 text-sm font-bold text-right border border-black">{section.visitedPoi.toLocaleString()}</td>
+                                                                <td className="px-4 py-3 text-right border border-black">
                                                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-white text-gray-900">
                                                                         {section.coveragePercentage.toFixed(1)}%
                                                                     </span>
                                                                 </td>
+                                                                <td className="px-4 py-3 border border-black"></td>
                                                             </tr>
                                                         </tbody>
                                                     </table>
@@ -641,8 +726,8 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                                                 </div>
                                                 <div className="flex items-center gap-4">
                                                     <div className="text-right hidden md:block">
-                                                        <div className="text-xs text-gray-500">Total / Visited</div>
-                                                        <div className="text-sm font-semibold text-gray-800">{ward.totalPoi.toLocaleString()} / {ward.visitedPoi.toLocaleString()}</div>
+                                                        <div className="text-xs text-gray-500">Ward POI / On Route / Visited</div>
+                                                        <div className="text-sm font-semibold text-gray-800">{ward.wardKycPoi > 0 ? ward.wardKycPoi.toLocaleString() : '-'} / {ward.totalPoi.toLocaleString()} / {ward.visitedPoi.toLocaleString()}</div>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -657,45 +742,54 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                                             </div>
 
                                             {isExpanded && (
-                                                <div className="border-t border-gray-200">
-                                                    <table className="w-full text-left border-collapse">
+                                                <div className="border-t border-black">
+                                                    <table className="w-full text-left border-collapse border border-black">
                                                         <thead>
                                                             <tr className="bg-gray-800 text-white">
-                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider">Vehicle</th>
-                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider">Type</th>
-                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider">Route</th>
-                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-right">Total</th>
-                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-right">Visited</th>
-                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-right">Coverage</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border border-black">Vehicle</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border border-black">Type</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border border-black">Route</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-right border border-black">On Route</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-right border border-black">Visited</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-right border border-black">Coverage</th>
+                                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border border-black">Remark</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
                                                             {ward.vehicles.map((v, vi) => {
                                                                 const vColors = getCoverageColor(v.coverage);
                                                                 return (
-                                                                    <tr key={vi} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                                                        <td className="px-4 py-2 text-sm text-gray-700 font-mono">{v.vehicleNumber || '-'}</td>
-                                                                        <td className="px-4 py-2 text-sm text-gray-500 text-xs">{v.vehicleType || '-'}</td>
-                                                                        <td className="px-4 py-2 text-sm text-gray-500">{v.routeName}</td>
-                                                                        <td className="px-4 py-2 text-sm text-gray-900 text-right font-medium">{v.total}</td>
-                                                                        <td className="px-4 py-2 text-sm text-gray-900 text-right font-medium">{v.covered}</td>
-                                                                        <td className="px-4 py-2 text-right">
+                                                                    <tr key={vi} className="hover:bg-gray-50 transition-colors">
+                                                                        <td className="px-4 py-2 text-sm text-gray-700 font-mono border border-black">{v.vehicleNumber || '-'}</td>
+                                                                        <td className="px-4 py-2 text-sm text-gray-500 text-xs border border-black">{v.vehicleType || '-'}</td>
+                                                                        <td className="px-4 py-2 text-sm text-gray-500 border border-black">{v.routeName}</td>
+                                                                        <td className="px-4 py-2 text-sm text-gray-900 text-right font-medium border border-black">{v.total}</td>
+                                                                        <td className="px-4 py-2 text-sm text-gray-900 text-right font-medium border border-black">{v.covered}</td>
+                                                                        <td className="px-4 py-2 text-right border border-black">
                                                                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${vColors.bg} ${vColors.text}`}>
                                                                                 {v.coverage.toFixed(1)}%
                                                                             </span>
                                                                         </td>
+                                                                        {(() => {
+                                                                            const remark = getVehicleRemark(v.vehicleType, v.total); return (
+                                                                                <td className={`px-4 py-2 text-xs font-semibold border border-black ${remark.isOk ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50'}`}>
+                                                                                    {remark.text}
+                                                                                </td>
+                                                                            );
+                                                                        })()}
                                                                     </tr>
                                                                 );
                                                             })}
                                                             <tr className="bg-gray-900 text-white">
-                                                                <td className="px-4 py-3 text-sm font-bold" colSpan={3}>Ward Total</td>
-                                                                <td className="px-4 py-3 text-sm font-bold text-right">{ward.totalPoi.toLocaleString()}</td>
-                                                                <td className="px-4 py-3 text-sm font-bold text-right">{ward.visitedPoi.toLocaleString()}</td>
-                                                                <td className="px-4 py-3 text-right">
+                                                                <td className="px-4 py-3 text-sm font-bold border border-black" colSpan={3}>Ward Total</td>
+                                                                <td className="px-4 py-3 text-sm font-bold text-right border border-black">{ward.totalPoi.toLocaleString()}</td>
+                                                                <td className="px-4 py-3 text-sm font-bold text-right border border-black">{ward.visitedPoi.toLocaleString()}</td>
+                                                                <td className="px-4 py-3 text-right border border-black">
                                                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-white text-gray-900">
                                                                         {ward.coveragePercentage.toFixed(1)}%
                                                                     </span>
                                                                 </td>
+                                                                <td className="px-4 py-3 border border-black"></td>
                                                             </tr>
                                                         </tbody>
                                                     </table>

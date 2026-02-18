@@ -39,6 +39,7 @@ const SupervisorWardsCoverageReport: React.FC = () => {
     const [wardDropdownOpen, setWardDropdownOpen] = useState(false);
     const wardDropdownRef = useRef<HTMLDivElement>(null);
     const [kycWardData, setKycWardData] = useState<Record<string, number>>({});
+    const [selectedVehicleType, setSelectedVehicleType] = useState<string>('All');
 
     // Close ward dropdown on outside click
     useEffect(() => {
@@ -108,7 +109,7 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                 const wardName = String(row['Ward Name'] || '').trim();
                 if (!wardName) return;
                 const vehicleNumber = String(row['Vehicle Number'] || '').trim();
-                const vehicleType = String(row['Vehicle Type'] || '').trim().replace('Primary - ', '');
+                const vehicleType = String(row['Vehicle Type'] || '').trim();
                 const routeName = String(row['Route Name'] || '').trim();
                 const total = Number(row['Total'] || 0);
                 const covered = Number(row['Covered'] || 0);
@@ -229,6 +230,15 @@ const SupervisorWardsCoverageReport: React.FC = () => {
         return wards;
     }, [sections]);
 
+    // All unique vehicle types for the filter
+    const allVehicleTypes = useMemo(() => {
+        const types = new Set<string>();
+        sections.forEach(s => s.wards.forEach(w => w.vehicles.forEach(v => {
+            if (v.vehicleType) types.add(v.vehicleType);
+        })));
+        return Array.from(types).sort();
+    }, [sections]);
+
     const toggleWardSelection = (wardNum: string) => {
         setSelectedWards(prev => {
             const next = new Set(prev);
@@ -243,15 +253,25 @@ const SupervisorWardsCoverageReport: React.FC = () => {
             const matchesSearch = s.supervisor.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 s.wards.some(w => w.wardName.toLowerCase().includes(searchTerm.toLowerCase()) || w.wardNumber.includes(searchTerm));
             const matchesZonal = selectedZonal === 'All' || s.zonal === selectedZonal;
-            // Ward filter: if wards selected, supervisor must have at least one matching ward
             const matchesWard = selectedWards.size === 0 || s.wards.some(w => selectedWards.has(w.wardNumber));
-            return matchesSearch && matchesZonal && matchesWard;
+            // Vehicle type filter: supervisor must have at least one vehicle matching
+            const matchesVType = selectedVehicleType === 'All' || s.wards.some(w => w.vehicles.some(v => v.vehicleType === selectedVehicleType));
+            return matchesSearch && matchesZonal && matchesWard && matchesVType;
         }).map(s => {
-            // If ward filter active, also filter the wards inside each supervisor section
-            if (selectedWards.size === 0) return s;
-            return { ...s, wards: s.wards.filter(w => selectedWards.has(w.wardNumber)) };
+            let wards = s.wards;
+            // If ward filter active, filter wards
+            if (selectedWards.size > 0) wards = wards.filter(w => selectedWards.has(w.wardNumber));
+            // If vehicle type filter active, filter vehicles within each ward
+            if (selectedVehicleType !== 'All') {
+                wards = wards.map(w => ({
+                    ...w,
+                    vehicles: w.vehicles.filter(v => v.vehicleType === selectedVehicleType)
+                })).filter(w => w.vehicles.length > 0);
+            }
+            if (selectedWards.size > 0 || selectedVehicleType !== 'All') return { ...s, wards };
+            return s;
         });
-    }, [sectionsWithKyc, searchTerm, selectedZonal, selectedWards]);
+    }, [sectionsWithKyc, searchTerm, selectedZonal, selectedWards, selectedVehicleType]);
 
     // Ward-wise flat list for ward view mode
     const wardSections = useMemo(() => {
@@ -513,6 +533,18 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                             </select>
                         </div>
 
+                        {/* Vehicle Type Filter */}
+                        <div className="flex items-center gap-2">
+                            <select
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-sm"
+                                value={selectedVehicleType}
+                                onChange={(e) => setSelectedVehicleType(e.target.value)}
+                            >
+                                <option value="All">All Vehicle Types</option>
+                                {allVehicleTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                        </div>
+
                         {/* Multi-Select Ward Dropdown */}
                         <div className="relative" ref={wardDropdownRef}>
                             <button
@@ -603,8 +635,8 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                                                 </div>
                                                 <div className="flex items-center gap-4">
                                                     <div className="text-right hidden md:block">
-                                                        <div className="text-xs text-gray-500">Ward POI / On Route / Visited</div>
-                                                        <div className="text-sm font-semibold text-gray-800">{section.wardKycPoi > 0 ? section.wardKycPoi.toLocaleString() : '-'} / {section.totalPoi.toLocaleString()} / {section.visitedPoi.toLocaleString()}</div>
+                                                        <div className="text-xs text-gray-500">Total / Visited</div>
+                                                        <div className="text-sm font-semibold text-gray-800">{section.totalPoi.toLocaleString()} / {section.visitedPoi.toLocaleString()}</div>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -726,8 +758,8 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                                                 </div>
                                                 <div className="flex items-center gap-4">
                                                     <div className="text-right hidden md:block">
-                                                        <div className="text-xs text-gray-500">Ward POI / On Route / Visited</div>
-                                                        <div className="text-sm font-semibold text-gray-800">{ward.wardKycPoi > 0 ? ward.wardKycPoi.toLocaleString() : '-'} / {ward.totalPoi.toLocaleString()} / {ward.visitedPoi.toLocaleString()}</div>
+                                                        <div className="text-xs text-gray-500">Total / Visited</div>
+                                                        <div className="text-sm font-semibold text-gray-800">{ward.totalPoi.toLocaleString()} / {ward.visitedPoi.toLocaleString()}</div>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">

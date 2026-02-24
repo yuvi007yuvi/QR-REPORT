@@ -14,7 +14,8 @@ import {
     Building2,
     Search,
     ChevronDown,
-    Check
+    Check,
+    Layers
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { MapContainer, TileLayer, Polyline, useMap } from 'react-leaflet';
@@ -289,6 +290,7 @@ const RouteMapPDFGenerator: React.FC = () => {
     const [selectedWards, setSelectedWards] = useState<string[]>(['All']);
     const [isWardDropdownOpen, setIsWardDropdownOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [mapStyle, setMapStyle] = useState<'Street' | 'Satellite'>('Street');
 
     // Capture refs
     const captureRef = useRef<HTMLDivElement>(null);
@@ -694,26 +696,27 @@ const RouteMapPDFGenerator: React.FC = () => {
 
                     <div className="flex items-end justify-between mb-4 gap-4">
                         <div className="flex-1">
-                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Assigned Route Path</h3>
-                            <div className="border-l-8 border-emerald-600 pl-4">
-                                <h1 className="text-6xl font-black text-gray-900 uppercase tracking-tight break-words">
+                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mb-1">Assigned Route Path</h3>
+                            <div className="border-l-8 border-emerald-600 pl-6 py-2">
+                                <h1 className="text-7xl font-black text-gray-900 uppercase tracking-tighter break-words">
                                     {activeRoute?.routeName}
                                 </h1>
-                                <div className="flex gap-4 mt-2">
-                                    <p className="text-xl font-bold text-gray-600">Ward: {activeRoute?.wardName || 'N/A'}</p>
-                                    {activeRoute?.zoneName && <p className="text-xl font-bold text-gray-600">Zone: {activeRoute.zoneName}</p>}
+                                <div className="flex items-center gap-6 mt-3">
+                                    <p className="text-3xl font-extrabold text-emerald-700">Ward: {activeRoute?.wardName || 'N/A'}</p>
                                 </div>
                             </div>
                         </div>
                         <div className="flex gap-4">
-                            <div className="text-left bg-white p-4 rounded-xl border-2 border-dashed border-gray-400 min-w-[250px]">
-                                <h3 className="text-xs font-bold text-gray-400 uppercase mb-1">Driver Name (Write Below)</h3>
-                                <div className="mt-6 border-b-2 border-black w-full"></div>
-                                <p className="text-[8px] text-gray-400 mt-1 uppercase font-bold">Driver Signature / Name</p>
+                            <div className="text-left bg-white p-5 rounded-2xl border-2 border-dashed border-gray-300 min-w-[280px]">
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Operator Details</h3>
+                                <div className="mt-8 border-b-2 border-gray-900 w-full opacity-30"></div>
+                                <p className="text-[9px] text-gray-400 mt-2 uppercase font-black tracking-tighter">Enter Driver Name / Signature</p>
                             </div>
-                            <div className="text-right bg-gray-100 p-4 rounded-xl border-2 border-gray-200">
-                                <h3 className="text-xs font-bold text-gray-400 uppercase mb-1">Vehicle Unit</h3>
-                                <p className="text-4xl font-black text-gray-800">{activeRoute?.vehicleNo}</p>
+                            <div className="text-center bg-gray-50 p-5 rounded-2xl border-2 border-gray-100 min-w-[150px]">
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Vehicle No.</h3>
+                                <p className="text-5xl font-black text-gray-900 tracking-tighter">
+                                    {activeRoute?.vehicleNo === 'KML Import' ? '---' : activeRoute?.vehicleNo}
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -726,7 +729,18 @@ const RouteMapPDFGenerator: React.FC = () => {
                                 style={{ height: '100%', width: '100%' }}
                                 zoomControl={false}
                             >
-                                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                <TileLayer
+                                    url={mapStyle === 'Street'
+                                        ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+                                        : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                                    }
+                                />
+                                {mapStyle === 'Satellite' && (
+                                    <TileLayer
+                                        url="https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+                                        opacity={1.0}
+                                    />
+                                )}
                                 <Polyline positions={activePath} color="#DC2626" weight={10} opacity={1.0} />
                                 <FitBounds path={activePath} />
                             </MapContainer>
@@ -789,8 +803,6 @@ const RouteMapPDFGenerator: React.FC = () => {
                                                 </h1>
                                                 <div className="flex items-center gap-6 mt-3">
                                                     <p className="text-3xl font-extrabold text-emerald-700">Ward: {activeRoute.wardName || 'N/A'}</p>
-                                                    <div className="h-4 w-1 bg-gray-300 rounded-full"></div>
-                                                    <p className="text-lg font-bold text-gray-500 italic">Report Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -816,10 +828,32 @@ const RouteMapPDFGenerator: React.FC = () => {
                                             style={{ height: '100%', width: '100%' }}
                                             zoomControl={false}
                                         >
-                                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                            <TileLayer
+                                                url={mapStyle === 'Street'
+                                                    ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+                                                    : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                                                }
+                                            />
                                             <Polyline positions={activePath} color="#DC2626" weight={10} opacity={1.0} />
+                                            {mapStyle === 'Satellite' && (
+                                                <TileLayer
+                                                    url="https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+                                                    opacity={1.0}
+                                                />
+                                            )}
                                             <FitBounds path={activePath} />
                                         </MapContainer>
+
+                                        {/* Style Toggle Button */}
+                                        <button
+                                            onClick={() => setMapStyle(prev => prev === 'Street' ? 'Satellite' : 'Street')}
+                                            className="absolute bottom-6 right-6 z-[1000] bg-white p-3 rounded-2xl shadow-2xl border-2 border-gray-100 flex items-center gap-2 hover:bg-gray-50 transition-all group"
+                                        >
+                                            <Layers className="w-5 h-5 text-indigo-600 group-hover:rotate-12 transition-transform" />
+                                            <span className="text-sm font-black text-gray-800 uppercase tracking-tighter">
+                                                Switch to {mapStyle === 'Street' ? 'Satellite' : 'Road'} View
+                                            </span>
+                                        </button>
                                         <div className="absolute top-6 right-6 bg-red-600 text-white px-4 py-2 font-black text-xl shadow-2xl skew-x-[-12deg]">
                                             AUTHORIZED PATH
                                         </div>

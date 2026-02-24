@@ -61,7 +61,8 @@ export type ViewMode =
     | 'ucc-report' // Added
     | 'supervisor-daily-report' // Added
     | 'daily-kyc-status' // Added
-    | 'ward-kyc-cross-check'; // Added
+    | 'ward-kyc-cross-check' // Added
+    | 'route-map-generator'; // Added bulk route map generator
 
 interface SidebarProps {
     currentSection: AppSection;
@@ -113,6 +114,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             items: [
                 { id: 'secondary-trip-view', label: 'Trip Report', icon: MapPin },
                 { id: 'secondary-vehicle-history', label: 'Vehicle History', icon: History },
+                { id: 'route-map-generator', label: 'Route Map PDF Gen', icon: Route },
             ]
         },
         {

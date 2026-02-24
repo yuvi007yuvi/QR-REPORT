@@ -370,8 +370,9 @@ const SupervisorWardsCoverageReport: React.FC = () => {
     };
 
     const exportToPDF = () => {
-        const doc = new jsPDF('p', 'mm', 'a4');
+        const doc = new jsPDF('l', 'mm', 'a4');
         const pageWidth = doc.internal.pageSize.width;
+        const pageHeight = doc.internal.pageSize.height;
 
         // Title
         doc.setFontSize(18);
@@ -397,7 +398,7 @@ const SupervisorWardsCoverageReport: React.FC = () => {
             const totalRoutes = section.wards.reduce((s, w) => s + w.vehicles.length, 0);
 
             // Add new page if not enough space for header + partial table
-            if (startY > 250) {
+            if (startY > pageHeight - 40) {
                 doc.addPage();
                 startY = 20;
             }
@@ -405,7 +406,7 @@ const SupervisorWardsCoverageReport: React.FC = () => {
             // Supervisor Header Block
             doc.setFillColor(245, 247, 250);
             doc.setDrawColor(200, 200, 200);
-            doc.roundedRect(14, startY, 182, 25, 2, 2, 'FD');
+            doc.roundedRect(14, startY, pageWidth - 28, 25, 2, 2, 'FD');
 
             // Name
             doc.setFontSize(12);
@@ -414,7 +415,7 @@ const SupervisorWardsCoverageReport: React.FC = () => {
             doc.text(`${index + 1}. Supervisor :- ${section.supervisor}`, 18, startY + 8);
 
             // Stats Row
-            doc.setFontSize(9);
+            doc.setFontSize(10);
             doc.setFont('helvetica', 'bold');
 
             const stats = [
@@ -431,7 +432,7 @@ const SupervisorWardsCoverageReport: React.FC = () => {
             stats.forEach(stat => {
                 doc.setTextColor(stat.color[0], stat.color[1], stat.color[2]);
                 doc.text(stat.label, xPos, startY + 18);
-                xPos += (doc.getTextWidth(stat.label) + 6);
+                xPos += (doc.getTextWidth(stat.label) + 8);
             });
 
             startY += 30;
@@ -489,8 +490,8 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                 body: tableBody,
                 theme: 'grid',
                 styles: {
-                    fontSize: 8,
-                    cellPadding: 3,
+                    fontSize: 9,
+                    cellPadding: 4,
                     valign: 'middle',
                     halign: 'center',
                     lineColor: [220, 220, 220],
@@ -503,11 +504,15 @@ const SupervisorWardsCoverageReport: React.FC = () => {
                     halign: 'center'
                 },
                 columnStyles: {
-                    0: { cellWidth: 30, halign: 'left' }, // Ward
-                    1: { cellWidth: 25 }, // Vehicle
-                    2: { cellWidth: 30 }, // Type
-                    3: { cellWidth: 15 }, // Route
-                    8: { cellWidth: 25, fontSize: 7 } // Remark
+                    0: { cellWidth: 35, halign: 'left' }, // Ward
+                    1: { cellWidth: 30 }, // Vehicle
+                    2: { cellWidth: 35 }, // Type
+                    3: { cellWidth: 20 }, // Route
+                    4: { cellWidth: 25 }, // Ward POI
+                    5: { cellWidth: 25 }, // On Route
+                    6: { cellWidth: 25 }, // Visited
+                    7: { cellWidth: 25 }, // Coverage
+                    8: { cellWidth: 35, fontSize: 8 } // Remark
                 },
                 didParseCell: (data) => {
                     // Color code coverage column

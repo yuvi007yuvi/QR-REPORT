@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Menu } from 'lucide-react';
 import Sidebar from './components/Sidebar';
-import type { AppSection } from './components/Sidebar';
+import type { AppSection, ViewMode } from './components/Sidebar';
 import NagarNigamLogo from './assets/nagar-nigam-logo.png';
 import NatureGreenLogo from './assets/NatureGreen_Logo.png';
 import { Dashboard } from './components/Dashboard';
@@ -37,10 +37,11 @@ import SupervisorDailyReport from './components/SupervisorDailyReport';
 import { DailyKycStatusReport } from './components/DailyKycStatusReport';
 import { WardKYCCrossCheck } from './components/WardKYCCrossCheck';
 import SupervisorWardsCoverageReport from './components/SupervisorWardsCoverageReport';
+import RouteMapPDFGenerator from './components/RouteMapPDFGenerator';
 
 const App: React.FC = () => {
   const [currentSection, setCurrentSection] = useState<AppSection>('daily');
-  const [currentView, setCurrentView] = useState<'dashboard' | 'detailed' | 'zonal' | 'beforeAfter' | 'mapping' | 'underground' | 'zonalUnderground' | 'distance-report' | 'coverage-dashboard' | 'coverage-supervisor' | 'coverage-ward' | 'coverage-all-wards' | 'coverage-mapping' | 'coverage-date-wise' | 'poi-ward-monthly' | 'varun-adopted-wards' | 'kyc-survey' | 'kyc-calendar' | 'kyc-whatsapp' | 'ward-household-status' | 'ward-status-new' | 'trip-report' | 'qr-status-view' | 'secondary-trip-view' | 'secondary-vehicle-history' | 'cd-waste-complaint' | 'kpi-checker' | 'supervisor-count-report' | 'vehicle-change-report' | 'ucc-report' | 'supervisor-daily-report' | 'daily-kyc-status' | 'ward-kyc-cross-check' | 'coverage-supervisor-wards'>('dashboard');
+  const [currentView, setCurrentView] = useState<ViewMode>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingView, setPendingView] = useState<string | null>(null);
@@ -140,6 +141,8 @@ const App: React.FC = () => {
         return <DailyKycStatusReport />;
       case 'ward-kyc-cross-check':
         return <WardKYCCrossCheck />;
+      case 'route-map-generator':
+        return <RouteMapPDFGenerator />;
       default:
         return <Dashboard stats={mockStats} />;
     }

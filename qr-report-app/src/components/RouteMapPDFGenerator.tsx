@@ -9,16 +9,15 @@ import {
     Image as ImageIcon,
     Eye,
     X as CloseIcon,
-    Filter,
-    X,
-    Building2,
     Search,
     ChevronDown,
     Check,
-    Layers
+    Filter,
+    X,
+    Building2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { MapContainer, TileLayer, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, useMap, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { toJpeg } from 'html-to-image';
@@ -60,11 +59,28 @@ const FitBounds = ({ path }: { path: [number, number][] }) => {
     React.useEffect(() => {
         if (path.length > 0) {
             const bounds = L.latLngBounds(path);
-            map.fitBounds(bounds, { padding: [20, 20] });
+            map.fitBounds(bounds, { padding: [40, 40] });
         }
     }, [path, map]);
     return null;
 };
+
+const createMarkerIcon = (color: string, label: string) => L.divIcon({
+    className: 'custom-trip-marker',
+    html: `
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="background-color: ${color}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; white-space: nowrap; margin-bottom: 2px; border: 1px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); text-transform: uppercase;">${label}</div>
+            <div style="background-color: ${color}; width: 8px; height: 8px; border: 2px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+        </div>
+    `,
+    iconSize: [40, 30],
+    iconAnchor: [20, 25]
+});
+
+const startIcon = createMarkerIcon('#10b981', 'Start');
+const endIcon = createMarkerIcon('#ef4444', 'End');
+const startIcon2 = createMarkerIcon('#059669', 'Trip 2 Start');
+const endIcon2 = createMarkerIcon('#dc2626', 'Trip 2 End');
 
 // Hardcoded Route to Ward Mapping
 const ROUTE_WARD_MAPPING: Record<string, { ward: string; name: string }> = {
@@ -290,7 +306,6 @@ const RouteMapPDFGenerator: React.FC = () => {
     const [selectedWards, setSelectedWards] = useState<string[]>(['All']);
     const [isWardDropdownOpen, setIsWardDropdownOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [mapStyle, setMapStyle] = useState<'Street' | 'Satellite'>('Street');
 
     // Capture refs
     const captureRef = useRef<HTMLDivElement>(null);
@@ -496,8 +511,9 @@ const RouteMapPDFGenerator: React.FC = () => {
         setGenerating(true);
         setProgress(0);
 
-        const pdf = new jsPDF('l', 'mm', 'a4');
+        const pdf = new jsPDF('p', 'mm', 'a4');
         const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
 
         for (let i = 0; i < targetRoutes.length; i++) {
             const route = targetRoutes[i];
@@ -518,10 +534,7 @@ const RouteMapPDFGenerator: React.FC = () => {
                     });
 
                     if (i > 0) pdf.addPage();
-                    const imgProps = pdf.getImageProperties(dataUrl);
-                    const imgWidth = pageWidth;
-                    const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
-                    pdf.addImage(dataUrl, 'JPEG', 0, 0, imgWidth, imgHeight);
+                    pdf.addImage(dataUrl, 'JPEG', 0, 0, pageWidth, pageHeight);
 
                 } catch (err) {
                     console.error("Capture failed for route", route.routeName, err);
@@ -541,6 +554,64 @@ const RouteMapPDFGenerator: React.FC = () => {
         : (previewIndex !== null ? routes[previewIndex] : null);
 
     const activePath: [number, number][] = activeRoute ? activeRoute.points.map(p => [p.lat, p.lng]) : [];
+
+    const trips = React.useMemo(() => {
+        if (!activeRoute || activeRoute.points.length < 2) return [];
+        const result: RoutePoint[][] = [];
+        let currentTrip: RoutePoint[] = [activeRoute.points[0]];
+
+        for (let i = 1; i < activeRoute.points.length; i++) {
+            const p1 = activeRoute.points[i - 1];
+            const p2 = activeRoute.points[i];
+
+            let isNewTrip = false;
+            // Detect gap by timestamp (> 20 min)
+            if (p1.timestamp && p2.timestamp) {
+                const t1 = new Date(p1.timestamp).getTime();
+                const t2 = new Date(p2.timestamp).getTime();
+                if (!isNaN(t1) && !isNaN(t2) && (t2 - t1) > 20 * 60000) {
+                    isNewTrip = true;
+                }
+            }
+            // Detect gap by distance (if points are significantly apart)
+            else {
+                const dist = Math.sqrt(Math.pow(p2.lat - p1.lat, 2) + Math.pow(p2.lng - p1.lng, 2));
+                if (dist > 0.005) { // ~500m gap
+                    isNewTrip = true;
+                }
+            }
+
+            if (isNewTrip) {
+                result.push(currentTrip);
+                currentTrip = [p2];
+            } else {
+                currentTrip.push(p2);
+            }
+        }
+        result.push(currentTrip);
+        return result;
+    }, [activeRoute]);
+
+    const downloadSinglePDF = async () => {
+        if (!activeRoute || !captureRef.current) return;
+
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        try {
+            const dataUrl = await toJpeg(captureRef.current, {
+                quality: 1.0,
+                backgroundColor: '#ffffff',
+                pixelRatio: 2,
+            });
+
+            pdf.addImage(dataUrl, 'JPEG', 0, 0, pageWidth, pageHeight);
+            pdf.save(`Route_Map_${activeRoute.routeName}.pdf`);
+        } catch (err) {
+            console.error("Single PDF Capture failed", err);
+        }
+    };
 
     return (
         <div className="flex flex-col h-full bg-gray-50 p-6 space-y-6 overflow-y-auto font-sans">
@@ -682,39 +753,38 @@ const RouteMapPDFGenerator: React.FC = () => {
 
             {/* Hidden capture area */}
             <div className="overflow-hidden h-0 w-0 opacity-0 pointer-events-none">
-                <div ref={captureRef} style={{ width: '1130px', height: '800px' }} className="bg-white p-6 font-sans flex flex-col border-4 border-black">
-                    <div className="flex items-center justify-between border-b-4 border-black pb-4 mb-4">
+                <div ref={captureRef} style={{ width: '800px', height: '1130px' }} className="bg-white p-8 font-sans flex flex-col border-4 border-black">
+                    <div className="flex items-center justify-between border-b-4 border-black pb-4 mb-6">
                         <img src={NagarNigamLogo} alt="NN" className="h-20 object-contain" />
                         <div className="text-center flex-1">
-                            <h2 className="text-2xl font-black text-gray-900 uppercase leading-none">Mathura Vrindavan Nagar Nigam</h2>
-                            <div className="bg-black text-white px-6 py-1 inline-block mt-2">
-                                <h1 className="text-3xl font-black tracking-[0.2em] uppercase">Official Route Map</h1>
+                            <h2 className="text-xl font-black text-gray-900 uppercase leading-none">Mathura Vrindavan Nagar Nigam</h2>
+                            <div className="bg-black text-white px-4 py-1 inline-block mt-2">
+                                <h1 className="text-2xl font-black tracking-[0.2em] uppercase">Official Route Map</h1>
                             </div>
                         </div>
                         <img src={NatureGreenLogo} alt="NG" className="h-20 object-contain" />
                     </div>
 
-                    <div className="flex items-end justify-between mb-4 gap-4">
-                        <div className="flex-1">
-                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mb-1">Assigned Route Path</h3>
-                            <div className="border-l-8 border-emerald-600 pl-6 py-2">
-                                <h1 className="text-7xl font-black text-gray-900 uppercase tracking-tighter break-words">
-                                    {activeRoute?.routeName}
-                                </h1>
-                                <div className="flex items-center gap-6 mt-3">
-                                    <p className="text-3xl font-extrabold text-emerald-700">Ward: {activeRoute?.wardName || 'N/A'}</p>
-                                </div>
+                    <div className="space-y-6 mb-6">
+                        <div className="border-l-8 border-emerald-600 pl-6 py-2">
+                            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-1">Assigned Route Path</h3>
+                            <h1 className="text-6xl font-black text-gray-900 uppercase tracking-tighter break-words">
+                                {activeRoute?.routeName}
+                            </h1>
+                            <div className="mt-2">
+                                <p className="text-3xl font-extrabold text-emerald-700">Ward: {activeRoute?.wardName || 'N/A'}</p>
                             </div>
                         </div>
-                        <div className="flex gap-4">
-                            <div className="text-left bg-white p-5 rounded-2xl border-2 border-dashed border-gray-300 min-w-[280px]">
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="text-left bg-white p-5 rounded-2xl border-2 border-dashed border-gray-300">
                                 <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Operator Details</h3>
                                 <div className="mt-8 border-b-2 border-gray-900 w-full opacity-30"></div>
                                 <p className="text-[9px] text-gray-400 mt-2 uppercase font-black tracking-tighter">Enter Driver Name / Signature</p>
                             </div>
-                            <div className="text-center bg-gray-50 p-5 rounded-2xl border-2 border-gray-100 min-w-[150px]">
+                            <div className="text-center bg-gray-50 p-5 rounded-2xl border-2 border-gray-100 flex flex-col justify-center">
                                 <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Vehicle No.</h3>
-                                <p className="text-5xl font-black text-gray-900 tracking-tighter">
+                                <p className="text-4xl font-black text-gray-900 tracking-tighter">
                                     {activeRoute?.vehicleNo === 'KML Import' ? '---' : activeRoute?.vehicleNo}
                                 </p>
                             </div>
@@ -730,18 +800,29 @@ const RouteMapPDFGenerator: React.FC = () => {
                                 zoomControl={false}
                             >
                                 <TileLayer
-                                    url={mapStyle === 'Street'
-                                        ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-                                        : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                                    }
+                                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
                                 />
-                                {mapStyle === 'Satellite' && (
-                                    <TileLayer
-                                        url="https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+                                {trips.map((tripPoints, tripIdx) => (
+                                    <Polyline
+                                        key={`trip-output-${tripIdx}`}
+                                        positions={tripPoints.map(p => [p.lat, p.lng])}
+                                        color={tripIdx === 0 ? "#DC2626" : (tripIdx === 1 ? "#2563EB" : "#9333EA")}
+                                        weight={10}
                                         opacity={1.0}
                                     />
+                                ))}
+                                {trips.length > 0 && (
+                                    <>
+                                        <Marker position={[trips[0][0].lat, trips[0][0].lng]} icon={startIcon} />
+                                        <Marker position={[trips[0][trips[0].length - 1].lat, trips[0][trips[0].length - 1].lng]} icon={endIcon} />
+                                    </>
                                 )}
-                                <Polyline positions={activePath} color="#DC2626" weight={10} opacity={1.0} />
+                                {trips.length > 1 && (
+                                    <>
+                                        <Marker position={[trips[1][0].lat, trips[1][0].lng]} icon={startIcon2} />
+                                        <Marker position={[trips[1][trips[1].length - 1].lat, trips[1][trips[1].length - 1].lng]} icon={endIcon2} />
+                                    </>
+                                )}
                                 <FitBounds path={activePath} />
                             </MapContainer>
                         )}
@@ -750,9 +831,9 @@ const RouteMapPDFGenerator: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="mt-4 flex justify-between items-center bg-gray-900 text-white p-3 rounded-xl">
+                    <div className="mt-6 flex justify-between items-center bg-gray-900 text-white p-4 rounded-xl">
                         <div className="text-sm font-bold tracking-widest uppercase">
-                            Drive Safely • Follow The Assigned Path Only
+                            Drive Safely • Follow Assigned Path
                         </div>
                         <div className="text-[10px] font-black opacity-50 uppercase">
                             Generated by Nature Green Systems Buddy
@@ -775,46 +856,54 @@ const RouteMapPDFGenerator: React.FC = () => {
                                     <p className="text-[10px] text-gray-500 mt-1 uppercase font-bold tracking-widest font-sans">Official Vehicle Display Format</p>
                                 </div>
                             </div>
-                            <button onClick={() => setPreviewIndex(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-red-500">
-                                <CloseIcon className="w-6 h-6" />
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={downloadSinglePDF}
+                                    className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-emerald-700 transition-all text-sm shadow-lg shadow-emerald-200"
+                                >
+                                    <FileDown className="w-4 h-4" />
+                                    Download This PDF
+                                </button>
+                                <button onClick={() => setPreviewIndex(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-red-500">
+                                    <CloseIcon className="w-6 h-6" />
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex-1 overflow-auto bg-gray-200 p-8 flex justify-center items-start">
-                            <div className="shadow-2xl origin-top scale-[0.6] md:scale-[0.7] lg:scale-[0.85] transform transition-transform">
-                                <div style={{ width: '1130px', height: '800px' }} className="bg-white p-6 font-sans flex flex-col border-4 border-black">
-                                    <div className="flex items-center justify-between border-b-4 border-black pb-4 mb-4">
+                            <div className="shadow-2xl origin-top scale-[0.4] md:scale-[0.5] lg:scale-[0.6] transform transition-transform">
+                                <div style={{ width: '800px', height: '1130px' }} className="bg-white p-8 font-sans flex flex-col border-4 border-black">
+                                    <div className="flex items-center justify-between border-b-4 border-black pb-4 mb-6">
                                         <img src={NagarNigamLogo} alt="NN" className="h-20 object-contain" />
                                         <div className="text-center flex-1">
-                                            <h2 className="text-2xl font-black text-gray-900 uppercase leading-none">Mathura Vrindavan Nagar Nigam</h2>
-                                            <div className="bg-black text-white px-6 py-1 inline-block mt-2">
-                                                <h1 className="text-3xl font-black tracking-[0.2em] uppercase">Official Route Map</h1>
+                                            <h2 className="text-xl font-black text-gray-900 uppercase leading-none">Mathura Vrindavan Nagar Nigam</h2>
+                                            <div className="bg-black text-white px-4 py-1 inline-block mt-2">
+                                                <h1 className="text-2xl font-black tracking-[0.2em] uppercase">Official Route Map</h1>
                                             </div>
                                         </div>
                                         <img src={NatureGreenLogo} alt="NG" className="h-20 object-contain" />
                                     </div>
 
-                                    <div className="flex items-end justify-between mb-4 gap-4">
-                                        <div className="flex-1">
-                                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mb-1">Assigned Route Path</h3>
-                                            <div className="border-l-8 border-emerald-600 pl-6 py-2">
-                                                <h1 className="text-7xl font-black text-gray-900 uppercase tracking-tighter break-words">
-                                                    {activeRoute.routeName}
-                                                </h1>
-                                                <div className="flex items-center gap-6 mt-3">
-                                                    <p className="text-3xl font-extrabold text-emerald-700">Ward: {activeRoute.wardName || 'N/A'}</p>
-                                                </div>
+                                    <div className="space-y-6 mb-6">
+                                        <div className="border-l-8 border-emerald-600 pl-6 py-2">
+                                            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-1">Assigned Route Path</h3>
+                                            <h1 className="text-6xl font-black text-gray-900 uppercase tracking-tighter break-words">
+                                                {activeRoute.routeName}
+                                            </h1>
+                                            <div className="mt-2">
+                                                <p className="text-3xl font-extrabold text-emerald-700">Ward: {activeRoute.wardName || 'N/A'}</p>
                                             </div>
                                         </div>
-                                        <div className="flex gap-4">
-                                            <div className="text-left bg-white p-5 rounded-2xl border-2 border-dashed border-gray-300 min-w-[280px]">
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="text-left bg-white p-5 rounded-2xl border-2 border-dashed border-gray-300">
                                                 <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Operator Details</h3>
                                                 <div className="mt-8 border-b-2 border-gray-900 w-full opacity-30"></div>
                                                 <p className="text-[9px] text-gray-400 mt-2 uppercase font-black tracking-tighter">Enter Driver Name / Signature</p>
                                             </div>
-                                            <div className="text-center bg-gray-50 p-5 rounded-2xl border-2 border-gray-100 min-w-[150px]">
+                                            <div className="text-center bg-gray-50 p-5 rounded-2xl border-2 border-gray-100 flex flex-col justify-center">
                                                 <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Vehicle No.</h3>
-                                                <p className="text-5xl font-black text-gray-900 tracking-tighter">
+                                                <p className="text-4xl font-black text-gray-900 tracking-tighter">
                                                     {activeRoute.vehicleNo === 'KML Import' ? '---' : activeRoute.vehicleNo}
                                                 </p>
                                             </div>
@@ -829,39 +918,41 @@ const RouteMapPDFGenerator: React.FC = () => {
                                             zoomControl={false}
                                         >
                                             <TileLayer
-                                                url={mapStyle === 'Street'
-                                                    ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-                                                    : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                                                }
+                                                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
                                             />
-                                            <Polyline positions={activePath} color="#DC2626" weight={10} opacity={1.0} />
-                                            {mapStyle === 'Satellite' && (
-                                                <TileLayer
-                                                    url="https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+                                            {trips.map((tripPoints, tripIdx) => (
+                                                <Polyline
+                                                    key={`trip-preview-${tripIdx}`}
+                                                    positions={tripPoints.map(p => [p.lat, p.lng])}
+                                                    color={tripIdx === 0 ? "#DC2626" : (tripIdx === 1 ? "#2563EB" : "#9333EA")}
+                                                    weight={10}
                                                     opacity={1.0}
                                                 />
+                                            ))}
+                                            {trips.length > 0 && (
+                                                <>
+                                                    <Marker position={[trips[0][0].lat, trips[0][0].lng]} icon={startIcon} />
+                                                    <Marker position={[trips[0][trips[0].length - 1].lat, trips[0][trips[0].length - 1].lng]} icon={endIcon} />
+                                                </>
+                                            )}
+                                            {trips.length > 1 && (
+                                                <>
+                                                    <Marker position={[trips[1][0].lat, trips[1][0].lng]} icon={startIcon2} />
+                                                    <Marker position={[trips[1][trips[1].length - 1].lat, trips[1][trips[1].length - 1].lng]} icon={endIcon2} />
+                                                </>
                                             )}
                                             <FitBounds path={activePath} />
                                         </MapContainer>
 
-                                        {/* Style Toggle Button */}
-                                        <button
-                                            onClick={() => setMapStyle(prev => prev === 'Street' ? 'Satellite' : 'Street')}
-                                            className="absolute bottom-6 right-6 z-[1000] bg-white p-3 rounded-2xl shadow-2xl border-2 border-gray-100 flex items-center gap-2 hover:bg-gray-50 transition-all group"
-                                        >
-                                            <Layers className="w-5 h-5 text-indigo-600 group-hover:rotate-12 transition-transform" />
-                                            <span className="text-sm font-black text-gray-800 uppercase tracking-tighter">
-                                                Switch to {mapStyle === 'Street' ? 'Satellite' : 'Road'} View
-                                            </span>
-                                        </button>
+
                                         <div className="absolute top-6 right-6 bg-red-600 text-white px-4 py-2 font-black text-xl shadow-2xl skew-x-[-12deg]">
                                             AUTHORIZED PATH
                                         </div>
                                     </div>
 
-                                    <div className="mt-4 flex justify-between items-center bg-gray-900 text-white p-3 rounded-xl">
+                                    <div className="mt-6 flex justify-between items-center bg-gray-900 text-white p-4 rounded-xl">
                                         <div className="text-sm font-bold tracking-widest uppercase">
-                                            Drive Safely • Follow The Assigned Path Only
+                                            Drive Safely • Follow Assigned Path
                                         </div>
                                         <div className="text-[10px] font-black opacity-50 uppercase">
                                             Preview Only - Use PDF for Printing

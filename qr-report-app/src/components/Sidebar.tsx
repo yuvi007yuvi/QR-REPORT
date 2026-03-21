@@ -62,6 +62,7 @@ export type ViewMode =
     | 'supervisor-daily-report' // Added
     | 'daily-kyc-status' // Added
     | 'ward-kyc-cross-check' // Added
+    | 'new-kyc-team-report' // Added
     | 'route-map-generator'; // Added bulk route map generator
 
 interface SidebarProps {
@@ -163,6 +164,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 { id: 'ward-status-new', label: 'Ward Wise Status (New)', icon: BarChart3 },
                 { id: 'daily-kyc-status', label: 'Daily KYC Status', icon: FileText },
                 { id: 'ward-kyc-cross-check', label: 'Ward KYC Cross-Check', icon: BarChart3 },
+                { id: 'new-kyc-team-report', label: 'New KYC Team Report', icon: FileSpreadsheet },
             ]
         },
         {

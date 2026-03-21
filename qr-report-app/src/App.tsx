@@ -37,6 +37,7 @@ import SupervisorDailyReport from './components/SupervisorDailyReport';
 import { DailyKycStatusReport } from './components/DailyKycStatusReport';
 import { WardKYCCrossCheck } from './components/WardKYCCrossCheck';
 import SupervisorWardsCoverageReport from './components/SupervisorWardsCoverageReport';
+import NewKycTeamReport from './components/NewKycTeamReport';
 import RouteMapPDFGenerator from './components/RouteMapPDFGenerator';
 
 const App: React.FC = () => {
@@ -141,6 +142,8 @@ const App: React.FC = () => {
         return <DailyKycStatusReport />;
       case 'ward-kyc-cross-check':
         return <WardKYCCrossCheck />;
+      case 'new-kyc-team-report':
+        return <NewKycTeamReport />;
       case 'route-map-generator':
         return <RouteMapPDFGenerator />;
       default:

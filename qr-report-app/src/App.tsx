@@ -39,6 +39,8 @@ import { WardKYCCrossCheck } from './components/WardKYCCrossCheck';
 import SupervisorWardsCoverageReport from './components/SupervisorWardsCoverageReport';
 import NewKycTeamReport from './components/NewKycTeamReport';
 import RouteMapPDFGenerator from './components/RouteMapPDFGenerator';
+import ComplaintRegisterReport from './components/ComplaintRegisterReport';
+import MSWDateWiseReport from './components/MSWDateWiseReport';
 
 const App: React.FC = () => {
   const [currentSection, setCurrentSection] = useState<AppSection>('daily');
@@ -146,6 +148,10 @@ const App: React.FC = () => {
         return <NewKycTeamReport />;
       case 'route-map-generator':
         return <RouteMapPDFGenerator />;
+      case 'complaint-register':
+        return <ComplaintRegisterReport />;
+      case 'msw-date-wise':
+        return <MSWDateWiseReport />;
       default:
         return <Dashboard stats={mockStats} />;
     }

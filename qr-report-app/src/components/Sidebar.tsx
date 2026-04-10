@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 
-export type AppSection = 'daily' | 'coverage' | 'kyc' | 'qr-status' | 'secondary-trip' | 'complaint' | 'kpi' | 'collection';
+export type AppSection = 'daily' | 'coverage' | 'kyc' | 'qr-status' | 'secondary-trip' | 'complaint' | 'kpi' | 'collection' | 'msw';
 
 export type ViewMode =
     | 'dashboard'
@@ -63,7 +63,9 @@ export type ViewMode =
     | 'daily-kyc-status' // Added
     | 'ward-kyc-cross-check' // Added
     | 'new-kyc-team-report' // Added
-    | 'route-map-generator'; // Added bulk route map generator
+    | 'route-map-generator' // Added bulk route map generator
+    | 'complaint-register' // Added Complaint Register analysis
+    | 'msw-date-wise'; // Added for MSW Date Wise Data
 
 interface SidebarProps {
     currentSection: AppSection;
@@ -124,6 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             icon: FileText,
             items: [
                 { id: 'cd-waste-complaint', label: 'C&D Waste Complaint', icon: FileText },
+                { id: 'complaint-register', label: 'Resolution Analysis', icon: BarChart3 },
             ]
         },
         {
@@ -173,6 +176,14 @@ const Sidebar: React.FC<SidebarProps> = ({
             icon: CheckSquare,
             items: [
                 { id: 'qr-status-view', label: 'Daily QR Status', icon: BarChart3 },
+            ]
+        },
+        {
+            id: 'msw',
+            label: 'MSW Management',
+            icon: Trash2,
+            items: [
+                { id: 'msw-date-wise', label: 'Date Wise MSW', icon: Calendar },
             ]
         }
     ];

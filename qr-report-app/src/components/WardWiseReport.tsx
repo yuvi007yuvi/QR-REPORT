@@ -1,4 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { db } from '../firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { WardAssignment } from '../utils/dataProcessor';
 import { Upload, Search, FileDown, FileImage } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -16,6 +19,21 @@ export const WardWiseReport: React.FC = () => {
     const [selectedSupervisor, setSelectedSupervisor] = useState<string>('All');
     const [selectedWard, setSelectedWard] = useState<string>('All');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
+
+    // Fetch Ward Assignments from Firestore
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
+            const mapping: Record<string, WardAssignment> = {};
+            snapshot.forEach((doc) => {
+                mapping[doc.id] = doc.data() as WardAssignment;
+            });
+            setWardAssignments(mapping);
+            console.log('WardWiseReport: Loaded ward assignments from Firestore:', Object.keys(mapping).length);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -43,13 +61,18 @@ export const WardWiseReport: React.FC = () => {
     };
 
     const wardStats = useMemo(() => {
-        // Initialize stats with targets
-        const stats = WARD_TARGETS.map(target => ({
-            ...target,
-            currentKyc: 0,
-            gap: 0,
-            coverage: 0
-        }));
+        // Initialize stats with targets and apply dynamic assignments
+        const stats = WARD_TARGETS.map(target => {
+            const assignment = wardAssignments[target.wardNo.toString()];
+            return {
+                ...target,
+                supervisorName: assignment ? assignment.supervisor : target.supervisorName,
+                zoneName: assignment ? assignment.zonalHead : target.zoneName,
+                currentKyc: 0,
+                gap: 0,
+                coverage: 0
+            };
+        });
 
         // Process KYC data
         kycData.forEach((row: any) => {
@@ -94,9 +117,10 @@ export const WardWiseReport: React.FC = () => {
 
     const uniqueZones = useMemo(() => {
         const zones = new Set<string>();
-        WARD_TARGETS.forEach(t => t.zoneName && zones.add(t.zoneName));
+        // Use wardStats instead of WARD_TARGETS to get updated names
+        wardStats.forEach(t => t.zoneName && zones.add(t.zoneName));
         return Array.from(zones).sort();
-    }, []);
+    }, [wardStats]);
 
     const uniqueSupervisors = useMemo(() => {
         const supervisors = new Set<string>();

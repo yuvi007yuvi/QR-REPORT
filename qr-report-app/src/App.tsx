@@ -41,6 +41,7 @@ import NewKycTeamReport from './components/NewKycTeamReport';
 import RouteMapPDFGenerator from './components/RouteMapPDFGenerator';
 import ComplaintRegisterReport from './components/ComplaintRegisterReport';
 import MSWDateWiseReport from './components/MSWDateWiseReport';
+import MonthWiseKPICalendar from './components/MonthWiseKPICalendar';
 
 const App: React.FC = () => {
   const [currentSection, setCurrentSection] = useState<AppSection>('daily');
@@ -136,6 +137,8 @@ const App: React.FC = () => {
         return <VarunAdoptedWardsReport />;
       case 'kpi-checker':
         return <KPIChecker />;
+      case 'kpi-monthly-calendar':
+        return <MonthWiseKPICalendar />;
       case 'ucc-report':
         return <UCCReport />;
       case 'supervisor-daily-report':

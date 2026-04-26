@@ -57,6 +57,7 @@ export type ViewMode =
     | 'secondary-vehicle-history' // Added
     | 'cd-waste-complaint' // Added for C&D Waste Complaint Report
     | 'kpi-checker' // Added
+    | 'kpi-monthly-calendar' // Month Wise KPI Calendar
     | 'supervisor-count-report' // Added
     | 'ucc-report' // Added
     | 'supervisor-daily-report' // Added
@@ -108,6 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             icon: ClipboardCheck,
             items: [
                 { id: 'kpi-checker', label: 'KPI Compliance', icon: ClipboardCheck },
+                { id: 'kpi-monthly-calendar', label: 'Monthly KPI Calendar', icon: Calendar },
             ]
         },
         {

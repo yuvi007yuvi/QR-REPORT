@@ -20,8 +20,11 @@ import {
     PieChart,
     ArrowRightLeft,
     Banknote,
-    ChevronRight
+    ChevronRight,
+    ShieldCheck,
+    Settings
 } from 'lucide-react';
+
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 
 export type AppSection = 'daily' | 'coverage' | 'kyc' | 'qr-status' | 'complaint' | 'kpi' | 'collection' | 'msw';
@@ -62,7 +65,10 @@ export type ViewMode =
     | 'ward-kyc-cross-check'
     | 'new-kyc-team-report'
     | 'complaint-register'
-    | 'msw-date-wise';
+    | 'complaint-register'
+    | 'msw-date-wise'
+    | 'admin-panel';
+
 
 interface SidebarProps {
     currentSection: AppSection;
@@ -71,7 +77,9 @@ interface SidebarProps {
     onViewChange: (view: ViewMode) => void;
     isOpen: boolean;
     onClose: () => void;
+    isAdmin: boolean;
 }
+
 
 const menuItems = [
     {
@@ -174,9 +182,26 @@ const Sidebar: React.FC<SidebarProps> = ({
     currentView,
     onViewChange,
     isOpen,
-    onClose
+    onClose,
+    isAdmin
 }) => {
+    // Merge base items with admin items if applicable
+    const accessibleMenuItems = [...menuItems];
+    
+    if (isAdmin) {
+        accessibleMenuItems.unshift({
+            id: 'admin' as any,
+            label: 'Administration',
+            icon: ShieldCheck as any,
+            items: [
+                { id: 'admin-panel', label: 'Admin Panel', icon: Settings as any },
+            ]
+        });
+    }
+
+
     return (
+
         <>
             {/* Mobile Overlay */}
             {isOpen && (
@@ -208,7 +233,8 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                     {/* Navigation */}
                     <nav className="sidebar-nav">
-                        {menuItems.map(section => {
+                        {accessibleMenuItems.map(section => {
+
                             const isActive = currentSection === section.id;
                             const SectionIcon = section.icon;
                             return (

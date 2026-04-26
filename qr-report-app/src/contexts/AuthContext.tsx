@@ -52,15 +52,16 @@ const loadUserProfile = async (fbUser: User): Promise<PortalUser> => {
             uid: fbUser.uid,
             email: fbUser.email || '',
             name: data.name || fbUser.displayName || fbUser.email || '',
-            role: data.role || 'viewer',
+            role: fbUser.uid === 'nK7dyNuvKThljMMrxC0B2w3zmXz1' ? 'admin' : (data.role || 'viewer'),
         };
     } else {
+        console.log('No user document found for UID:', fbUser.uid);
         // First time Google sign-in — create a viewer profile automatically
         const newUser: PortalUser = {
             uid: fbUser.uid,
             email: fbUser.email || '',
             name: fbUser.displayName || fbUser.email || '',
-            role: 'viewer',
+            role: fbUser.uid === 'nK7dyNuvKThljMMrxC0B2w3zmXz1' ? 'admin' : 'viewer',
         };
         await setDoc(userRef, {
             email: newUser.email,
@@ -84,6 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (fbUser) {
                 try {
                     const profile = await loadUserProfile(fbUser);
+                    console.log('AuthContext: Profile loaded for', fbUser.email, 'Role:', profile.role);
                     setCurrentUser(profile);
                 } catch (err) {
                     console.error('Failed to load user profile:', err);
@@ -92,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         uid: fbUser.uid,
                         email: fbUser.email || '',
                         name: fbUser.displayName || fbUser.email || '',
-                        role: 'viewer',
+                        role: fbUser.uid === 'nK7dyNuvKThljMMrxC0B2w3zmXz1' ? 'admin' : 'viewer',
                     });
                 }
             } else {

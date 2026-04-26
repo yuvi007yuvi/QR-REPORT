@@ -39,6 +39,13 @@ export interface SummaryStats {
     }>;
 }
 
+export interface WardAssignment {
+    wardNo: number;
+    supervisor: string;
+    zonalHead: string;
+    lastUpdated?: any;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const parseFile = (file: File): Promise<any[]> => {
     return new Promise((resolve, reject) => {
@@ -67,11 +74,13 @@ export const processData = (
     supervisorData: any[],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     scannedData: any[],
-    filterDate?: string
+    filterDate?: string,
+    wardAssignments?: Record<string, WardAssignment>
 ): { report: ReportRecord[]; stats: SummaryStats; availableDates: string[] } => {
     // 1. Create Supervisor & Zonal Head Map (Ward -> { Supervisor, ZonalHead })
     const wardMap = new Map<string, { supervisor: string; zonalHead: string }>();
 
+    // First load from static supervisor data
     supervisorData.forEach((row) => {
         let ward = row['Ward No'] ? String(row['Ward No']).trim() : (row['WARD NO.'] ? String(row['WARD NO.']).trim() : '');
         // Normalize: remove leading zeros (e.g. "01" -> "1")
@@ -81,6 +90,16 @@ export const processData = (
         const zonalHead = row['Zonal Head'] || '';
         if (ward) wardMap.set(ward, { supervisor, zonalHead });
     });
+
+    // Then override with Firestore assignments if provided
+    if (wardAssignments) {
+        Object.entries(wardAssignments).forEach(([wardNum, assignment]) => {
+            wardMap.set(wardNum, {
+                supervisor: assignment.supervisor,
+                zonalHead: assignment.zonalHead
+            });
+        });
+    }
 
     // 2. Create Master Map (QR ID -> Record)
     const masterMap = new Map<string, ReportRecord>();

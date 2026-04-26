@@ -40,7 +40,9 @@ import NewKycTeamReport from './components/NewKycTeamReport';
 import ComplaintRegisterReport from './components/ComplaintRegisterReport';
 import MSWDateWiseReport from './components/MSWDateWiseReport';
 import MonthWiseKPICalendar from './components/MonthWiseKPICalendar';
+import { AdminPanel } from './components/AdminPanel';
 import { useAuth } from './contexts/AuthContext';
+
 import LoginPage from './components/LoginPage';
 import { LogOut } from 'lucide-react';
 
@@ -52,6 +54,9 @@ const App: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingView, setPendingView] = useState<string | null>(null);
+
+  console.log('App: Current User:', currentUser?.email, 'isAdmin:', isAdmin);
+
 
   // Auth guards
   if (authLoading) {
@@ -178,7 +183,10 @@ const App: React.FC = () => {
         return <ComplaintRegisterReport />;
       case 'msw-date-wise':
         return <MSWDateWiseReport />;
+      case 'admin-panel':
+        return <AdminPanel />;
       default:
+
         return <Dashboard stats={mockStats} />;
     }
   };
@@ -224,7 +232,9 @@ const App: React.FC = () => {
       { id: 'new-kyc-team-report', label: 'New KYC Team Report' },
       { id: 'qr-status-view', label: 'Daily QR Status' },
       { id: 'msw-date-wise', label: 'Date Wise MSW Data' },
+      { id: 'admin-panel', label: 'Admin Panel' },
     ];
+
     return allItems.find(i => i.id === currentView)?.label
       ?? currentView.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   })();
@@ -244,7 +254,9 @@ const App: React.FC = () => {
         onViewChange={handleViewChange}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        isAdmin={isAdmin}
       />
+
 
       <div className="portal-main">
         {/* Floating Glassmorphic Header */}
@@ -279,7 +291,9 @@ const App: React.FC = () => {
               }}>
                 {currentUser.name.charAt(0).toUpperCase()}
               </div>
-              <div style={{ display: 'none' }} className="md:block">
+              <div className="hidden md:block">
+
+
                 <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
                   {currentUser.name}
                 </div>

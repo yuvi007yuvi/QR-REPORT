@@ -21,6 +21,9 @@ import { Upload } from 'lucide-react';
 import { processData, parseFile } from '../utils/dataProcessor';
 import masterData from '../data/masterData.json';
 import supervisorData from '../data/supervisorData.json';
+import { db } from '../firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { WardAssignment } from '../utils/dataProcessor';
 
 import {
     BarChart,
@@ -46,6 +49,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
     const [selectedZone, setSelectedZone] = React.useState('All');
     const [selectedSupervisor, setSelectedSupervisor] = React.useState('All');
     const [selectedWard, setSelectedWard] = React.useState('All');
+    const [wardAssignments, setWardAssignments] = React.useState<Record<string, WardAssignment>>({});
+
+    // Fetch Ward Assignments from Firestore
+    React.useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
+            const mapping: Record<string, WardAssignment> = {};
+            snapshot.forEach((doc) => {
+                mapping[doc.id] = doc.data() as WardAssignment;
+            });
+            setWardAssignments(mapping);
+            console.log('Dashboard: Loaded ward assignments from Firestore:', Object.keys(mapping).length);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -54,7 +72,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
         setLoading(true);
         try {
             const jsonData = await parseFile(file);
-            const { stats: newStats } = processData(masterData, supervisorData, jsonData);
+            const { stats: newStats } = processData(masterData, supervisorData, jsonData, 'All', wardAssignments);
             setDashboardStats(newStats);
         } catch (error) {
             console.error("Upload failed", error);

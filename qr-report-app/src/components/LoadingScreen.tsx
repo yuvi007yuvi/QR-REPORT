@@ -14,9 +14,9 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
         <div className="fixed inset-0 bg-white z-50 flex items-center justify-center overflow-hidden">
             {/* Animated background circles */}
             <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-50 rounded-full blur-3xl animate-pulse"></div>
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-50 rounded-full blur-3xl animate-pulse delay-700"></div>
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-50 rounded-full blur-3xl animate-pulse delay-1000"></div>
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-50 rounded-full blur-3xl animate-pulse"></div>
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-50 rounded-full blur-3xl animate-pulse delay-700"></div>
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-50/50 rounded-full blur-3xl animate-pulse delay-1000"></div>
             </div>
 
             {/* Main content */}
@@ -25,10 +25,10 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
                 <div className="mb-8 relative">
                     <div className="inline-block relative">
                         {/* Rotating ring */}
-                        <div className="absolute inset-0 border-4 border-blue-200 border-t-blue-600 rounded-full w-32 h-32 animate-spin"></div>
+                        <div className="absolute inset-0 border-4 border-emerald-100 border-t-emerald-600 rounded-full w-32 h-32 animate-spin"></div>
                         {/* Inner icon */}
-                        <div className="relative w-32 h-32 bg-blue-50 rounded-full flex items-center justify-center shadow-lg">
-                            <svg className="w-16 h-16 text-blue-600 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="relative w-32 h-32 bg-emerald-50 rounded-full flex items-center justify-center shadow-lg">
+                            <svg className="w-16 h-16 text-emerald-600 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                         </div>
@@ -47,7 +47,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
 
                 {/* Loading text with dots animation */}
                 <div className="flex items-center justify-center gap-3 mb-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                    <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
                     <span className="text-lg text-gray-700 font-medium">
                         Processing Report Data
                         <span className="inline-flex ml-1">
@@ -60,19 +60,19 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
 
                 {/* Progress bar */}
                 <div className="w-full max-w-md mx-auto mb-12">
-                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 rounded-full animate-progress"></div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 rounded-full animate-progress"></div>
                     </div>
                 </div>
 
                 {/* Credits */}
                 <div className="space-y-3 text-gray-700">
                     <div className="flex items-center justify-center gap-2 animate-fade-in delay-500">
-                        <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-5 h-5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
                         </svg>
                         <p className="text-sm font-medium">
-                            Created by <span className="font-bold text-blue-600">Yuvraj Singh Tomar</span>
+                            Created by <span className="font-bold text-emerald-600">Yuvraj Singh Tomar</span>
                         </p>
                     </div>
 
@@ -98,7 +98,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
                 {[...Array(20)].map((_, i) => (
                     <div
                         key={i}
-                        className="absolute w-2 h-2 bg-blue-200 rounded-full animate-float"
+                        className="absolute w-2 h-2 bg-emerald-100 rounded-full animate-float"
                         style={{
                             left: `${Math.random() * 100}%`,
                             top: `${Math.random() * 100}%`,

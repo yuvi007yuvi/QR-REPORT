@@ -82,9 +82,9 @@ const DAY_ABBR = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 // ─────────────────────────────────────────────
 const getCellColor = (u: number, s: number, isToday?: boolean): string => {
     if (u > 0 && s > 0) return 'bg-emerald-500 text-white';   // Both done
-    if (u > 0) return 'bg-blue-400 text-white';                // Uniform only
+    if (u > 0) return 'bg-emerald-400 text-white';                // Uniform only
     if (s > 0) return 'bg-amber-400 text-white';               // Segregation only
-    if (isToday) return 'bg-slate-100 border-2 border-blue-400 text-slate-700';
+    if (isToday) return 'bg-white border-2 border-emerald-500 text-emerald-600';
     return 'bg-red-50 text-red-300';                           // Neither / Missed
 };
 
@@ -98,7 +98,7 @@ const Legend: React.FC = () => (
             Both Done
         </span>
         <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-blue-400 inline-block" />
+            <span className="w-3 h-3 rounded-sm bg-emerald-400 inline-block" />
             Uniform Only
         </span>
         <span className="flex items-center gap-1.5">
@@ -136,8 +136,8 @@ const SupCard: React.FC<SupCardProps> = ({ sup, year, month, daysInMonth, firstD
             onClick={onClick}
             className={`bg-white rounded-xl border transition-all cursor-pointer group overflow-hidden ${
                 hasZeroUploads 
-                ? 'border-red-300 bg-red-50 shadow-sm hover:shadow-red-200' 
-                : 'border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300'
+                ? 'border-red-200 bg-red-50 shadow-sm hover:shadow-red-200/50' 
+                : 'border-slate-200 bg-white shadow-sm hover:shadow-md hover:border-emerald-300'
             }`}
         >
             {/* Colored top bar */}
@@ -147,10 +147,10 @@ const SupCard: React.FC<SupCardProps> = ({ sup, year, month, daysInMonth, firstD
                 {/* Name + compliance */}
                 <div className="flex justify-between items-start mb-2">
                     <div className="flex-1 min-w-0">
-                        <p className="font-bold text-slate-800 text-xs leading-tight truncate group-hover:text-blue-700 transition-colors">
+                        <p className="font-bold text-slate-900 text-xs leading-tight truncate group-hover:text-emerald-600 transition-colors">
                             {sup.name}
                         </p>
-                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">{sup.id}</p>
+                        <p className="text-[10px] text-slate-500 font-mono mt-0.5">{sup.id}</p>
                     </div>
                     <span className={`ml-2 text-[10px] font-black px-1.5 py-0.5 rounded flex-shrink-0 ${
                         hasZeroUploads ? 'bg-red-600 text-white shadow-sm' :
@@ -194,10 +194,10 @@ const SupCard: React.FC<SupCardProps> = ({ sup, year, month, daysInMonth, firstD
 
                 {/* Mini stats row */}
                 <div className="flex justify-between text-[10px] font-semibold border-t border-slate-100 pt-2">
-                    <span className="text-blue-600">U: {sup.totalUniform}</span>
+                    <span className="text-emerald-600">U: {sup.totalUniform}</span>
                     <span className="text-amber-600">S: {sup.totalSegregation}</span>
-                    <span className="text-emerald-600">✓: {sup.bothDone}d</span>
-                    <span className="text-red-500">✗: {sup.neitherDone}d</span>
+                    <span className="text-emerald-700">✓: {sup.bothDone}d</span>
+                    <span className="text-red-600">✗: {sup.neitherDone}d</span>
                 </div>
             </div>
         </div>
@@ -241,7 +241,7 @@ const DetailModal: React.FC<DetailModalProps> = ({ sup, year, month, daysInMonth
                     {/* KPI Stats */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         {[
-                            { label: 'Uniform Uploads', value: sup.totalUniform, color: 'blue' },
+                            { label: 'Uniform Uploads', value: sup.totalUniform, color: 'emerald' },
                             { label: 'Segregation Uploads', value: sup.totalSegregation, color: 'amber' },
                             { label: 'Days Both Done', value: sup.bothDone, color: 'emerald' },
                             { label: 'Days Neither Done', value: sup.neitherDone, color: 'red' },
@@ -491,7 +491,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
             head: [['#', 'Supervisor', 'ID', 'Zonal', 'Ward', 'U-Uploads', 'S-Uploads', 'U-Days', 'S-Days', 'Both Days', 'Neither', 'Compliance']],
             body: tableData,
             theme: 'grid',
-            headStyles: { fillColor: [30, 64, 175], textColor: 255, fontSize: 7 },
+            headStyles: { fillColor: [16, 185, 129], textColor: 255, fontSize: 7 },
             styles: { fontSize: 7 },
         });
 
@@ -642,8 +642,8 @@ export const MonthWiseKPICalendar: React.FC = () => {
                                 Mathura Vrindavan Nagar Nigam
                             </h1>
                             <div className="flex items-center gap-2 mt-0.5">
-                                <BarChart3 className="w-4 h-4 text-blue-600" />
-                                <span className="text-base font-bold text-blue-700 uppercase tracking-wide">
+                                <BarChart3 className="w-4 h-4 text-emerald-500" />
+                                <span className="text-base font-bold text-emerald-500 uppercase tracking-wide">
                                     Month Wise KPI Calendar
                                 </span>
                             </div>
@@ -664,7 +664,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
                         onChange={e => e.target.files?.[0] && handleFile(e.target.files[0], 'segregation')} />
 
                     <button onClick={() => uniformRef.current?.click()}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${uniformFileName ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${uniformFileName ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}>
                         <Upload className="w-4 h-4" />
                         {uniformFileName ? `✓ ${uniformFileName.slice(0, 20)}...` : 'Upload Uniform CSV'}
                     </button>
@@ -678,7 +678,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
                     {hasData && (
                         <>
                             <button onClick={handleExportAllMonths}
-                                className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-semibold hover:bg-slate-900 transition-all shadow-sm">
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-all shadow-sm border border-slate-200">
                                 <Download className="w-4 h-4" />
                                 Export All Months
                             </button>
@@ -693,7 +693,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
                                 Export PDF
                             </button>
                             <button onClick={exportJPEG}
-                                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-all shadow-sm">
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-all shadow-sm border border-slate-200">
                                 <ImageIcon className="w-4 h-4" />
                                 Export JPEG
                             </button>
@@ -723,13 +723,13 @@ export const MonthWiseKPICalendar: React.FC = () => {
                     <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
                         <button
                             onClick={() => setViewMode('cards')}
-                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'cards' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'cards' ? 'bg-white shadow-sm text-emerald-600 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             Heatmap Cards
                         </button>
                         <button
                             onClick={() => setViewMode('table')}
-                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-emerald-600 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             Detailed Table
                         </button>
@@ -742,7 +742,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
                 {hasData && (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         {[
-                            { label: 'Total Supervisors', value: supervisors.length, icon: Users, color: 'blue', sub: 'in master list' },
+                            { label: 'Total Supervisors', value: supervisors.length, icon: Users, color: 'emerald', sub: 'in master list' },
                             { label: 'Active This Month', value: monthStats.active, icon: CheckCircle2, color: 'emerald', sub: 'at least 1 upload' },
                             { label: 'Avg Compliance', value: `${monthStats.avgCompliance}%`, icon: TrendingUp, color: 'purple', sub: 'both KPIs done' },
                             { label: 'Top Performer', value: monthStats.topPerformer?.name?.split(' ')[0] || '-', icon: ClipboardCheck, color: 'amber', sub: `${monthStats.topPerformer?.bothDone ?? 0} days complete` },
@@ -768,19 +768,19 @@ export const MonthWiseKPICalendar: React.FC = () => {
                             placeholder="Search supervisor, ID, ward…"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
-                            className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            className="flex-1 px-4 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         />
                         <select
                             value={filterZonal}
                             onChange={e => setFilterZonal(e.target.value)}
-                            className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                            className="px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         >
                             {uniqueZonals.map(z => <option key={z}>{z}</option>)}
                         </select>
                         <select
                             value={filterCompliance}
                             onChange={e => setFilterCompliance(e.target.value as any)}
-                            className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                            className="px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         >
                             <option value="all">All Compliance</option>
                             <option value="great">≥ 80% (Great)</option>
@@ -796,7 +796,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
                 {/* ── Calendar Grid ── */}
                 {loading && (
                     <div className="flex justify-center py-16">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600" />
                     </div>
                 )}
 
@@ -832,11 +832,11 @@ export const MonthWiseKPICalendar: React.FC = () => {
                                             Mathura Vrindavan Nagar Nigam
                                         </h2>
                                         <div className="flex items-center justify-center gap-2 mt-1">
-                                            <div className="h-px w-8 bg-blue-200" />
-                                            <span className="text-sm font-bold text-blue-700 uppercase tracking-widest">
+                                            <div className="h-px w-8 bg-emerald-100" />
+                                            <span className="text-sm font-bold text-emerald-700 uppercase tracking-widest">
                                                 KPI Performance Matrix — {MONTH_NAMES[viewMonth]} {viewYear}
                                             </span>
-                                            <div className="h-px w-8 bg-blue-200" />
+                                            <div className="h-px w-8 bg-emerald-100" />
                                         </div>
                                         {filterZonal !== 'All' && (
                                             <p className="text-xs font-black text-slate-500 mt-1 uppercase tracking-widest bg-slate-100 py-1 px-4 rounded-full inline-block">
@@ -862,7 +862,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
                                                 <th key={i} className="px-1 py-3 text-center font-bold text-slate-800 border-r border-slate-800 min-w-[30px]">{i + 1}</th>
                                             ))}
                                             <th className="px-2 py-3 text-center font-bold text-emerald-900 bg-emerald-50 border-r border-slate-800">Both</th>
-                                            <th className="px-2 py-3 text-center font-bold text-blue-900 bg-blue-50 border-r border-slate-800">U</th>
+                                            <th className="px-2 py-3 text-center font-bold text-slate-700 bg-slate-50 border-r border-slate-800">U</th>
                                             <th className="px-2 py-3 text-center font-bold text-amber-900 bg-amber-50 border-r border-slate-800">S</th>
                                         </tr>
                                     </thead>
@@ -886,7 +886,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
                                                         let label = '✕';
 
                                                         if (u > 0 && s > 0) { bgColor = 'bg-emerald-500'; label = 'B'; textColor = 'text-white'; }
-                                                        else if (u > 0) { bgColor = 'bg-blue-400'; label = 'U'; textColor = 'text-white'; }
+                                                        else if (u > 0) { bgColor = 'bg-emerald-400'; label = 'U'; textColor = 'text-white'; }
                                                         else if (s > 0) { bgColor = 'bg-amber-400'; label = 'S'; textColor = 'text-white'; }
 
                                                         return (
@@ -901,7 +901,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
                                                         );
                                                     })}
                                                     <td className="px-2 py-2 text-center font-black text-emerald-800 bg-emerald-50 border-r border-slate-800">{sup.bothDone}</td>
-                                                    <td className="px-2 py-2 text-center font-bold text-blue-800 bg-blue-50 border-r border-slate-800">{sup.daysUniformDone}</td>
+                                                    <td className="px-2 py-2 text-center font-bold text-slate-700 bg-slate-50 border-r border-slate-800">{sup.daysUniformDone}</td>
                                                     <td className="px-2 py-2 text-center font-bold text-amber-800 bg-amber-50 border-r border-slate-800">{sup.daysSegregationDone}</td>
                                                 </tr>
                                             );
@@ -936,7 +936,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
                                         <th className="px-3 py-3 text-left font-bold text-slate-600 border-r border-slate-100">Supervisor</th>
                                         <th className="px-3 py-3 text-center font-bold text-slate-600 border-r border-slate-100">ID</th>
                                         <th className="px-3 py-3 text-center font-bold text-slate-600 border-r border-slate-100">Zonal</th>
-                                        <th className="px-3 py-3 text-center font-bold text-blue-700 border-r border-slate-100 bg-blue-50">
+                                        <th className="px-3 py-3 text-center font-bold text-emerald-700 border-r border-slate-100 bg-emerald-50">
                                             <ClipboardCheck className="w-3 h-3 inline mr-1" />
                                             U-Uploads
                                         </th>
@@ -944,7 +944,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
                                             <Trash2 className="w-3 h-3 inline mr-1" />
                                             S-Uploads
                                         </th>
-                                        <th className="px-3 py-3 text-center font-bold text-blue-600 border-r border-slate-100">U-Days</th>
+                                        <th className="px-3 py-3 text-center font-bold text-emerald-600 border-r border-slate-100">U-Days</th>
                                         <th className="px-3 py-3 text-center font-bold text-amber-600 border-r border-slate-100">S-Days</th>
                                         <th className="px-3 py-3 text-center font-bold text-emerald-700 border-r border-slate-100 bg-emerald-50">Both Done</th>
                                         <th className="px-3 py-3 text-center font-bold text-red-600 border-r border-slate-100">Neither</th>
@@ -960,16 +960,16 @@ export const MonthWiseKPICalendar: React.FC = () => {
                                                 key={sup.id}
                                                 onClick={() => setSelectedSup(sup)}
                                                 className={`border-b border-slate-100 cursor-pointer transition-colors ${
-                                                    hasZeroUploads ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-blue-50'
+                                                    hasZeroUploads ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-emerald-50/30'
                                                 }`}
                                             >
                                                 <td className={`px-3 py-2.5 font-mono border-r border-slate-100 ${hasZeroUploads ? 'text-red-400' : 'text-slate-400'}`}>{i + 1}</td>
                                                 <td className={`px-3 py-2.5 font-semibold border-r border-slate-100 ${hasZeroUploads ? 'text-red-700' : 'text-slate-800'}`}>{sup.name}</td>
                                                 <td className={`px-3 py-2.5 text-center font-mono border-r border-slate-100 ${hasZeroUploads ? 'text-red-400' : 'text-slate-500'}`}>{sup.id}</td>
                                                 <td className="px-3 py-2.5 text-center text-purple-700 font-medium border-r border-slate-100 text-[10px]">{sup.zonalName}</td>
-                                                <td className="px-3 py-2.5 text-center font-bold text-blue-700 bg-blue-50 border-r border-slate-100">{sup.totalUniform}</td>
+                                                <td className="px-3 py-2.5 text-center font-bold text-emerald-700 bg-emerald-50 border-r border-slate-100">{sup.totalUniform}</td>
                                                 <td className="px-3 py-2.5 text-center font-bold text-amber-700 bg-amber-50 border-r border-slate-100">{sup.totalSegregation}</td>
-                                                <td className="px-3 py-2.5 text-center text-blue-600 border-r border-slate-100">{sup.daysUniformDone}</td>
+                                                <td className="px-3 py-2.5 text-center text-emerald-600 border-r border-slate-100">{sup.daysUniformDone}</td>
                                                 <td className="px-3 py-2.5 text-center text-amber-600 border-r border-slate-100">{sup.daysSegregationDone}</td>
                                                 <td className="px-3 py-2.5 text-center bg-emerald-50 border-r border-slate-100">
                                                     <span className="font-black text-emerald-700">{sup.bothDone}</span>
@@ -996,7 +996,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
                         <div className="p-4 border-t border-slate-100 text-center">
                             <p className="text-xs text-slate-400">
                                 Designed by <span className="font-bold text-slate-600">Reports Buddy Pro</span>
-                                {' · '}Created by <span className="font-bold text-blue-600">Yuvraj Singh Tomar</span>
+                                {' · '}Created by <span className="font-bold text-emerald-600">Yuvraj Singh Tomar</span>
                             </p>
                         </div>
                     </div>
@@ -1013,7 +1013,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
                         </p>
                         <div className="flex gap-3 justify-center flex-wrap">
                             <button onClick={() => uniformRef.current?.click()}
-                                className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 transition-all shadow-md font-semibold">
+                                className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-xl hover:bg-emerald-700 transition-all shadow-md font-semibold">
                                 <Upload className="w-4 h-4" /> Upload Uniform CSV
                             </button>
                             <button onClick={() => segregationRef.current?.click()}

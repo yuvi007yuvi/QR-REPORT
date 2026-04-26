@@ -1,250 +1,280 @@
-import React, { useMemo } from 'react';
-
-import { Image as ImageIcon } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+    Image as ImageIcon, 
+    RefreshCw, 
+    Edit3, 
+    Save, 
+    Trash2, 
+    Search,
+    ShieldCheck
+} from 'lucide-react';
+import { collection, query, onSnapshot, doc, updateDoc, deleteDoc, orderBy } from 'firebase/firestore';
+import { db } from '../firebase';
+import { useAuth } from '../contexts/AuthContext';
+import { seedSupervisorsToFirestore } from '../utils/firebaseMigration';
 import { exportToJPEG } from '../utils/exporter';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import natureGreenLogo from '../assets/NatureGreen_Logo.png';
 
-interface SupervisorData {
-    "S.No.": number;
-    "Zone & Circle": string;
-    "Ward No": string | number;
-    "Supervisor": string;
-    "Mobile No": string | number;
-    "Zonal Head": string;
+interface Supervisor {
+    id: string; // Firestore doc ID
+    empId: string;
+    name: string;
+    mobile: string;
+    ward: string;
+    zonal: string;
+    department: string;
 }
 
-const WARD_NAMES: Record<string, string> = {
-    "1": "01-Birjapur",
-    "2": "02-Ambedkar Nagar",
-    "3": "03-Girdharpur",
-    "4": "04-Ishapur Yamunapar",
-    "5": "05-Bharatpur Gate",
-    "6": "06-Aduki",
-    "7": "07-Lohvan",
-    "8": "08-Atas",
-    "9": "09-Gandhi Nagar",
-    "10": "10-Aurangabad First",
-    "11": "11-Tarsi",
-    "12": "12-Radhe Shyam Colony",
-    "13": "13-Sunrakh",
-    "14": "14-Lakshmi Nagar Yamunapar",
-    "15": "15-Maholi First",
-    "16": "16-Bakalpur",
-    "17": "17-Bairaagpura",
-    "18": "18-General ganj",
-    "19": "19-Ramnagar Yamunapar",
-    "20": "20-Krishna Nagar First",
-    "21": "21-Chaitanya Bihar",
-    "22": "22-Badhri Nagar",
-    "23": "23-Aheer Pada",
-    "24": "24-Sarai Azamabad",
-    "25": "25-Chharaura",
-    "26": "26-Naya Nagla",
-    "27": "27-Baad",
-    "28": "28-Aurangabad Second",
-    "29": "29-Koyla Alipur",
-    "30": "30-Krishna Nagar Second",
-    "31": "31-Navneet Nagar",
-    "32": "32-Ranchibagar",
-    "33": "33-Palikhera",
-    "34": "34-Radhaniwas",
-    "35": "35-Bankhandi",
-    "36": "36-Jaisingh Pura",
-    "37": "37-Baldevpuri",
-    "38": "38-Civil Lines",
-    "39": "39-Mahavidhya Colony",
-    "40": "40-Rajkumar",
-    "41": "41-Dhaulipiau",
-    "42": "42-Manoharpur",
-    "43": "43-Ganeshra",
-    "44": "44-Radhika Bihar",
-    "45": "45-Birla Mandir",
-    "46": "46-Radha Nagar",
-    "47": "47-Dwarkapuri",
-    "48": "48-Satoha Asangpur",
-    "49": "49-Daimpiriyal Nagar",
-    "50": "50-Patharpura",
-    "51": "51-Gaushala Nagar",
-    "52": "52-Chandrapuri",
-    "53": "53-Krishna Puri",
-    "54": "54-Pratap Nagar",
-    "55": "55-Govind Nagar",
-    "56": "56-Mandi Randas",
-    "57": "57-Balajipuram",
-    "58": "58-Gau Ghat",
-    "59": "59-Maholi Second",
-    "60": "60-Jagannath Puri",
-    "61": "61-Chaubia Para",
-    "62": "62-Mathura Darwaza",
-    "63": "63-Maliyaan Sadar",
-    "64": "64-Ghati Bahalray",
-    "65": "65-Holi Gali",
-    "66": "66-Keshighat",
-    "67": "67-Kemar Van",
-    "68": "68-Shanti Nagar",
-    "69": "69-Ratan Chhatri",
-    "70": "70-Biharipur",
-};
-
-import { MASTER_SUPERVISORS } from '../data/master-supervisors';
-
 export const SupervisorZonalMapping: React.FC = () => {
+    const { isAdmin } = useAuth();
+    const [supervisors, setSupervisors] = useState<Supervisor[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isMigrating, setIsMigrating] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editData, setEditData] = useState<Partial<Supervisor>>({});
 
-    const mappingData = useMemo(() => {
-        // Filter for C&T supervisors from the master list
-        const ctSupervisors = MASTER_SUPERVISORS.filter(s => s.department === 'C&T');
-
-        const groupedByZone: Record<string, typeof ctSupervisors> = {};
-
-        // Group by Zonal Head
-        ctSupervisors.forEach(sup => {
-            const head = sup.zonal || 'Unassigned';
-            if (!groupedByZone[head]) {
-                groupedByZone[head] = [];
-            }
-            groupedByZone[head].push(sup);
+    // Fetch data from Firestore
+    useEffect(() => {
+        const q = query(collection(db, 'supervisors'), orderBy('name', 'asc'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as Supervisor));
+            setSupervisors(data);
+            setLoading(false);
         });
-
-        // Format data for display
-        const consolidated: Record<string, SupervisorData[]> = {};
-
-        Object.keys(groupedByZone).sort().forEach(zone => {
-            const supervisors = groupedByZone[zone];
-
-            consolidated[zone] = supervisors.map(sup => {
-                // Parse ward numbers (handle comma separated)
-                const wardNums = sup.ward.toString().split(',').map(s => s.trim());
-
-                const wardNames = wardNums
-                    .map(num => WARD_NAMES[num] || `Ward ${num}`)
-                    // Sort numerically based on the leading number
-                    .sort((a, b) => {
-                        const numA = parseInt(a.match(/^(\d+)/)?.[1] || '0', 10);
-                        const numB = parseInt(b.match(/^(\d+)/)?.[1] || '0', 10);
-                        return numA - numB;
-                    })
-                    .join(", ");
-
-                return {
-                    "S.No.": parseInt(sup.sNo) || 0, // Best effort parse
-                    "Supervisor": sup.name,
-                    "Mobile No": sup.mobile,
-                    "Ward No": wardNames,
-                    "Zonal Head": sup.zonal,
-                    "Zone & Circle": sup.zonal // Map Zonal to Zone & Circle for now as they are proxy
-                } as SupervisorData;
-            });
-        });
-
-        return consolidated;
+        return unsubscribe;
     }, []);
+
+    // Filter and group data
+    const groupedData = useMemo(() => {
+        const filtered = supervisors.filter(s => 
+            s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            s.ward.toString().includes(searchTerm) ||
+            s.zonal.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            s.empId.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        const groups: Record<string, Supervisor[]> = {};
+        filtered.forEach(s => {
+            const zone = s.zonal || 'Unassigned';
+            if (!groups[zone]) groups[zone] = [];
+            groups[zone].push(s);
+        });
+        return groups;
+    }, [supervisors, searchTerm]);
+
+    const handleSync = async () => {
+        if (!window.confirm('This will seed the database with static master data. Continue?')) return;
+        setIsMigrating(true);
+        const result = await seedSupervisorsToFirestore();
+        alert(result.message);
+        setIsMigrating(false);
+    };
+
+    const handleEdit = (s: Supervisor) => {
+        setEditingId(s.id);
+        setEditData(s);
+    };
+
+    const handleSave = async (id: string) => {
+        try {
+            const docRef = doc(db, 'supervisors', id);
+            await updateDoc(docRef, {
+                ...editData,
+                lastUpdated: new Date().toISOString()
+            });
+            setEditingId(null);
+        } catch (err) {
+            console.error('Save failed:', err);
+            alert('Failed to save changes.');
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!window.confirm('Are you sure you want to delete this supervisor?')) return;
+        try {
+            await deleteDoc(doc(db, 'supervisors', id));
+        } catch (err) {
+            console.error('Delete failed:', err);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+                <div className="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+                <p className="text-slate-400 text-sm font-medium">Synchronizing Mapping Data...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-end gap-2 items-center">
-                <button
-                    onClick={() => exportToJPEG('mapping-report-container', 'Supervisor_Zonal_Mapping')}
-                    className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
-                >
-                    <ImageIcon className="w-4 h-4" />
-                    Export JPEG
-                </button>
+            {/* Control Bar */}
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-900/50 p-4 rounded-2xl border border-white/5 backdrop-blur-md">
+                <div className="relative w-full md:w-96">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                    <input
+                        type="text"
+                        placeholder="Search supervisor, ward or zone..."
+                        className="w-full pl-10 pr-4 py-2 bg-slate-800/50 border-white/10 rounded-xl text-white text-sm focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                </div>
+
+                <div className="flex gap-3 w-full md:w-auto">
+                    {isAdmin && supervisors.length === 0 && (
+                        <button
+                            onClick={handleSync}
+                            disabled={isMigrating}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-xl text-sm font-semibold hover:bg-amber-500 hover:text-white transition-all disabled:opacity-50"
+                        >
+                            <RefreshCw size={16} className={isMigrating ? 'animate-spin' : ''} />
+                            Sync from Master
+                        </button>
+                    )}
+                    
+                    <button
+                        onClick={() => exportToJPEG('mapping-report-container', 'Supervisor_Mapping_Report')}
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow-lg shadow-emerald-900/20 transition-all"
+                    >
+                        <ImageIcon size={16} />
+                        Export JPEG
+                    </button>
+                </div>
             </div>
 
-            <div id="mapping-report-container" className="bg-white p-8 min-w-[800px] mx-auto shadow-lg rounded-lg">
-                {/* Professional Logo Header */}
-                <div className="bg-white rounded-xl shadow-lg border-2 border-blue-100 p-6 mb-8">
-                    <div className="grid grid-cols-3 items-center gap-6">
-                        {/* Left Side - Nagar Nigam Logo */}
-                        <div className="flex flex-col items-center sm:items-start">
-                            <img
-                                src={nagarNigamLogo}
-                                alt="Nagar Nigam Logo"
-                                className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
-                            />
-
-                            <p className="hidden sm:block text-[10px] font-bold text-blue-800 mt-2 uppercase tracking-tight text-center sm:text-left">
-                                Nagar Nigam<br />Mathura-Vrindavan
-                            </p>
+            {/* Main Content */}
+            <div id="mapping-report-container" className="bg-[#020617] p-8 rounded-3xl border border-white/5 shadow-2xl">
+                {/* Visual Header (Branded) */}
+                <div className="grid grid-cols-3 items-center mb-10 pb-10 border-b border-white/5">
+                    <div className="flex flex-col items-start gap-3">
+                        <img src={nagarNigamLogo} alt="Nagar Nigam" className="h-16 w-auto object-contain brightness-0 invert opacity-80" />
+                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] leading-tight">
+                            Mathura-Vrindavan<br />Nagar Nigam
                         </div>
+                    </div>
 
-                        {/* Center - Title Section */}
-                        <div className="text-center flex flex-col items-center justify-center">
-                            <div className="bg-blue-50 px-4 py-1 rounded-full mb-3">
-                                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">Official Report</span>
-                            </div>
-                            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-gray-900 tracking-tight leading-none mb-2">
-                                SUPERVISOR<br />
-                                <span className="text-blue-600">MAPPING</span>
-                            </h1>
-                            <div className="h-1 w-20 bg-blue-600 rounded-full mb-2"></div>
-                            <p className="text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-widest">
-                                Zone & Ward Assignments
-                            </p>
+                    <div className="text-center space-y-2">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-bold uppercase tracking-widest">
+                            <ShieldCheck size={12} /> Official Assignment Register
                         </div>
+                        <h1 className="text-3xl font-black text-white tracking-tighter">SUPERVISOR <span className="text-emerald-500">MAPPING</span></h1>
+                        <p className="text-xs text-slate-500 font-medium uppercase tracking-[0.3em]">Master Database v3.0</p>
+                    </div>
 
-                        {/* Right Side - Nature Green Logo */}
-                        <div className="flex flex-col items-center sm:items-end">
-                            <img
-                                src={natureGreenLogo}
-                                alt="Nature Green Logo"
-                                className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
-                            />
-
-                            <p className="hidden sm:block text-[10px] font-bold text-green-700 mt-2 uppercase tracking-tight text-center sm:text-right">
-                                Nature Green<br />Waste Management
-                            </p>
+                    <div className="flex flex-col items-end gap-3">
+                        <img src={natureGreenLogo} alt="Nature Green" className="h-16 w-auto object-contain" />
+                        <div className="text-[10px] font-bold text-emerald-600/80 uppercase tracking-[0.2em] text-right leading-tight">
+                            Nature Green<br />Waste Management
                         </div>
                     </div>
                 </div>
 
-                <div className="space-y-8">
-                    {Object.entries(mappingData).map(([head, supervisors]) => (
-                        <div key={head} className="border border-gray-200 rounded-lg overflow-hidden">
-                            <div className="bg-blue-50 p-3 border-b border-blue-100 flex justify-between items-center">
-                                <h3 className="font-bold text-blue-800 text-lg">
-                                    Zonal Head: {head}
-                                </h3>
-                                <span className="text-xs font-medium bg-blue-200 text-blue-800 px-2 py-1 rounded-full">
-                                    {supervisors.length} Supervisors
-                                </span>
+                {/* Data Tables */}
+                <div className="space-y-12">
+                    {Object.entries(groupedData).sort().map(([zone, sups]) => (
+                        <div key={zone} className="group">
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="h-px flex-1 bg-white/5" />
+                                <h2 className="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                    Zone: <span className="text-white">{zone}</span>
+                                    <span className="text-[10px] bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full lowercase">
+                                        {sups.length} units
+                                    </span>
+                                </h2>
+                                <div className="h-px flex-1 bg-white/5" />
                             </div>
 
-                            <table className="w-full text-sm text-left">
-                                <thead className="bg-gray-50 text-gray-600 font-medium border-b border-gray-200">
-                                    <tr>
-                                        <th className="p-3 w-16 text-center">S.No.</th>
-                                        <th className="p-3">Supervisor Name</th>
-                                        <th className="p-3">Ward Name</th>
-                                        <th className="p-3">Mobile No</th>
-                                        <th className="p-3">Zone & Circle</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {supervisors.map((sup, index) => (
-                                        <tr key={index} className="hover:bg-gray-50 transition-colors">
-                                            <td className="p-3 text-center text-gray-500">{index + 1}</td>
-                                            <td className="p-3 font-medium text-gray-900">{sup.Supervisor}</td>
-                                            <td className="p-3 text-gray-600">{sup["Ward No"]}</td>
-                                            <td className="p-3 text-gray-600">{sup["Mobile No"]}</td>
-                                            <td className="p-3 text-gray-600">{sup["Zone & Circle"]}</td>
+                            <div className="bg-slate-900/30 rounded-2xl border border-white/5 overflow-hidden">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-slate-800/50">
+                                            <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/5">Emp ID</th>
+                                            <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/5">Supervisor</th>
+                                            <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/5">Ward(s)</th>
+                                            <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/5">Contact</th>
+                                            <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/5 text-right">Dept</th>
+                                            {isAdmin && <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/5 text-right w-24">Actions</th>}
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/[0.03]">
+                                        {sups.map(s => (
+                                            <tr key={s.id} className="hover:bg-white/[0.02] transition-colors group/row">
+                                                <td className="px-6 py-4 text-xs font-mono text-slate-500">{s.empId}</td>
+                                                <td className="px-6 py-4 text-sm font-bold text-slate-200">
+                                                    {editingId === s.id ? (
+                                                        <input 
+                                                            className="bg-slate-800 border-emerald-500/50 text-white rounded px-2 py-1 w-full"
+                                                            value={editData.name}
+                                                            onChange={e => setEditData({...editData, name: e.target.value})}
+                                                        />
+                                                    ) : s.name}
+                                                </td>
+                                                <td className="px-6 py-4 text-xs font-medium text-slate-400">
+                                                    {editingId === s.id ? (
+                                                        <input 
+                                                            className="bg-slate-800 border-emerald-500/50 text-white rounded px-2 py-1 w-full"
+                                                            value={editData.ward}
+                                                            onChange={e => setEditData({...editData, ward: e.target.value})}
+                                                        />
+                                                    ) : s.ward}
+                                                </td>
+                                                <td className="px-6 py-4 text-xs text-slate-500">
+                                                    {editingId === s.id ? (
+                                                        <input 
+                                                            className="bg-slate-800 border-emerald-500/50 text-white rounded px-2 py-1 w-full"
+                                                            value={editData.mobile}
+                                                            onChange={e => setEditData({...editData, mobile: e.target.value})}
+                                                        />
+                                                    ) : s.mobile}
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded ${s.department === 'UCC' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                                                        {s.department}
+                                                    </span>
+                                                </td>
+                                                {isAdmin && (
+                                                    <td className="px-6 py-4 text-right">
+                                                        <div className="flex justify-end gap-2 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                                            {editingId === s.id ? (
+                                                                <button onClick={() => handleSave(s.id)} className="p-1.5 text-emerald-500 hover:bg-emerald-500/10 rounded-lg"><Save size={14} /></button>
+                                                            ) : (
+                                                                <button onClick={() => handleEdit(s)} className="p-1.5 text-slate-400 hover:bg-white/5 rounded-lg"><Edit3 size={14} /></button>
+                                                            )}
+                                                            <button onClick={() => handleDelete(s.id)} className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg"><Trash2 size={14} /></button>
+                                                        </div>
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     ))}
                 </div>
 
-                {/* Footer */}
-                <div className="mt-12 mb-6 text-center">
-                    <div className="inline-block bg-white px-8 py-4 rounded-2xl shadow-sm border border-slate-100">
-                        <p className="text-slate-600 font-medium text-lg tracking-wide">
-                            Generated by <span className="font-extrabold text-indigo-600 mx-1">Reports Buddy Pro</span>
-                            <span className="text-slate-300 mx-3">|</span>
-                            Created by <span className="font-extrabold text-slate-800 mx-1 border-b-2 border-indigo-200">Yuvraj Singh Tomar</span>
-                        </p>
+                {/* Detailed Footer */}
+                <div className="mt-16 pt-8 border-t border-white/5 text-center">
+                    <p className="text-slate-600 text-[11px] font-medium tracking-widest uppercase mb-4">
+                        System Signature: 0x798YST-PORTAL-BUDDY-SECURE
+                    </p>
+                    <div className="inline-flex items-center gap-6 px-8 py-3 rounded-2xl bg-white/[0.02] border border-white/5">
+                        <div className="text-left border-r border-white/10 pr-6">
+                            <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-1">Generated by</div>
+                            <div className="text-xs font-black text-white">Reports Buddy Pro</div>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-1">Authority</div>
+                            <div className="text-xs font-black text-slate-300">Yuvraj Singh Tomar</div>
+                        </div>
                     </div>
                 </div>
             </div>

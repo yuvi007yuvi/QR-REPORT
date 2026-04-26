@@ -71,7 +71,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({ data }) => {
     }, [filteredData]);
 
     const cards = [
-        { label: 'Total', value: stats.total, icon: QrCode, color: 'text-blue-600', bg: 'bg-blue-100' },
+        { label: 'Total', value: stats.total, icon: QrCode, color: 'text-emerald-600', bg: 'bg-emerald-100' },
         { label: 'Scanned', value: `${stats.scanned} (${stats.scannedPercentage}%)`, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100' },
         { label: 'Pending', value: stats.pending, icon: Clock, color: 'text-red-600', bg: 'bg-red-100' },
         { label: 'Unknown', value: stats.unknown, icon: AlertTriangle, color: 'text-yellow-600', bg: 'bg-yellow-100' },
@@ -84,7 +84,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({ data }) => {
                     <h3 className="text-lg font-semibold text-gray-800">
                         Detailed Report
                         {selectedZoneHead !== 'All' && (
-                            <span className="ml-2 text-blue-600 font-normal">
+                            <span className="ml-2 text-emerald-600 font-normal">
                                 - {selectedZoneHead}
                             </span>
                         )}
@@ -96,7 +96,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({ data }) => {
                             <input
                                 type="text"
                                 placeholder="Search..."
-                                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -105,7 +105,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({ data }) => {
                         <select
                             value={selectedZoneHead}
                             onChange={(e) => setSelectedZoneHead(e.target.value)}
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
                         >
                             {zonalHeads.map(head => (
                                 <option key={head} value={head}>{head === 'All' ? 'All Zonal Heads' : head}</option>
@@ -142,7 +142,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({ data }) => {
                 </div>
                 <div id="report-table-container" className="bg-white p-4">
                     {/* Professional Logo Header */}
-                    <div className="bg-white rounded-xl shadow-lg border-2 border-blue-100 p-6 mb-8">
+                    <div className="bg-white rounded-xl shadow-lg border-2 border-emerald-100 p-6 mb-8">
                         <div className="grid grid-cols-3 items-center gap-6">
                             {/* Left Side - Nagar Nigam Logo */}
                             <div className="flex flex-col items-center sm:items-start">
@@ -152,21 +152,21 @@ export const ReportTable: React.FC<ReportTableProps> = ({ data }) => {
                                     className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
                                 />
 
-                                <p className="hidden sm:block text-[10px] font-bold text-blue-800 mt-2 uppercase tracking-tight text-center sm:text-left">
+                                <p className="hidden sm:block text-[10px] font-bold text-emerald-800 mt-2 uppercase tracking-tight text-center sm:text-left">
                                     Nagar Nigam<br />Mathura-Vrindavan
                                 </p>
                             </div>
 
                             {/* Center - Title Section */}
                             <div className="text-center flex flex-col items-center justify-center">
-                                <div className="bg-blue-50 px-4 py-1 rounded-full mb-3">
-                                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">Official Report</span>
+                                <div className="bg-emerald-50 px-4 py-1 rounded-full mb-3">
+                                    <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-[0.2em]">Official Report</span>
                                 </div>
                                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-gray-900 tracking-tight leading-none mb-2">
                                     DETAILED QR<br />
-                                    <span className="text-blue-600">REPORT</span>
+                                    <span className="text-emerald-600">REPORT</span>
                                 </h1>
-                                <div className="h-1 w-20 bg-blue-600 rounded-full mb-2"></div>
+                                <div className="h-1 w-20 bg-emerald-600 rounded-full mb-2"></div>
                                 <p className="text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-widest">
                                     {selectedZoneHead === 'All' ? 'ALL ZONAL HEADS' : selectedZoneHead}
                                 </p>
@@ -260,9 +260,9 @@ export const ReportTable: React.FC<ReportTableProps> = ({ data }) => {
                     <div className="mt-12 mb-6 text-center">
                         <div className="inline-block bg-white px-8 py-4 rounded-2xl shadow-sm border border-slate-100">
                             <p className="text-slate-600 font-medium text-lg tracking-wide">
-                                Generated by <span className="font-extrabold text-indigo-600 mx-1">Reports Buddy Pro</span>
+                                Generated by <span className="font-extrabold text-emerald-600 mx-1">Reports Buddy Pro</span>
                                 <span className="text-slate-300 mx-3">|</span>
-                                Created by <span className="font-extrabold text-slate-800 mx-1 border-b-2 border-indigo-200">Yuvraj Singh Tomar</span>
+                                Created by <span className="font-extrabold text-slate-800 mx-1 border-b-2 border-emerald-200">Yuvraj Singh Tomar</span>
                             </p>
                         </div>
                     </div>

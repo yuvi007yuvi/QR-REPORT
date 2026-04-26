@@ -197,7 +197,7 @@ export const KYCCalendarView: React.FC = () => {
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Daily KYC Survey Report</h1>
-                        <p className="text-slate-500 font-medium">Operational Dashboard & Management Review</p>
+                        <p className="text-emerald-600 font-medium">Operational Dashboard & Management Review</p>
                     </div>
                     <div className="flex gap-3">
                         <label className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 cursor-pointer transition text-sm font-semibold text-slate-700">
@@ -205,7 +205,7 @@ export const KYCCalendarView: React.FC = () => {
                             {fileName || "Upload CSV"}
                             <input type="file" className="hidden" accept=".csv" onChange={handleFileUpload} disabled={loading} />
                         </label>
-                        <button onClick={() => exportToJPEG('daily-dashboard', `KYC_Report_${selectedDate}`)} className="p-2 bg-white border border-slate-300 rounded-lg text-slate-600 hover:text-blue-600 hover:border-blue-300 transition shadow-sm">
+                        <button onClick={() => exportToJPEG('daily-dashboard', `KYC_Report_${selectedDate}`)} className="p-2 bg-white border border-slate-300 rounded-lg text-slate-600 hover:text-emerald-600 hover:border-emerald-300 transition shadow-sm">
                             <Download className="w-5 h-5" />
                         </button>
                     </div>
@@ -250,10 +250,10 @@ export const KYCCalendarView: React.FC = () => {
                         <div className="p-4 flex flex-col gap-1 flex-1">
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Supervisors</span>
                             <div className="flex items-center gap-2">
-                                <span className="text-2xl font-black text-blue-600">
+                                <span className="text-2xl font-black text-emerald-600">
                                     {currentDayData?.supervisors.filter(s => s.count > 0).length || 0}
                                 </span>
-                                <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold uppercase">
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase">
                                     On Duty
                                 </span>
                             </div>
@@ -266,7 +266,7 @@ export const KYCCalendarView: React.FC = () => {
                     <div id="daily-dashboard" className="space-y-4">
                         <div className="flex items-center justify-between">
                             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                <User className="w-5 h-5 text-slate-500" />
+                                <User className="w-5 h-5 text-emerald-600" />
                                 Supervisor Performance
                             </h3>
                             <span className="text-xs font-semibold text-slate-500">
@@ -285,7 +285,7 @@ export const KYCCalendarView: React.FC = () => {
                                             relative flex flex-col justify-between p-4 rounded-xl border transition-all cursor-pointer select-none
                                             ${isZero
                                                 ? 'bg-slate-50 border-slate-100 opacity-70 hover:opacity-100 hover:border-slate-300'
-                                                : 'bg-white border-slate-200 shadow-sm hover:shadow-md hover:border-blue-400 hover:-translate-y-1'
+                                                : 'bg-white border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-400 hover:-translate-y-1'
                                             }
                                         `}
                                     >
@@ -345,7 +345,7 @@ export const KYCCalendarView: React.FC = () => {
                                 <p className="text-sm text-slate-500 font-medium">Employee ID: {selectedSupervisor.empId}</p>
                             </div>
                             <div className="text-right">
-                                <span className="block text-2xl font-black text-blue-600">{selectedSupervisor.count}</span>
+                                <span className="block text-2xl font-black text-emerald-600">{selectedSupervisor.count}</span>
                                 <span className="text-xs font-bold text-slate-400 uppercase">Total KYC</span>
                             </div>
                         </div>

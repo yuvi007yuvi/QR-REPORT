@@ -11,7 +11,8 @@ import {
     BarChart3,
     Filter,
     Image as ImageIcon,
-    MessageCircle
+    MessageCircle,
+    Table
 } from 'lucide-react';
 import { exportToJPEG } from '../utils/exporter';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
@@ -162,9 +163,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
             label: 'Total QRs Assigned',
             value: filteredSummaryStats.total,
             icon: QrCode,
-            color: 'text-blue-600',
-            bg: 'bg-blue-50',
-            border: 'border-blue-200'
+            color: 'text-emerald-600',
+            bg: 'bg-emerald-50',
+            border: 'border-emerald-200'
         },
         {
             label: 'Successfully Scanned',
@@ -198,9 +199,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm p-1 rounded-xl border border-white/20">
-                    <div className="bg-white/20 p-2 rounded-lg">
-                        <Filter className="w-4 h-4 text-blue-600" />
+                <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                    <div className="bg-white p-2 rounded-lg shadow-sm">
+                        <Filter className="w-4 h-4 text-emerald-600" />
                     </div>
                     <div className="flex items-center">
                         <select
@@ -252,16 +253,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                 </label>
                 <button
                     onClick={() => exportToJPEG('dashboard-report-container', 'Dashboard_Report')}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
                 >
                     <ImageIcon className="w-4 h-4" />
                     Export JPEG
                 </button>
             </div>
 
-            <div id="dashboard-report-container" className="space-y-8 bg-white/5 p-4 rounded-xl">
+            <div id="dashboard-report-container" className="space-y-8 bg-transparent p-4 rounded-xl">
                 {/* Professional Logo Header */}
-                <div className="bg-white rounded-xl shadow-lg border-2 border-blue-100 p-6 mb-8">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
                     <div className="grid grid-cols-3 items-center gap-6">
                         {/* Left Side - Nagar Nigam Logo */}
                         <div className="flex flex-col items-center sm:items-start">
@@ -271,22 +272,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                 className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
                             />
 
-                            <p className="hidden sm:block text-[10px] font-bold text-blue-800 mt-2 uppercase tracking-tight text-center sm:text-left">
+                            <p className="hidden sm:block text-[10px] font-bold text-emerald-500 mt-2 uppercase tracking-tight text-center sm:text-left">
                                 Nagar Nigam<br />Mathura-Vrindavan
                             </p>
                         </div>
 
                         {/* Center - Title Section */}
                         <div className="text-center flex flex-col items-center justify-center">
-                            <div className="bg-blue-50 px-4 py-1 rounded-full mb-3">
-                                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">Official Report</span>
+                            <div className="bg-emerald-100 px-4 py-1 rounded-full mb-3">
+                                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-[0.2em]">Official Report</span>
                             </div>
-                            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-gray-900 tracking-tight leading-none mb-2">
+                            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-none mb-2">
                                 QR PERFORMANCE<br />
-                                <span className="text-blue-600">DASHBOARD</span>
+                                <span className="text-emerald-600">DASHBOARD</span>
                             </h1>
-                            <div className="h-1 w-20 bg-blue-600 rounded-full mb-2"></div>
-                            <p className="text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-widest">
+                            <div className="h-1 w-20 bg-emerald-600 rounded-full mb-2"></div>
+                            <p className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-widest">
                                 Daily Attendance & Monitoring
                             </p>
                         </div>
@@ -299,7 +300,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                 className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
                             />
 
-                            <p className="hidden sm:block text-[10px] font-bold text-green-700 mt-2 uppercase tracking-tight text-center sm:text-right">
+                            <p className="hidden sm:block text-[10px] font-bold text-emerald-600 mt-2 uppercase tracking-tight text-center sm:text-right">
                                 Nature Green<br />Waste Management
                             </p>
                         </div>
@@ -307,26 +308,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                 </div>
 
                 {/* Top Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {cards.map((card, index) => (
-                        <div
-                            key={index}
-                            className={`bg-white rounded-xl shadow-sm p-6 border ${card.border} hover:shadow-md transition-shadow duration-200 flex flex-col justify-between`}
-                        >
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-500 mb-1">{card.label}</p>
-                                    <h3 className="text-3xl font-bold text-gray-900 tracking-tight">{card.value}</h3>
-                                    {card.subValue && (
-                                        <p className="text-xs font-semibold text-green-600 mt-1 flex items-center gap-1">
-                                            <TrendingUp className="w-3 h-3" />
-                                            {card.subValue}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className={`p-3 rounded-xl ${card.bg}`}>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    {cards.map((card, i) => (
+                        <div key={i} className={`${card.bg} ${card.border} border p-6 rounded-2xl shadow-sm hover:shadow-md transition-all`}>
+                            <div className="flex justify-between items-start mb-4">
+                                <div className={`p-3 bg-white rounded-xl shadow-sm`}>
                                     <card.icon className={`w-6 h-6 ${card.color}`} />
                                 </div>
+                            </div>
+                            <h3 className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">{card.label}</h3>
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-2xl font-black text-slate-900">{card.value}</span>
+                                {card.subValue && (
+                                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{card.subValue}</span>
+                                )}
                             </div>
                         </div>
                     ))}
@@ -441,7 +436,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                 {/* Zonal Performance Donut Charts (Matching POI Style) */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Scanned by Zonals */}
-                    <div className="bg-white rounded-xl shadow-sm border-2 border-green-500 p-6">
+                    <div className="bg-white rounded-xl shadow-sm border-2 border-emerald-500 p-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-2">Scanned by Zonals</h3>
                         <div className="h-[350px] w-full relative">
                             <ResponsiveContainer width="100%" height="100%" minHeight={300}>
@@ -461,7 +456,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                             const radius = outerRadius + 25;
                                             const x = cx + radius * Math.cos(-midAngle * RADIAN);
                                             const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                                            const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4'];
+                                            const colors = ['#10b981', '#059669', '#334155', '#94a3b8', '#1e293b', '#0f172a'];
                                             const color = colors[index % colors.length];
 
                                             return (
@@ -482,7 +477,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                         labelLine={true}
                                     >
                                         {zonalDonutData.scannedData.map((_entry, index) => {
-                                            const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4'];
+                                            const colors = ['#10b981', '#059669', '#334155', '#94a3b8', '#1e293b', '#0f172a'];
                                             return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
                                         })}
                                     </Pie>
@@ -536,7 +531,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                             const radius = outerRadius + 25;
                                             const x = cx + radius * Math.cos(-midAngle * RADIAN);
                                             const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                                            const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4'];
+                                            const colors = ['#10b981', '#059669', '#334155', '#94a3b8', '#1e293b', '#0f172a'];
                                             const color = colors[index % colors.length];
 
                                             return (
@@ -557,7 +552,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                         labelLine={true}
                                     >
                                         {zonalDonutData.pendingData.map((_entry, index) => {
-                                            const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4'];
+                                            const colors = ['#10b981', '#059669', '#334155', '#94a3b8', '#1e293b', '#0f172a'];
                                             return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
                                         })}
                                     </Pie>
@@ -593,89 +588,92 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
 
                 {/* Ward Performance Analysis Section */}
                 <div className="space-y-6">
-                    <div className="flex items-center gap-2 border-b-2 border-blue-600 pb-2 mb-4">
-                        <BarChart3 className="w-6 h-6 text-blue-600" />
-                        <h2 className="text-xl font-bold text-gray-900 uppercase tracking-tight">Daily Ward Performance Analysis</h2>
-                    </div>
-
-                    {/* Top/Low Performing Wards Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Top 5 Wards card */}
-                        <div className="bg-white rounded-xl shadow-md border-t-4 border-green-500 overflow-hidden">
-                            <div className="bg-green-50 px-4 py-3 border-b border-green-100 flex items-center justify-between">
-                                <h3 className="font-bold text-green-800 flex items-center gap-2">
-                                    <TrendingUp className="w-5 h-5" />
-                                    Top 5 Performing Wards
-                                </h3>
+                    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                        <div className="flex items-center gap-2 mb-6">
+                            <div className="bg-emerald-50 p-2 rounded-lg">
+                                <BarChart3 className="w-5 h-5 text-emerald-600" />
                             </div>
-                            <div className="p-4">
-                                <div className="space-y-3">
-                                    {filteredWardStats.slice(0, 5).map((ward, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-100">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-6 h-6 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold">
-                                                    #{idx + 1}
-                                                </div>
-                                                <span className="font-bold text-gray-800">{ward.ward}</span>
-                                            </div>
-                                            <span className="font-black text-green-600">{ward.percentage}%</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                            <h3 className="text-lg font-black text-slate-900 tracking-tight">Zonal Scanning Progress</h3>
                         </div>
 
-                        {/* Low 5 Wards card */}
-                        <div className="bg-white rounded-xl shadow-md border-t-4 border-red-500 overflow-hidden">
-                            <div className="bg-red-50 px-4 py-3 border-b border-red-100 flex items-center justify-between">
-                                <h3 className="font-bold text-red-800 flex items-center gap-2">
-                                    <AlertCircle className="w-5 h-5" />
-                                    Low 5 Performing Wards
-                                </h3>
-                            </div>
-                            <div className="p-4">
-                                <div className="space-y-3">
-                                    {[...filteredWardStats]
-                                        .filter(w => w.total > 0)
-                                        .sort((a, b) => a.percentage - b.percentage)
-                                        .slice(0, 5)
-                                        .map((ward, idx) => (
+                        {/* Top/Low Performing Wards Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Top 5 Wards card */}
+                            <div className="bg-white rounded-xl shadow-md border-t-4 border-emerald-500 overflow-hidden">
+                                <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-100 flex items-center justify-between">
+                                    <h3 className="font-bold text-emerald-800 flex items-center gap-2">
+                                        <TrendingUp className="w-5 h-5" />
+                                        Top 5 Performing Wards
+                                    </h3>
+                                </div>
+                                <div className="p-4">
+                                    <div className="space-y-3">
+                                        {filteredWardStats.slice(0, 5).map((ward, idx) => (
                                             <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-100">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-6 h-6 rounded-full bg-red-100 text-red-700 flex items-center justify-center text-xs font-bold">
+                                                    <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">
                                                         #{idx + 1}
                                                     </div>
                                                     <span className="font-bold text-gray-800">{ward.ward}</span>
                                                 </div>
-                                                <span className="font-black text-red-600">{ward.percentage}%</span>
+                                                <span className="font-black text-emerald-600">{ward.percentage}%</span>
                                             </div>
                                         ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Low 5 Wards card */}
+                            <div className="bg-white rounded-xl shadow-md border-t-4 border-red-500 overflow-hidden">
+                                <div className="bg-red-50 px-4 py-3 border-b border-red-100 flex items-center justify-between">
+                                    <h3 className="font-bold text-red-800 flex items-center gap-2">
+                                        <AlertCircle className="w-5 h-5" />
+                                        Low 5 Performing Wards
+                                    </h3>
+                                </div>
+                                <div className="p-4">
+                                    <div className="space-y-3">
+                                        {[...filteredWardStats]
+                                            .filter(w => w.total > 0)
+                                            .sort((a, b) => a.percentage - b.percentage)
+                                            .slice(0, 5)
+                                            .map((ward, idx) => (
+                                                <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-100">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-6 h-6 rounded-full bg-red-100 text-red-700 flex items-center justify-center text-xs font-bold">
+                                                            #{idx + 1}
+                                                        </div>
+                                                        <span className="font-bold text-gray-800">{ward.ward}</span>
+                                                    </div>
+                                                    <span className="font-black text-red-600">{ward.percentage}%</span>
+                                                </div>
+                                            ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Full Ward Table */}
-                    <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-                        <div className="px-6 py-4 bg-blue-600 text-white flex justify-between items-center">
+                    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm overflow-hidden">
+                        <div className="flex items-center justify-between mb-8">
                             <div className="flex items-center gap-2">
-                                <MapPin className="w-5 h-5" />
-                                <h3 className="font-bold uppercase tracking-wider">All Wards Summary (Daily)</h3>
+                                <div className="bg-emerald-50 p-2 rounded-lg">
+                                    <Table className="w-5 h-5 text-emerald-600" />
+                                </div>
+                                <h3 className="text-lg font-black text-slate-900 tracking-tight">Detailed Ward Performance</h3>
                             </div>
-                            <span className="text-xs font-semibold bg-white/20 px-2 py-1 rounded">Total {dashboardStats.wardStats.length} Wards</span>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm border-collapse">
-                                <thead className="bg-green-500 text-white font-bold border-b border-green-600">
+                                <thead className="bg-emerald-500 text-white font-bold border-b border-emerald-600">
                                     <tr>
-                                        <th className="p-3 border-r border-green-400/50 text-center">Sr. No.</th>
-                                        <th className="p-3 border-r border-green-400/50 text-left">Ward Name</th>
-                                        <th className="p-3 border-r border-green-400/50 text-center">Supervisor</th>
-                                        <th className="p-3 border-r border-green-400/50 text-center">Zonal Head</th>
-                                        <th className="p-3 border-r border-green-400/50 text-center">Total</th>
-                                        <th className="p-3 border-r border-green-400/50 text-center">Scanned</th>
-                                        <th className="p-3 border-r border-green-400/50 text-center">Pending</th>
-                                        <th className="p-3 text-center">Perf %</th>
+                                        <th className="px-4 py-4 text-left text-xs font-black text-slate-500 uppercase tracking-wider bg-slate-50">Ward Name</th>
+                                        <th className="px-4 py-4 text-left text-xs font-black text-slate-500 uppercase tracking-wider bg-slate-50">Supervisor</th>
+                                        <th className="px-4 py-4 text-center text-xs font-black text-slate-500 uppercase tracking-wider bg-slate-50">Total QRs</th>
+                                        <th className="px-4 py-4 text-center text-xs font-black text-slate-500 uppercase tracking-wider bg-slate-50">Scanned</th>
+                                        <th className="px-4 py-4 text-center text-xs font-black text-slate-500 uppercase tracking-wider bg-slate-50">Pending</th>
+                                        <th className="px-4 py-4 text-right text-xs font-black text-slate-500 uppercase tracking-wider bg-slate-50">Progress</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
@@ -684,27 +682,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                         const isLow = row.percentage < 75;
 
                                         // Conditional Logic for Cell Colors
-                                        const scannedColor = row.scanned > 0 ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800';
-                                        const pendingColor = row.pending === 0 ? 'bg-green-100 text-green-800' : 'bg-red-50 text-red-800';
+                                        const scannedColor = row.scanned > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800';
+                                        const pendingColor = row.pending === 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-50 text-red-800';
 
                                         let perfBg = 'bg-gray-50';
                                         let perfText = 'text-gray-800';
                                         if (row.percentage === 0) { perfBg = 'bg-red-100'; perfText = 'text-red-700'; }
                                         else if (row.percentage < 50) { perfBg = 'bg-orange-100'; perfText = 'text-orange-700'; }
                                         else if (row.percentage < 80) { perfBg = 'bg-yellow-100'; perfText = 'text-yellow-700'; }
-                                        else { perfBg = 'bg-green-100'; perfText = 'text-green-700'; }
+                                        else { perfBg = 'bg-emerald-100'; perfText = 'text-emerald-700'; }
 
                                         return (
-                                            <tr key={index} className="hover:bg-green-50 transition-colors">
-                                                <td className="p-3 border-r border-gray-200 text-center text-gray-700 font-medium bg-gray-50/50">{index + 1}</td>
+                                            <tr key={index} className="hover:bg-emerald-50 transition-colors">
                                                 <td className="p-3 border-r border-gray-200 font-bold text-gray-900">{row.ward}</td>
                                                 <td className="p-3 border-r border-gray-200 font-medium text-gray-700 text-center">{row.supervisor}</td>
-                                                <td className="p-3 border-r border-gray-200 text-center">
-                                                    <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-bold border border-blue-100 uppercase">
-                                                        {row.zonalHead}
-                                                    </span>
-                                                </td>
-                                                <td className="p-3 border-r border-gray-200 text-center font-mono font-bold bg-blue-50/30">{row.total}</td>
+                                                <td className="p-3 border-r border-gray-200 text-center font-mono font-bold">{row.total}</td>
                                                 <td className={`p-3 border-r border-gray-200 text-center font-mono font-bold ${scannedColor}`}>{row.scanned}</td>
                                                 <td className={`p-3 border-r border-gray-200 text-center font-mono font-bold ${pendingColor}`}>{row.pending}</td>
                                                 <td className={`p-3 text-center font-bold ${perfBg} ${perfText}`}>
@@ -733,13 +725,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left border-collapse">
-                                <thead className="bg-green-500 text-white font-bold border-b border-green-600">
+                                <thead className="bg-emerald-500 text-white font-bold border-b border-emerald-600">
                                     <tr>
-                                        <th className="px-6 py-3 border-r border-green-400/50">Sr. No.</th>
-                                        <th className="px-6 py-3 border-r border-green-400/50">Zone</th>
-                                        <th className="px-6 py-3 border-r border-green-400/50 text-right">Total</th>
-                                        <th className="px-6 py-3 border-r border-green-400/50 text-right">Scanned</th>
-                                        <th className="px-6 py-3 border-r border-green-400/50 text-right">Pending</th>
+                                        <th className="px-6 py-3 border-r border-emerald-400/50">Sr. No.</th>
+                                        <th className="px-6 py-3 border-r border-emerald-400/50">Zone</th>
+                                        <th className="px-6 py-3 border-r border-emerald-400/50 text-right">Total</th>
+                                        <th className="px-6 py-3 border-r border-emerald-400/50 text-right">Scanned</th>
+                                        <th className="px-6 py-3 border-r border-emerald-400/50 text-right">Pending</th>
                                         <th className="px-6 py-3 text-center">Progress</th>
                                     </tr>
                                 </thead>
@@ -747,14 +739,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                     {zoneChartData.map((data: any, index: number) => {
                                         const percentage = data.Total > 0 ? Math.round((data.Scanned / data.Total) * 100) : 0;
 
-                                        const scannedColor = data.Scanned > 0 ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800';
-                                        const pendingColor = data.Pending === 0 ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800';
+                                        const scannedColor = data.Scanned > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800';
+                                        const pendingColor = data.Pending === 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800';
 
                                         return (
-                                            <tr key={data.name} className="hover:bg-green-50 transition-colors">
+                                            <tr key={data.name} className="hover:bg-emerald-50 transition-colors">
                                                 <td className="px-6 py-3 text-gray-700 font-medium border-r border-gray-200 bg-gray-50/30 text-center">{index + 1}</td>
                                                 <td className="px-6 py-3 font-bold text-gray-900 border-r border-gray-200">{data.name}</td>
-                                                <td className="px-6 py-3 text-right text-gray-700 border-r border-gray-200 bg-blue-50/30 font-mono font-bold">{data.Total}</td>
+                                                <td className="px-6 py-3 text-right text-gray-700 border-r border-gray-200 bg-emerald-50/30 font-mono font-bold">{data.Total}</td>
                                                 <td className={`px-6 py-3 text-right font-mono font-bold border-r border-gray-200 ${scannedColor}`}>{data.Scanned}</td>
                                                 <td className={`px-6 py-3 text-right font-mono font-bold border-r border-gray-200 ${pendingColor}`}>{data.Pending}</td>
                                                 <td className="px-6 py-3 bg-gray-50/30">
@@ -762,7 +754,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                                         <div className="flex items-center gap-2 w-full">
                                                             <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden border border-gray-300">
                                                                 <div
-                                                                    className={`h-full rounded-full transition-all duration-500 ${percentage === 100 ? 'bg-green-500' : percentage < 50 ? 'bg-orange-500' : 'bg-blue-500'}`}
+                                                                    className={`h-full rounded-full transition-all duration-500 ${percentage === 100 ? 'bg-emerald-500' : percentage < 50 ? 'bg-orange-500' : 'bg-emerald-400'}`}
                                                                     style={{ width: `${percentage}%` }}
                                                                 ></div>
                                                             </div>
@@ -774,7 +766,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                                                 window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
                                                             }}
                                                             title="Share to WhatsApp"
-                                                            className="p-1.5 text-green-600 hover:bg-green-100 rounded-full transition-colors flex-shrink-0"
+                                                            className="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded-full transition-colors flex-shrink-0"
                                                         >
                                                             <MessageCircle className="w-4 h-4" />
                                                         </button>
@@ -795,13 +787,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left border-collapse">
-                                <thead className="bg-green-500 text-white font-bold border-b border-green-600">
+                                <thead className="bg-emerald-500 text-white font-bold border-b border-emerald-600">
                                     <tr>
-                                        <th className="px-6 py-3 border-r border-green-400/50">Sr. No.</th>
-                                        <th className="px-6 py-3 border-r border-green-400/50">Zonal Head</th>
-                                        <th className="px-6 py-3 border-r border-green-400/50 text-right">Total</th>
-                                        <th className="px-6 py-3 border-r border-green-400/50 text-right">Scanned</th>
-                                        <th className="px-6 py-3 border-r border-green-400/50 text-right">Pending</th>
+                                        <th className="px-6 py-3 border-r border-emerald-400/50">Sr. No.</th>
+                                        <th className="px-6 py-3 border-r border-emerald-400/50">Zonal Head</th>
+                                        <th className="px-6 py-3 border-r border-emerald-400/50 text-right">Total</th>
+                                        <th className="px-6 py-3 border-r border-emerald-400/50 text-right">Scanned</th>
+                                        <th className="px-6 py-3 border-r border-emerald-400/50 text-right">Pending</th>
                                         <th className="px-6 py-3 text-center">Progress</th>
                                     </tr>
                                 </thead>
@@ -816,14 +808,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
 
                                         const percentage = headDataFull.total > 0 ? Math.round((headDataFull.scanned / headDataFull.total) * 100) : 0;
 
-                                        const scannedColor = headDataFull.scanned > 0 ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800';
-                                        const pendingColor = headDataFull.pending === 0 ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800';
+                                        const scannedColor = headDataFull.scanned > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800';
+                                        const pendingColor = headDataFull.pending === 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800';
 
                                         return (
-                                            <tr key={headData.name} className="hover:bg-green-50 transition-colors">
+                                            <tr key={headData.name} className="hover:bg-emerald-50 transition-colors">
                                                 <td className="px-6 py-3 text-gray-700 font-medium border-r border-gray-200 bg-gray-50/30 text-center">{index + 1}</td>
                                                 <td className="px-6 py-3 font-bold text-gray-900 border-r border-gray-200">{headData.name}</td>
-                                                <td className="px-6 py-3 text-right text-gray-700 border-r border-gray-200 bg-blue-50/30 font-mono font-bold">{headDataFull.total}</td>
+                                                <td className="px-6 py-3 text-right text-gray-700 border-r border-gray-200 bg-emerald-50/30 font-mono font-bold">{headDataFull.total}</td>
                                                 <td className={`px-6 py-3 text-right font-mono font-bold border-r border-gray-200 ${scannedColor}`}>{headDataFull.scanned}</td>
                                                 <td className={`px-6 py-3 text-right font-mono font-bold border-r border-gray-200 ${pendingColor}`}>{headDataFull.pending}</td>
                                                 <td className="px-6 py-3 bg-gray-50/30">
@@ -831,7 +823,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                                         <div className="flex items-center gap-2 w-full">
                                                             <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden border border-gray-300">
                                                                 <div
-                                                                    className={`h-full rounded-full transition-all duration-500 ${percentage === 100 ? 'bg-green-500' : percentage < 50 ? 'bg-orange-500' : 'bg-blue-500'}`}
+                                                                    className={`h-full rounded-full transition-all duration-500 ${percentage === 100 ? 'bg-emerald-500' : percentage < 50 ? 'bg-orange-500' : 'bg-emerald-400'}`}
                                                                     style={{ width: `${percentage}%` }}
                                                                 ></div>
                                                             </div>
@@ -843,7 +835,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                                                                 window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
                                                             }}
                                                             title="Share to WhatsApp"
-                                                            className="p-1.5 text-green-600 hover:bg-green-100 rounded-full transition-colors flex-shrink-0"
+                                                            className="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded-full transition-colors flex-shrink-0"
                                                         >
                                                             <MessageCircle className="w-4 h-4" />
                                                         </button>
@@ -862,9 +854,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                 <div className="mt-12 mb-6 text-center">
                     <div className="inline-block bg-white px-8 py-4 rounded-2xl shadow-sm border border-slate-100">
                         <p className="text-slate-600 font-medium text-lg tracking-wide">
-                            Generated by <span className="font-extrabold text-indigo-600 mx-1">Reports Buddy Pro</span>
-                            <span className="text-slate-300 mx-3">|</span>
-                            Created by <span className="font-extrabold text-slate-800 mx-1 border-b-2 border-indigo-200">Yuvraj Singh Tomar</span>
+                            Generated by <span className="font-extrabold text-emerald-500 mx-1">Reports Buddy Pro</span>
+                            <br />
+                            Created by <span className="font-extrabold text-slate-300 mx-1 border-b-2 border-emerald-900">Yuvraj Singh Tomar</span>
                         </p>
                     </div>
                 </div>

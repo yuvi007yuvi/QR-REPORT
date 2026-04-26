@@ -16,16 +16,11 @@ import { BeforeAfterReport } from './components/BeforeAfterReport';
 import { UndergroundReport } from './components/UndergroundReport';
 import { ZonalUndergroundReport } from './components/ZonalUndergroundReport';
 import DistanceReport from './components/DistanceReport';
-import DateWiseCoverageReport from './components/DateWiseCoverageReport';
-import { WardWiseReport } from './components/WardWiseReport';
 import WardWiseStatusReport from './components/WardWiseStatusReport';
 import { WhatsAppReport } from './components/WhatsAppReport';
 import { SupervisorZonalMapping } from './components/SupervisorZonalMapping';
 import { KYCCalendarView } from './components/KYCCalendarView';
 import { KPIChecker } from './components/KPIChecker';
-import POIWardWiseReport from './components/POIWardWiseReport';
-import VarunAdoptedWardsReport from './components/VarunAdoptedWardsReport';
-import { VehicleChangeReport } from './components/VehicleChangeReport';
 import { UCCReport } from './components/UCCReport';
 import type { ReportRecord, SummaryStats } from './utils/dataProcessor';
 import './App.css';
@@ -35,7 +30,6 @@ import { LoadingScreen } from './components/LoadingScreen';
 import SupervisorDailyReport from './components/SupervisorDailyReport';
 import { DailyKycStatusReport } from './components/DailyKycStatusReport';
 import { WardKYCCrossCheck } from './components/WardKYCCrossCheck';
-import SupervisorWardsCoverageReport from './components/SupervisorWardsCoverageReport';
 import NewKycTeamReport from './components/NewKycTeamReport';
 import ComplaintRegisterReport from './components/ComplaintRegisterReport';
 import MSWDateWiseReport from './components/MSWDateWiseReport';
@@ -129,22 +123,6 @@ const App: React.FC = () => {
         return <DistanceReport />;
       case 'trip-report':
         return <TripReport />;
-      case 'coverage-dashboard':
-        return <CoverageReport />;
-      case 'coverage-supervisor':
-        return <CoverageReport />;
-      case 'coverage-ward':
-        return <WardWiseReport />;
-      case 'coverage-all-wards':
-        return <CoverageReport />;
-      case 'coverage-mapping':
-        return <SupervisorZonalMapping />;
-      case 'coverage-date-wise':
-        return <DateWiseCoverageReport />;
-      case 'coverage-supervisor-wards':
-        return <SupervisorWardsCoverageReport />;
-      case 'vehicle-change-report':
-        return <VehicleChangeReport />;
       case 'kyc-survey':
         return <KYCSurveyChecker />;
       case 'supervisor-count-report':
@@ -161,10 +139,6 @@ const App: React.FC = () => {
         return <QRStatusReport />;
       case 'cd-waste-complaint':
         return <CdwasteComplaintReport />;
-      case 'poi-ward-monthly':
-        return <POIWardWiseReport />;
-      case 'varun-adopted-wards':
-        return <VarunAdoptedWardsReport />;
       case 'kpi-checker':
         return <KPIChecker />;
       case 'kpi-monthly-calendar':
@@ -211,16 +185,6 @@ const App: React.FC = () => {
       { id: 'cd-waste-complaint', label: 'C&D Waste Complaint' },
       { id: 'complaint-register', label: 'Resolution Analysis' },
       { id: 'ucc-report', label: 'UCC Collection Analysis' },
-      { id: 'coverage-dashboard', label: 'Coverage Dashboard' },
-      { id: 'coverage-supervisor', label: 'Supervisor Coverage Report' },
-      { id: 'coverage-ward', label: 'Ward Wise Report (KYC)' },
-      { id: 'poi-ward-monthly', label: 'Ward POI Monthly' },
-      { id: 'coverage-supervisor-wards', label: 'Supervisor Wards Coverage' },
-      { id: 'varun-adopted-wards', label: 'Adopted Wards (Varun)' },
-      { id: 'coverage-all-wards', label: 'All Wards Summary' },
-      { id: 'coverage-mapping', label: 'POI Mapping' },
-      { id: 'coverage-date-wise', label: 'Date Wise Coverage' },
-      { id: 'vehicle-change-report', label: 'Vehicle Change Report' },
       { id: 'kyc-survey', label: 'KYC Survey' },
       { id: 'supervisor-count-report', label: 'Supervisor Count Report' },
       { id: 'kyc-calendar', label: 'KYC Calendar' },

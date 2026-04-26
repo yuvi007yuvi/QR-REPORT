@@ -9,16 +9,13 @@ import {
     Image,
     Trash2,
     Route,
-    MapPin,
     BarChart3,
     Calendar,
-    Building2,
     FileText,
     Home,
     FileSearch,
     CheckSquare,
     PieChart,
-    ArrowRightLeft,
     Banknote,
     ChevronRight,
     ShieldCheck,
@@ -126,23 +123,6 @@ const menuItems = [
         ]
     },
     {
-        id: 'coverage',
-        label: 'POI Coverage',
-        icon: MapPin,
-        items: [
-            { id: 'coverage-dashboard', label: 'Coverage Dashboard', icon: BarChart3 },
-            { id: 'coverage-supervisor', label: 'Supervisor Report', icon: Users },
-            { id: 'coverage-ward', label: 'Ward Wise Report (KYC)', icon: Building2 },
-            { id: 'poi-ward-monthly', label: 'Ward POI Monthly', icon: FileSpreadsheet },
-            { id: 'coverage-supervisor-wards', label: 'Supervisor Wards Coverage', icon: Users },
-            { id: 'varun-adopted-wards', label: 'Adopted Wards (Varun)', icon: Building2 },
-            { id: 'coverage-all-wards', label: 'All Wards Summary', icon: FileSpreadsheet },
-            { id: 'coverage-mapping', label: 'POI Mapping', icon: Map },
-            { id: 'coverage-date-wise', label: 'Date Wise Coverage', icon: Calendar },
-            { id: 'vehicle-change-report', label: 'Vehicle Change Report', icon: ArrowRightLeft },
-        ]
-    },
-    {
         id: 'kyc',
         label: 'KYC Reports',
         icon: ClipboardCheck,
@@ -233,7 +213,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                     {/* Navigation */}
                     <nav className="sidebar-nav">
-                        {accessibleMenuItems.map(section => {
+                        {accessibleMenuItems.map((section, index) => {
 
                             const isActive = currentSection === section.id;
                             const SectionIcon = section.icon;
@@ -241,10 +221,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 <div key={section.id} className="sidebar-section">
                                     <button
                                         className={`sidebar-section-header ${isActive ? 'active' : ''}`}
-                                        onClick={() => onSectionChange(section.id as AppSection)}
+                                        onClick={() => onSectionChange(isActive ? '' as any : section.id as AppSection)}
                                     >
-                                        <SectionIcon className="sidebar-section-icon" />
-                                        <span style={{ flex: 1 }}>{section.label}</span>
+                                        <div className="flex items-center gap-2" style={{ flex: 1 }}>
+                                            <span className="text-[10px] font-bold opacity-40 w-4">{index + 1}.</span>
+                                            <SectionIcon className="sidebar-section-icon" />
+                                            <span>{section.label}</span>
+                                        </div>
                                         <ChevronRight
                                             size={13}
                                             style={{
@@ -257,7 +240,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                                     {isActive && (
                                         <div className="sidebar-items">
-                                            {section.items.map(item => {
+                                            {section.items.map((item, itemIdx) => {
                                                 const ItemIcon = item.icon;
                                                 const itemActive = currentView === item.id;
                                                 return (
@@ -266,6 +249,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                         className={`sidebar-nav-item ${itemActive ? 'active' : ''}`}
                                                         onClick={() => onViewChange(item.id as ViewMode)}
                                                     >
+                                                        <span className="text-[9px] font-bold opacity-30 w-3 flex-shrink-0">{itemIdx + 1}.</span>
                                                         <ItemIcon className="sidebar-nav-item-icon" />
                                                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                             {item.label}

@@ -1,4 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
+import { db } from '../firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
+import type { WardAssignment } from '../utils/dataProcessor';
 import type { ReportRecord } from '../utils/dataProcessor';
 import { Image as ImageIcon } from 'lucide-react';
 import { exportToJPEG } from '../utils/exporter';
@@ -34,6 +37,20 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
     const [localData, setLocalData] = React.useState<ReportRecord[]>(data);
     const [localDate, setLocalDate] = React.useState<string>(date);
     const [loading, setLoading] = React.useState(false);
+    const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
+
+    // Fetch Ward Assignments from Firestore
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
+            const mapping: Record<string, WardAssignment> = {};
+            snapshot.forEach((doc) => {
+                mapping[doc.id] = doc.data() as WardAssignment;
+            });
+            setWardAssignments(mapping);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     React.useEffect(() => {
         setLocalData(data);
@@ -47,7 +64,7 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
         setLoading(true);
         try {
             const jsonData = await parseFile(file);
-            const { report, availableDates } = processData(masterData, supervisorData, jsonData);
+            const { report, availableDates } = processData(masterData, supervisorData, jsonData, 'All', wardAssignments);
             setLocalData(report);
             if (availableDates.length > 0) {
                 setLocalDate(availableDates[0]);

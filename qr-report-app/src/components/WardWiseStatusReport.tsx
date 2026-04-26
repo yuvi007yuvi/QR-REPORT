@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import Papa from 'papaparse';
 import { Upload, FileDown, FileImage, Search, Target, CheckCircle, AlertCircle, Users, ChevronDown } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -6,8 +6,11 @@ import autoTable from 'jspdf-autotable';
 import { toPng } from 'html-to-image';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { WARD_TARGETS } from '../data/wardTargets';
+import type { WardAssignment } from '../utils/dataProcessor';
 import NagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import NatureGreenLogo from '../assets/NatureGreen_Logo.png';
+import { db } from '../firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
 
 interface WardStatusRow {
     sNo: number;
@@ -23,8 +26,22 @@ interface WardStatusRow {
 
 const WardWiseStatusReport = () => {
     const [data, setData] = useState<WardStatusRow[]>([]);
+    const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
     const [fileName, setFileName] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Load dynamic mapping from Firestore
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
+            const mapping: Record<string, WardAssignment> = {};
+            snapshot.forEach((doc) => {
+                mapping[doc.id] = doc.data() as WardAssignment;
+            });
+            setWardAssignments(mapping);
+        });
+        return () => unsubscribe();
+    }, []);
+
     const [selectedZonals, setSelectedZonals] = useState<string[]>([]); // Empty = All
     const [isZoneDropdownOpen, setIsZoneDropdownOpen] = useState(false);
     const [selectedWards, setSelectedWards] = useState<string[]>([]); // Empty = All
@@ -134,16 +151,21 @@ const WardWiseStatusReport = () => {
                         }
                     }
 
+                    // Lookup dynamic mapping
+                    const normalizedWard = parseInt(wardNoStr).toString();
+                    const assignment = wardAssignments[normalizedWard];
+                    const staticWard = WARD_TARGETS.find(w => w.wardNo === parseInt(wardNoStr));
+
                     parsedData.push({
                         sNo: parsedData.length + 1,
                         wardNo: wardNoStr,
-                        wardName: wardName || (WARD_TARGETS.find(w => w.wardNo === parseInt(wardNoStr))?.wardName || ''),
+                        wardName: wardName || (staticWard?.wardName || ''),
                         houseHoldTarget: targetVal,
                         kycCount: kycVal,
                         gap: targetVal - kycVal,
                         coverage: targetVal > 0 ? Math.min((kycVal / targetVal) * 100, 100) : 0,
-                        zoneName: WARD_TARGETS.find(w => w.wardNo === parseInt(wardNoStr))?.zoneName || 'Unmapped',
-                        supervisorName: WARD_TARGETS.find(w => w.wardNo === parseInt(wardNoStr))?.supervisorName || 'Unmapped'
+                        zoneName: assignment?.zonalHead || staticWard?.zoneName || 'Unmapped',
+                        supervisorName: assignment?.supervisor || staticWard?.supervisorName || 'Unmapped'
                     });
                 }
 
@@ -152,11 +174,29 @@ const WardWiseStatusReport = () => {
         });
     };
 
-    const uniqueZonals = useMemo(() => Array.from(new Set(data.map(d => d.zoneName).filter(Boolean))).sort(), [data]);
+    const uniqueZonals = useMemo(() => {
+        const zonals = new Set<string>();
+        data.forEach(d => {
+            const normalizedWard = parseInt(d.wardNo).toString();
+            const assignment = wardAssignments[normalizedWard];
+            const zone = assignment?.zonalHead || d.zoneName || 'Unmapped';
+            zonals.add(zone);
+        });
+        return Array.from(zonals).sort();
+    }, [data, wardAssignments]);
+
     const uniqueWards = useMemo(() => Array.from(new Set(data.map(d => d.wardNo))).sort((a, b) => parseInt(a) - parseInt(b)), [data]);
 
     const filteredData = useMemo(() => {
-        return data.filter(row => {
+        return data.map(row => {
+            const normalizedWard = parseInt(row.wardNo).toString();
+            const assignment = wardAssignments[normalizedWard];
+            return {
+                ...row,
+                zoneName: assignment?.zonalHead || row.zoneName,
+                supervisorName: assignment?.supervisor || row.supervisorName
+            };
+        }).filter(row => {
             const matchesSearch =
                 row.wardName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 row.wardNo.toString().includes(searchTerm);

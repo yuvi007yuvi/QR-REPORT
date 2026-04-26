@@ -1,4 +1,7 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { db } from '../firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
+import type { WardAssignment } from '../utils/dataProcessor';
 import Papa from 'papaparse';
 import {
     Upload, Download, Calendar, ChevronLeft, ChevronRight,
@@ -318,6 +321,21 @@ export const MonthWiseKPICalendar: React.FC = () => {
     const segregationRef = useRef<HTMLInputElement>(null);
     const reportRef = useRef<HTMLDivElement>(null);
     const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+    const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
+
+    // Fetch Ward Assignments from Firestore
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
+            const mapping: Record<string, WardAssignment> = {};
+            snapshot.forEach((doc) => {
+                mapping[doc.id] = doc.data() as WardAssignment;
+            });
+            setWardAssignments(mapping);
+            console.log('MonthWiseKPICalendar: Loaded ward assignments from Firestore:', Object.keys(mapping).length);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     // ── parse & merge ──
     const buildSupervisorData = (uRecs: KPIRecord[], sRecs: KPIRecord[], targetYear: number, targetMonth: number): SupervisorMonthData[] => {
@@ -327,9 +345,22 @@ export const MonthWiseKPICalendar: React.FC = () => {
         MASTER_SUPERVISORS.forEach(ms => {
             if (ms.department === 'UCC') return;
             const id = ms.empId.trim().toUpperCase();
+
+            // Try to find if this supervisor is in the dynamic ward assignments
+            const assignedWards: string[] = [];
+            let dynamicZonal = ms.zonal;
+
+            Object.entries(wardAssignments).forEach(([wardNum, assignment]) => {
+                if (assignment.supervisor.toLowerCase().includes(ms.name.toLowerCase())) {
+                    assignedWards.push(wardNum);
+                    dynamicZonal = assignment.zonalHead;
+                }
+            });
+
             map.set(id, {
                 name: ms.name, id: ms.empId, mobile: ms.mobile,
-                zone: 'N/A', zonalName: ms.zonal, ward: ms.ward,
+                zone: 'N/A', zonalName: dynamicZonal, 
+                ward: assignedWards.length > 0 ? assignedWards.sort((a,b) => parseInt(a)-parseInt(b)).join(',') : ms.ward,
                 days: {}, totalUniform: 0, totalSegregation: 0,
                 daysUniformDone: 0, daysSegregationDone: 0, bothDone: 0, neitherDone: 0
             });
@@ -412,7 +443,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
     const supervisors = useMemo(
         () => buildSupervisorData(rawUniform, rawSegregation, viewYear, viewMonth),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [rawUniform, rawSegregation, viewYear, viewMonth]
+        [rawUniform, rawSegregation, viewYear, viewMonth, wardAssignments]
     );
 
     const uniqueZonals = useMemo(() =>

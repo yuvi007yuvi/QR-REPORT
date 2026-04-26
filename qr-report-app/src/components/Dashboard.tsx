@@ -23,7 +23,7 @@ import masterData from '../data/masterData.json';
 import supervisorData from '../data/supervisorData.json';
 import { db } from '../firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
-import { WardAssignment } from '../utils/dataProcessor';
+import type { WardAssignment } from '../utils/dataProcessor';
 
 import {
     BarChart,

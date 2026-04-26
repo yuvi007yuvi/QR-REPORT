@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Upload, Search, Download, Filter, Calendar, Image as ImageIcon, MapPin, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toJpeg } from 'html-to-image';
 import Papa from 'papaparse';
@@ -8,11 +8,27 @@ import { MASTER_SUPERVISORS } from '../data/master-supervisors';
 import { WARD_LIST } from '../data/wardList';
 import NagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import NatureGreenLogo from '../assets/NatureGreen_Logo.png';
+import { db } from '../firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
+import type { WardAssignment } from '../utils/dataProcessor';
 
 export const WhatsAppReport: React.FC = () => {
     const [kycData, setKycData] = useState<any[]>([]);
+    const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
     const [fileName, setFileName] = useState<string>('');
     const [remarks, setRemarks] = useState<Record<string, string>>({});
+
+    // Load dynamic mapping from Firestore
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
+            const mapping: Record<string, WardAssignment> = {};
+            snapshot.forEach((doc) => {
+                mapping[doc.id] = doc.data() as WardAssignment;
+            });
+            setWardAssignments(mapping);
+        });
+        return () => unsubscribe();
+    }, []);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedZone, setSelectedZone] = useState<string>('');
@@ -70,11 +86,25 @@ export const WhatsAppReport: React.FC = () => {
 
     const reportData = useMemo(() => {
         return MASTER_SUPERVISORS.map((sup, index) => {
+            // Apply live mapping overrides
+            let liveZone = sup.zonal;
+            let liveName = sup.name;
+
+            const wards = sup.ward ? sup.ward.toString().split(',').map(w => w.trim()) : [];
+            if (wards.length > 0) {
+                const firstWard = wards[0];
+                const assignment = wardAssignments[firstWard];
+                if (assignment) {
+                    liveZone = assignment.zonalHead || liveZone;
+                    liveName = assignment.supervisor || liveName;
+                }
+            }
+
             const rowData: any = {
                 sNo: (index + 1).toString(),
-                zone: sup.zonal,
+                zone: liveZone,
                 ward: sup.ward,
-                supervisorName: sup.name,
+                supervisorName: liveName,
                 empId: sup.empId,
                 department: sup.department,
                 uniqueKey: sup.empId,

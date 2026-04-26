@@ -1,7 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Papa from 'papaparse';
 import { Upload, Download, TrendingUp, TrendingDown, CheckCircle, AlertCircle, MapPin, Image as ImageIcon, FileText, MessageCircle, Play, Pause, StopCircle, Bot, SkipForward, Camera } from 'lucide-react';
 import supervisorDataJson from '../data/supervisorData.json';
+import { db } from '../firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
+import type { WardAssignment } from '../utils/dataProcessor';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -95,12 +98,25 @@ const getBase64ImageFromURL = (url: string) => {
 };
 
 export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'dashboard' }) => {
-    const [stats, setStats] = useState<AggregatedStats[]>([]);
-    const [wardStats, setWardStats] = useState<WardStats[]>([]);
-    const [wardSummaryStats, setWardSummaryStats] = useState<WardSummaryStats[]>([]);
+    const [rawData, setRawData] = useState<POIRow[]>([]);
     const [loading, setLoading] = useState(false);
     const [fileName, setFileName] = useState<string>('');
     const [viewType, setViewType] = useState<'dashboard' | 'supervisor' | 'ward' | 'mapping' | 'all' | 'all-wards'>(initialMode);
+    const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
+
+    // Fetch Ward Assignments from Firestore
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
+            const mapping: Record<string, WardAssignment> = {};
+            snapshot.forEach((doc) => {
+                mapping[doc.id] = doc.data() as WardAssignment;
+            });
+            setWardAssignments(mapping);
+            console.log('CoverageReport: Loaded ward assignments from Firestore:', Object.keys(mapping).length);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     // Sync view with prop when sidebar link is clicked
     React.useEffect(() => {
@@ -119,16 +135,26 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
     // Create Ward -> Supervisor Lookup
     const wardLookup = useMemo(() => {
         const lookup = new Map<string, { supervisor: string; zonalHead: string }>();
+        
+        // 1. Seed from static JSON
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         supervisorDataJson.forEach((item: any) => {
-            // Normalize Ward No to string
             lookup.set(String(item["Ward No"]), {
                 supervisor: item.Supervisor,
                 zonalHead: item["Zonal Head"]
             });
         });
+
+        // 2. Override with dynamic data from Firestore
+        Object.entries(wardAssignments).forEach(([wardNum, data]) => {
+            lookup.set(wardNum, {
+                supervisor: data.supervisor,
+                zonalHead: data.zonalHead
+            });
+        });
+
         return lookup;
-    }, []);
+    }, [wardAssignments]);
 
     const headerInfo = useMemo(() => {
         const zone = selectedZone !== 'All' ? selectedZone : '';
@@ -175,7 +201,7 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
             header: true,
             skipEmptyLines: true,
             complete: (results) => {
-                processData(results.data);
+                setRawData(results.data);
                 setLoading(false);
             },
             error: (error) => {
@@ -185,30 +211,26 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
         });
     };
 
-    const processData = (rows: POIRow[]) => {
+    const { stats, wardStats, wardSummaryStats } = useMemo(() => {
         const supervisorMap = new Map<string, AggregatedStats>();
         const wardMap = new Map<string, WardStats>();
 
-        rows.forEach(row => {
+        rawData.forEach(row => {
             const wardNameStr = row["Ward Name"];
             if (!wardNameStr) return;
 
-            // Extract Ward Number (e.g., "18" from "18-General ganj")
             const wardMatch = wardNameStr.match(/^(\d+)/);
-            if (!wardMatch) return; // Skip if no number found
+            if (!wardMatch) return;
 
-            // Normalize ward number by removing leading zeros (e.g., "01" -> "1")
             const wardNum = String(Number(wardMatch[1]));
             const vehicle = row["Vehicle Number"];
             const routeName = row["Route Name"] || "-";
 
-            // Find Supervisor
             const supervisorInfo = wardLookup.get(wardNum) || {
                 supervisor: 'Unmapped',
                 zonalHead: 'Unmapped'
             };
 
-            // --- Supervisor Aggregation ---
             const supKey = `${supervisorInfo.zonalHead}-${supervisorInfo.supervisor}`;
 
             if (!supervisorMap.has(supKey)) {
@@ -238,7 +260,6 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                 supEntry.vehicles.push(vehicle);
             }
 
-            // --- Ward Route Aggregation ---
             const wardRouteKey = `${wardNum}_${routeName}`;
             if (!wardMap.has(wardRouteKey)) {
                 wardMap.set(wardRouteKey, {
@@ -263,7 +284,6 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
             }
         });
 
-        // --- All Wards Summary Aggregation ---
         const summaryMap = new Map<string, WardSummaryStats>();
         Array.from(wardMap.values()).forEach(ws => {
             if (!summaryMap.has(ws.wardNumber)) {
@@ -296,7 +316,6 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
         });
 
         const sortedWardStats = Array.from(wardMap.values()).sort((a, b) => {
-            // Sort by Zonal Head, then Supervisor, then Ward Number, then Route
             if (a.zonalHead !== b.zonalHead) return a.zonalHead.localeCompare(b.zonalHead);
             if (a.supervisorName !== b.supervisorName) return a.supervisorName.localeCompare(b.supervisorName);
             if (Number(a.wardNumber) !== Number(b.wardNumber)) return Number(a.wardNumber) - Number(b.wardNumber);
@@ -307,10 +326,12 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
             return Number(a.wardNumber) - Number(b.wardNumber);
         });
 
-        setStats(sortedSupervisorStats);
-        setWardStats(sortedWardStats);
-        setWardSummaryStats(sortedSummaryStats);
-    };
+        return {
+            stats: sortedSupervisorStats,
+            wardStats: sortedWardStats,
+            wardSummaryStats: sortedSummaryStats
+        };
+    }, [rawData, wardLookup]);
 
     // --- Filters & Derived Data ---
     const zones = useMemo(() => ['All', ...Array.from(new Set(stats.map(s => s.zonalHead))).sort()], [stats]);
@@ -1665,8 +1686,7 @@ export const CoverageReport: React.FC<CoverageReportProps> = ({ initialMode = 'd
                                 <div className={`${!initialMode ? 'w-full flex justify-end' : 'w-full'} flex items-center justify-end gap-2`}>
                                     <button
                                         onClick={() => {
-                                            setStats([]);
-                                            setWardStats([]);
+                                            setRawData([]);
                                             setFileName('');
                                             setSelectedZone('All');
                                             setSelectedSupervisor('All');

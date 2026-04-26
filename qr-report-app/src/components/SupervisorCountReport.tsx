@@ -1,5 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Papa from 'papaparse';
+import { db } from '../firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
+import type { WardAssignment } from '../utils/dataProcessor';
 import {
     Upload,
     FileText,
@@ -44,6 +47,20 @@ export const SupervisorCountReport: React.FC = () => {
     const [minCountFilter, setMinCountFilter] = useState<number>(0);
     const [selectedZone, setSelectedZone] = useState<string>('All');
     const [viewMode, setViewMode] = useState<'supervisor' | 'zonal'>('supervisor');
+    const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
+
+    // Fetch Ward Assignments from Firestore
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
+            const mapping: Record<string, WardAssignment> = {};
+            snapshot.forEach((doc) => {
+                mapping[doc.id] = doc.data() as WardAssignment;
+            });
+            setWardAssignments(mapping);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -72,11 +89,19 @@ export const SupervisorCountReport: React.FC = () => {
                         s => s.empId.toUpperCase() === csvId || s.name.toLowerCase() === csvName.toLowerCase()
                     );
 
+                    // Dynamic Mapping Override from Firestore
+                    const dynamicMapping = wardAssignments[csvWard];
+
                     const finalId = masterMatch ? masterMatch.empId : csvId;
-                    const finalName = masterMatch ? masterMatch.name : csvName;
-                    const finalZone = masterMatch ? masterMatch.zonal : (csvZone || 'Unassigned');
+                    let finalName = masterMatch ? masterMatch.name : csvName;
+                    let finalZone = masterMatch ? masterMatch.zonal : (csvZone || 'Unassigned');
                     const finalWard = masterMatch ? masterMatch.ward : 'N/A';
                     const finalNumber = masterMatch ? masterMatch.mobile : csvNumber;
+
+                    if (dynamicMapping) {
+                        finalName = dynamicMapping.supervisor;
+                        finalZone = dynamicMapping.zonalHead;
+                    }
 
 
                     // Use ID as unique key if available, otherwise Name

@@ -1,5 +1,11 @@
 import * as XLSX from 'xlsx';
 
+export interface WardAssignment {
+    wardNo: number;
+    supervisor: string;
+    zonalHead: string;
+}
+
 export interface ReportRecord {
     qrId: string;
     ward: string;

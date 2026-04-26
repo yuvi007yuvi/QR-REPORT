@@ -1,9 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Papa from 'papaparse';
 import { LoadingScreen } from './LoadingScreen';
 import { Upload, Table as TableIcon, FileSpreadsheet, Download, Search, User, IndianRupee } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
+import { db } from '../firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
+import type { WardAssignment } from '../utils/dataProcessor';
 
 import { toPng } from 'html-to-image';
 
@@ -19,6 +22,7 @@ interface SupervisorDailyRecord {
     amount: number;
     transactionCount: number;
     wardStats: { [wardName: string]: WardStats };
+    zonalHead?: string;
 }
 
 interface RawCSVRecord {
@@ -33,6 +37,19 @@ interface RawCSVRecord {
 const SupervisorDailyReport: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState<SupervisorDailyRecord[]>([]);
+    const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
+
+    // Load dynamic mapping from Firestore
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
+            const mapping: Record<string, WardAssignment> = {};
+            snapshot.forEach((doc) => {
+                mapping[doc.id] = doc.data() as WardAssignment;
+            });
+            setWardAssignments(mapping);
+        });
+        return () => unsubscribe();
+    }, []);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [startDate, setStartDate] = useState('');
@@ -90,6 +107,22 @@ const SupervisorDailyReport: React.FC = () => {
                     transactionCount: 0,
                     wardStats: {}
                 };
+            }
+
+            // Update Zonal Head and Supervisor Name if not set or found
+            if (ward) {
+                const wardMatch = ward.match(/^(\d+)/);
+                if (wardMatch) {
+                    const wardNo = wardMatch[1];
+                    const assignment = wardAssignments[wardNo];
+                    if (assignment) {
+                        aggregated[key].zonalHead = assignment.zonalHead;
+                        // Use name from assignment if available
+                        if (assignment.supervisor) {
+                            aggregated[key].supervisorName = assignment.supervisor;
+                        }
+                    }
+                }
             }
 
             aggregated[key].amount += amount;

@@ -1,10 +1,13 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { FileUpload } from './FileUpload';
 import { CheckCircle, FileDown, FileImage, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { db } from '../firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
+import type { WardAssignment } from '../utils/dataProcessor';
 import masterDataJson from '../data/masterData.json';
 import supervisorDataJson from '../data/supervisorData.json';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
@@ -32,6 +35,20 @@ const QRStatusReport = () => {
     const [loading, setLoading] = useState(false);
     const [scanDataMap, setScanDataMap] = useState<Map<string, Map<string, ScanInfo>>>(new Map());
     const [availableDates, setAvailableDates] = useState<string[]>([]);
+    const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
+
+    // Fetch Ward Assignments from Firestore
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
+            const mapping: Record<string, WardAssignment> = {};
+            snapshot.forEach((doc) => {
+                mapping[doc.id] = doc.data() as WardAssignment;
+            });
+            setWardAssignments(mapping);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     // Export State
     const [isExporting, setIsExporting] = useState(false);
@@ -71,7 +88,11 @@ const QRStatusReport = () => {
             let wardNum = wardRaw.split('-')[0].trim();
             wardNum = wardNum.replace(/^0+/, '');
 
-            const mapping = wardMap.get(wardNum) || { supervisor: '-', zonal: '-' };
+            // Try dynamic mapping first
+            const dynamic = wardAssignments[wardNum];
+            const mapping = dynamic 
+                ? { supervisor: dynamic.supervisor, zonal: dynamic.zonalHead }
+                : (wardMap.get(wardNum) || { supervisor: '-', zonal: '-' });
 
             let zone = row['Zone & Circle'] ? String(row['Zone & Circle']).trim() : '';
             if (zoneMapping[zone]) zone = zoneMapping[zone];
@@ -87,7 +108,7 @@ const QRStatusReport = () => {
                 zonal: mapping.zonal
             };
         }).filter(r => r.qrId); // Filter out empty IDs
-    }, []);
+    }, [wardAssignments]);
 
     // Filter Options
     const { wards, zones, zonals } = useMemo(() => {

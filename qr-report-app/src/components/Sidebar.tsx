@@ -4,17 +4,13 @@ import {
     Map,
     X,
     ClipboardCheck,
-    Users,
     LayoutDashboard,
-    Image,
     Trash2,
-    Route,
     BarChart3,
     Calendar,
     FileText,
     Home,
     FileSearch,
-    CheckSquare,
     PieChart,
     Banknote,
     ChevronRight,
@@ -24,34 +20,18 @@ import {
 
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 
-export type AppSection = 'daily' | 'coverage' | 'kyc' | 'qr-status' | 'complaint' | 'kpi' | 'collection' | 'msw';
+export type AppSection = 'daily' | 'kyc' | 'complaint' | 'kpi' | 'collection' | 'msw';
 
 export type ViewMode =
     | 'dashboard'
-    | 'detailed'
     | 'zonal'
-    | 'beforeAfter'
     | 'mapping'
-    | 'underground'
-    | 'zonalUnderground'
-    | 'distance-report'
-    | 'coverage-dashboard'
-    | 'coverage-supervisor'
-    | 'coverage-ward'
-    | 'coverage-all-wards'
-    | 'coverage-mapping'
-    | 'coverage-date-wise'
-    | 'coverage-supervisor-wards'
-    | 'vehicle-change-report'
-    | 'poi-ward-monthly'
-    | 'varun-adopted-wards'
     | 'kyc-survey'
     | 'kyc-calendar'
     | 'kyc-whatsapp'
     | 'ward-household-status'
     | 'ward-status-new'
     | 'trip-report'
-    | 'qr-status-view'
     | 'cd-waste-complaint'
     | 'kpi-checker'
     | 'kpi-monthly-calendar'
@@ -61,7 +41,6 @@ export type ViewMode =
     | 'daily-kyc-status'
     | 'ward-kyc-cross-check'
     | 'new-kyc-team-report'
-    | 'complaint-register'
     | 'complaint-register'
     | 'msw-date-wise'
     | 'admin-panel';
@@ -85,15 +64,7 @@ const menuItems = [
         icon: LayoutDashboard,
         items: [
             { id: 'dashboard', label: 'Summary Dashboard', icon: LayoutDashboard },
-            { id: 'detailed', label: 'Detailed View', icon: FileSpreadsheet },
             { id: 'zonal', label: 'Zonal Report', icon: Map },
-            { id: 'beforeAfter', label: 'Before / After Report', icon: Image },
-            { id: 'mapping', label: 'Supervisor Mapping', icon: Users },
-            { id: 'underground', label: 'Underground Bins', icon: Trash2 },
-            { id: 'zonalUnderground', label: 'Zonal Underground', icon: Trash2 },
-            { id: 'distance-report', label: 'Distance Report', icon: Route },
-            { id: 'trip-report', label: 'Trip Report', icon: Route },
-            { id: 'supervisor-daily-report', label: 'Supervisor Daily Analysis', icon: BarChart3 },
         ]
     },
     {
@@ -136,14 +107,6 @@ const menuItems = [
             { id: 'daily-kyc-status', label: 'Daily KYC Status', icon: FileText },
             { id: 'ward-kyc-cross-check', label: 'Ward KYC Cross-Check', icon: BarChart3 },
             { id: 'new-kyc-team-report', label: 'New KYC Team Report', icon: FileSpreadsheet },
-        ]
-    },
-    {
-        id: 'qr-status',
-        label: 'QR Status Report',
-        icon: CheckSquare,
-        items: [
-            { id: 'qr-status-view', label: 'Daily QR Status', icon: BarChart3 },
         ]
     },
     {
@@ -213,7 +176,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                     {/* Navigation */}
                     <nav className="sidebar-nav">
-                        {accessibleMenuItems.map((section, index) => {
+                        {accessibleMenuItems.map((section) => {
 
                             const isActive = currentSection === section.id;
                             const SectionIcon = section.icon;
@@ -224,7 +187,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                                         onClick={() => onSectionChange(isActive ? '' as any : section.id as AppSection)}
                                     >
                                         <div className="flex items-center gap-2" style={{ flex: 1 }}>
-                                            <span className="text-[10px] font-bold opacity-40 w-4">{index + 1}.</span>
                                             <SectionIcon className="sidebar-section-icon" />
                                             <span>{section.label}</span>
                                         </div>
@@ -240,7 +202,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                                     {isActive && (
                                         <div className="sidebar-items">
-                                            {section.items.map((item, itemIdx) => {
+                                            {section.items.map((item) => {
                                                 const ItemIcon = item.icon;
                                                 const itemActive = currentView === item.id;
                                                 return (
@@ -249,7 +211,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                         className={`sidebar-nav-item ${itemActive ? 'active' : ''}`}
                                                         onClick={() => onViewChange(item.id as ViewMode)}
                                                     >
-                                                        <span className="text-[9px] font-bold opacity-30 w-3 flex-shrink-0">{itemIdx + 1}.</span>
                                                         <ItemIcon className="sidebar-nav-item-icon" />
                                                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                             {item.label}

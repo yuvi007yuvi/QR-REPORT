@@ -11,7 +11,9 @@ import {
     Save,
     X,
     ShieldCheck,
-    RefreshCw
+    RefreshCw,
+    QrCode,
+    Trash2
 } from 'lucide-react';
 import { collection, query, onSnapshot, doc, setDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -22,6 +24,7 @@ interface WardAssignment extends WardMapping {
     id: string;
     supervisorName: string;
     zonalName: string;
+    totalQRCodes?: number;
     lastUpdated?: string;
 }
 
@@ -61,7 +64,8 @@ export const WardZonalMapping: React.FC = () => {
                     ...master,
                     id: master.wardNumber.toString(),
                     supervisorName: '',
-                    zonalName: ''
+                    zonalName: '',
+                    totalQRCodes: 0
                 };
             });
 
@@ -127,6 +131,22 @@ export const WardZonalMapping: React.FC = () => {
         }
     };
 
+    const handleDelete = async (ward: WardAssignment) => {
+        if (!window.confirm(`Are you sure you want to clear all data for Ward ${ward.wardNumber}?`)) return;
+        try {
+            const docRef = doc(db, 'ward_assignments', ward.id);
+            await setDoc(docRef, {
+                supervisorName: '',
+                zonalName: '',
+                totalQRCodes: 0,
+                lastUpdated: new Date().toISOString()
+            }, { merge: true });
+        } catch (err) {
+            console.error('Delete failed:', err);
+            alert('Failed to clear assignment.');
+        }
+    };
+
     const handleSeedAssignments = async () => {
         if (!window.confirm('Initialize all 70 wards using Master Supervisors list?')) return;
         setLoading(true);
@@ -155,6 +175,7 @@ export const WardZonalMapping: React.FC = () => {
                     ...w,
                     supervisorName: supervisorNames || '',
                     zonalName: zonalNames || '',
+                    totalQRCodes: 0,
                     lastUpdated: new Date().toISOString()
                 }, { merge: true });
             });
@@ -253,6 +274,9 @@ export const WardZonalMapping: React.FC = () => {
                                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-indigo-50/30">
                                     <div className="flex items-center gap-2"><MapPin size={14} className="text-indigo-600" /> Zonal Head</div>
                                 </th>
+                                <th onClick={() => handleSort('totalQRCodes')} className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest cursor-pointer hover:text-emerald-600 transition-colors">
+                                    <div className="flex items-center gap-2"><QrCode size={12} /> Total QRs <ArrowUpDown size={12} /></div>
+                                </th>
                                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Actions</th>
                             </tr>
                         </thead>
@@ -318,6 +342,20 @@ export const WardZonalMapping: React.FC = () => {
                                                 </div>
                                             )}
                                         </td>
+                                        <td className="px-6 py-4">
+                                            {isEditing ? (
+                                                <input 
+                                                    type="number"
+                                                    className="w-24 bg-white border-2 border-slate-200 rounded-lg px-3 py-1.5 text-sm font-bold outline-none focus:border-emerald-500 transition-all"
+                                                    value={editData.totalQRCodes || 0}
+                                                    onChange={e => setEditData({...editData, totalQRCodes: parseInt(e.target.value) || 0})}
+                                                />
+                                            ) : (
+                                                <span className="text-sm font-mono font-bold text-slate-600">
+                                                    {ward.totalQRCodes || 0}
+                                                </span>
+                                            )}
+                                        </td>
                                         <td className="px-6 py-4 text-right">
                                             {isEditing ? (
                                                 <div className="flex justify-end gap-2">
@@ -335,12 +373,22 @@ export const WardZonalMapping: React.FC = () => {
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <button 
-                                                    onClick={() => handleEdit(ward)}
-                                                    className="p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                                                >
-                                                    <Edit3 size={16} />
-                                                </button>
+                                                <div className="flex justify-end gap-1">
+                                                    <button 
+                                                        onClick={() => handleEdit(ward)}
+                                                        className="p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                                        title="Edit Ward"
+                                                    >
+                                                        <Edit3 size={16} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDelete(ward)}
+                                                        className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                                        title="Clear Assignment"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
                                             )}
                                         </td>
                                     </tr>

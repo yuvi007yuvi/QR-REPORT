@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { SummaryStats } from '../utils/dataProcessor';
 import {
     QrCode,
@@ -12,18 +12,13 @@ import {
     Filter,
     Image as ImageIcon,
     MessageCircle,
-    Table
+    Table,
+    Upload
 } from 'lucide-react';
 import { exportToJPEG } from '../utils/exporter';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import natureGreenLogo from '../assets/NatureGreen_Logo.png';
-import { Upload } from 'lucide-react';
-import { processData, parseFile } from '../utils/dataProcessor';
-import masterData from '../data/masterData.json';
-import supervisorData from '../data/supervisorData.json';
-import { db } from '../firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
-import type { WardAssignment } from '../utils/dataProcessor';
+import { parseFile } from '../utils/dataProcessor';
 
 import {
     BarChart,
@@ -41,29 +36,24 @@ import {
 
 interface DashboardProps {
     stats: SummaryStats;
+    onUpload: (data: any[], date: string) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ stats, onUpload }) => {
     const [dashboardStats, setDashboardStats] = React.useState<SummaryStats>(stats);
     const [loading, setLoading] = React.useState(false);
-    const [selectedZone, setSelectedZone] = React.useState('All');
-    const [selectedSupervisor, setSelectedSupervisor] = React.useState('All');
-    const [selectedWard, setSelectedWard] = React.useState('All');
-    const [wardAssignments, setWardAssignments] = React.useState<Record<string, WardAssignment>>({});
 
-    // Fetch Ward Assignments from Firestore
+    // Filter states
+    const [selectedZone, setSelectedZone] = useState('All');
+    const [selectedSupervisor, setSelectedSupervisor] = useState('All');
+    const [selectedWard, setSelectedWard] = useState('All');
+
+    // Sync with props
     React.useEffect(() => {
-        const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
-            const mapping: Record<string, WardAssignment> = {};
-            snapshot.forEach((doc) => {
-                mapping[doc.id] = doc.data() as WardAssignment;
-            });
-            setWardAssignments(mapping);
-            console.log('Dashboard: Loaded ward assignments from Firestore:', Object.keys(mapping).length);
-        });
-
-        return () => unsubscribe();
-    }, []);
+        if (stats) {
+            setDashboardStats(stats);
+        }
+    }, [stats]);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -72,8 +62,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
         setLoading(true);
         try {
             const jsonData = await parseFile(file);
-            const { stats: newStats } = processData(masterData, supervisorData, jsonData, 'All', wardAssignments);
-            setDashboardStats(newStats);
+            // Identify first date in file for the header
+            const dateKeys = ['Date Of Scan', 'Date', 'Scan Date', 'Timestamp'];
+            let fileDate = '';
+            if (jsonData.length > 0) {
+                const firstRow = jsonData[0];
+                for (const key of dateKeys) {
+                    if (firstRow[key]) {
+                        fileDate = firstRow[key];
+                        break;
+                    }
+                }
+            }
+            onUpload(jsonData, fileDate);
         } catch (error) {
             console.error("Upload failed", error);
             alert("Failed to process file");

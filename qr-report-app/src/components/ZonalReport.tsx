@@ -1,28 +1,25 @@
-import React, { useMemo, useEffect, useState } from 'react';
-import { db } from '../firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
-import type { WardAssignment } from '../utils/dataProcessor';
+import React, { useMemo } from 'react';
 import type { ReportRecord } from '../utils/dataProcessor';
-import { Image as ImageIcon } from 'lucide-react';
+import { Image as ImageIcon, Upload } from 'lucide-react';
 import { exportToJPEG } from '../utils/exporter';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import natureGreenLogo from '../assets/NatureGreen_Logo.png';
-import { Upload } from 'lucide-react';
-import { processData, parseFile } from '../utils/dataProcessor';
-import masterData from '../data/masterData.json';
-import supervisorData from '../data/supervisorData.json';
+import { parseFile } from '../utils/dataProcessor';
 
 interface ZonalReportProps {
     data: ReportRecord[];
     date: string;
+    onUpload: (data: any[], date: string) => void;
 }
 
 interface SupervisorStats {
     name: string;
+    wards: Set<string>;
+    wardNames: Set<string>;
     totalQr: number;
     scanned: number;
     pending: number;
-    scanTiming: string; // Defaulting to 'DAY' as per plan
+    scanTiming: string;
 }
 
 interface ZoneHeadStats {
@@ -33,28 +30,16 @@ interface ZoneHeadStats {
     pending: number;
 }
 
-export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
+export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload }) => {
     const [localData, setLocalData] = React.useState<ReportRecord[]>(data);
     const [localDate, setLocalDate] = React.useState<string>(date);
     const [loading, setLoading] = React.useState(false);
-    const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
-
-    // Fetch Ward Assignments from Firestore
-    useEffect(() => {
-        const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
-            const mapping: Record<string, WardAssignment> = {};
-            snapshot.forEach((doc) => {
-                mapping[doc.id] = doc.data() as WardAssignment;
-            });
-            setWardAssignments(mapping);
-        });
-
-        return () => unsubscribe();
-    }, []);
 
     React.useEffect(() => {
-        setLocalData(data);
-        setLocalDate(date);
+        if (data) {
+            setLocalData(data);
+            setLocalDate(date);
+        }
     }, [data, date]);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,11 +49,19 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
         setLoading(true);
         try {
             const jsonData = await parseFile(file);
-            const { report, availableDates } = processData(masterData, supervisorData, jsonData, 'All', wardAssignments);
-            setLocalData(report);
-            if (availableDates.length > 0) {
-                setLocalDate(availableDates[0]);
+            // Identify first date in file for the header
+            const dateKeys = ['Date Of Scan', 'Date', 'Scan Date', 'Timestamp'];
+            let fileDate = '';
+            if (jsonData.length > 0) {
+                const firstRow = jsonData[0];
+                for (const key of dateKeys) {
+                    if (firstRow[key]) {
+                        fileDate = firstRow[key];
+                        break;
+                    }
+                }
             }
+            onUpload(jsonData, fileDate);
         } catch (error) {
             console.error("Upload failed", error);
             alert("Failed to process file");
@@ -78,17 +71,24 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
     };
 
     const reportData = useMemo(() => {
-        const statsByHead: Record<string, ZoneHeadStats> = {};
+        const zones: Record<string, Record<string, ZoneHeadStats>> = {
+            'MATHURA': {},
+            'VRINDAVAN': {}
+        };
 
-        // Helper to normalize names for grouping
         const normalize = (s: string) => s ? s.trim() : 'Unknown';
 
         localData.forEach(record => {
             const headName = normalize(record.zonalHead);
             const supervisorName = normalize(record.assignedTo);
+            
+            // Map zone name to MATHURA or VRINDAVAN
+            // Heuristic: Zone 4 is Vrindavan, others are Mathura
+            const isVrindavan = record.zone.includes('4') || record.zone.toUpperCase().includes('VRINDAVAN');
+            const zoneKey = isVrindavan ? 'VRINDAVAN' : 'MATHURA';
 
-            if (!statsByHead[headName]) {
-                statsByHead[headName] = {
+            if (!zones[zoneKey][headName]) {
+                zones[zoneKey][headName] = {
                     name: headName,
                     supervisors: [],
                     totalQr: 0,
@@ -97,7 +97,7 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
                 };
             }
 
-            const headStats = statsByHead[headName];
+            const headStats = zones[zoneKey][headName];
             headStats.totalQr++;
             if (record.status === 'Scanned') headStats.scanned++;
             else headStats.pending++;
@@ -106,12 +106,27 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
             if (!supervisorStats) {
                 supervisorStats = {
                     name: supervisorName,
+                    wards: new Set<string>(),
+                    wardNames: new Set<string>(),
                     totalQr: 0,
                     scanned: 0,
                     pending: 0,
-                    scanTiming: 'DAY' // Default
+                    scanTiming: 'DAY'
                 };
                 headStats.supervisors.push(supervisorStats);
+            }
+
+            // Extract ward number and name for display
+            // Format is "60-Jagannath Puri"
+            const wardMatch = record.ward.match(/^(\d+)-(.*)/);
+            if (wardMatch) {
+                supervisorStats.wards.add(wardMatch[1]);
+                supervisorStats.wardNames.add(wardMatch[2].trim());
+            } else {
+                // Fallback if no dash
+                const numMatch = record.ward.match(/^(\d+)/);
+                if (numMatch) supervisorStats.wards.add(numMatch[1]);
+                supervisorStats.wardNames.add(record.ward);
             }
 
             supervisorStats.totalQr++;
@@ -119,8 +134,7 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
             else supervisorStats.pending++;
         });
 
-        // Convert to array and sort if needed
-        return Object.values(statsByHead).sort((a, b) => a.name.localeCompare(b.name));
+        return zones;
     }, [localData]);
 
     // Calculate Grand Totals for Header
@@ -136,7 +150,9 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
         // Let's check the data. Zone 4 is Vrindavan.
 
         localData.forEach(r => {
-            const isVrindavan = r.zone.toLowerCase().includes('vrindavan') || r.zonalHead.toLowerCase().includes('vrindavan'); // Updated for new name
+            const zoneStr = (r.zone || '').toLowerCase();
+            const headStr = (r.zonalHead || '').toLowerCase();
+            const isVrindavan = zoneStr.includes('vrindavan') || headStr.includes('vrindavan');
             if (isVrindavan) {
                 vrindavanTotal++;
                 if (r.status === 'Scanned') vrindavanScanned++;
@@ -249,55 +265,120 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date }) => {
                         <div className="p-1 text-center">{grandTotals.mathuraTotal + grandTotals.vrindavanTotal}</div>
                     </div>
 
-                    {/* Zonal Sections */}
-                    {reportData.map((zone) => (
-                        <div key={zone.name}>
-                            {/* Zone Header */}
-                            <div className="bg-[#ffc000] p-2 font-bold text-center border-b border-black uppercase border-t-2 border-t-black">
-                                UNDER ZONAL MR. {zone.name}
+                    {/* Zonal Sections Grouped by Zone */}
+                    {Object.entries(reportData).map(([zoneName, heads]) => {
+                        const headList = Object.values(heads).sort((a, b) => a.name.localeCompare(b.name));
+                        if (headList.length === 0) return null;
+
+                        return (
+                            <div key={zoneName} className="border-t-4 border-black">
+                                {/* Zone Header Label */}
+                                <div className="bg-[#4472c4] text-white p-2 font-bold text-center uppercase tracking-widest text-lg">
+                                    {zoneName} ZONE
+                                </div>
+
+                                {headList.map((zone) => {
+                                    // Sort supervisors by ward number
+                                    const sortedSupervisors = [...zone.supervisors].sort((a, b) => {
+                                        const wardA = parseInt(Array.from(a.wards)[0] || '999');
+                                        const wardB = parseInt(Array.from(b.wards)[0] || '999');
+                                        return wardA - wardB;
+                                    });
+
+                                    return (
+                                        <div key={zone.name}>
+                                            {/* Zonal Head Header */}
+                                            <div className="bg-[#ffc000] p-2 font-bold text-center border-b border-black uppercase border-t border-t-black">
+                                                UNDER ZONAL MR. {zone.name}
+                                            </div>
+
+                                            {/* Table Header */}
+                                            <div className="grid grid-cols-[2fr_1.5fr_1fr_2fr_1fr_1fr] bg-[#bdd7ee] text-xs font-bold border-b border-black text-center">
+                                                <div className="p-1 border-r border-black">WARD (NO-NAME)</div>
+                                                <div className="p-1 border-r border-black">SUPERVISOR</div>
+                                                <div className="p-1 border-r border-black">TOTAL QR</div>
+                                                <div className="p-1 border-r border-black">SCAN TIMING</div>
+                                                <div className="p-1 border-r border-black">SCANNED</div>
+                                                <div className="p-1">PENDING QR</div>
+                                            </div>
+
+                                            {/* Supervisors */}
+                                            {sortedSupervisors.map((sup) => {
+                                                const isZeroScanned = sup.scanned === 0;
+                                                const scannedBg = isZeroScanned
+                                                    ? 'bg-gradient-to-r from-red-500 via-orange-500 to-red-500 text-white'
+                                                    : 'bg-white text-black';
+
+                                                const pendingBg = sup.pending === 0 ? 'bg-green-400' : 'bg-white';
+                                                
+                                                // Format Ward display: "60-Jagannath Puri"
+                                                const wardNums = Array.from(sup.wards).sort((a, b) => parseInt(a) - parseInt(b));
+                                                const wardNames = Array.from(sup.wardNames);
+                                                const wardDisplay = wardNums.map((n, i) => `${n}-${wardNames[i] || ''}`).join(', ');
+
+                                                return (
+                                                    <div key={sup.name} className="grid grid-cols-[2fr_1.5fr_1fr_2fr_1fr_1fr] text-xs font-bold border-b border-black text-center items-center">
+                                                        <div className="p-1 border-r border-black bg-white text-left pl-1">
+                                                            {wardDisplay}
+                                                        </div>
+                                                        <div className="p-1 border-r border-black bg-white">{sup.name}</div>
+                                                        <div className="p-1 border-r border-black bg-white">{sup.totalQr}</div>
+                                                        <div className="p-1 border-r border-black bg-white">{sup.scanTiming}</div>
+                                                        <div className={`p-1 border-r border-black ${scannedBg}`}>{sup.scanned}</div>
+                                                        <div className={`p-1 ${pendingBg}`}>{sup.pending}</div>
+                                                    </div>
+                                                );
+                                            })}
+
+                                            {/* Zonal Total */}
+                                            <div className="grid grid-cols-[2fr_1.5fr_1fr_2fr_1fr_1fr] bg-[#00b0f0] text-xs font-bold border-b border-black text-center">
+                                                <div className="p-1 border-r border-black"></div>
+                                                <div className="p-1 border-r border-black">TOTAL</div>
+                                                <div className="p-1 border-r border-black">{zone.totalQr}</div>
+                                                <div className="p-1 border-r border-black"></div>
+                                                <div className="p-1 border-r border-black">{zone.scanned}</div>
+                                                <div className="p-1">{zone.pending}</div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
+                        );
+                    })}
 
-                            {/* Table Header */}
-                            <div className="grid grid-cols-[2fr_1fr_2fr_1fr_1fr] bg-[#bdd7ee] text-xs font-bold border-b border-black text-center">
-                                <div className="p-1 border-r border-black">NAME</div>
-                                <div className="p-1 border-r border-black">TOTAL QR</div>
-                                <div className="p-1 border-r border-black">SCAN TIMING</div>
-                                <div className="p-1 border-r border-black">SCANNED</div>
-                                <div className="p-1">PANDING QR</div>
-                            </div>
-
-                            {/* Supervisors */}
-                            {zone.supervisors.map((sup) => {
-                                // Determine row background based on scanned count (mimicking the image logic roughly)
-                                // Image shows red/orange gradient for 0 scanned.
-                                const isZeroScanned = sup.scanned === 0;
-                                const scannedBg = isZeroScanned
-                                    ? 'bg-gradient-to-r from-red-500 via-orange-500 to-red-500 text-white'
-                                    : 'bg-white text-black';
-
-                                const pendingBg = sup.pending === 0 ? 'bg-green-400' : 'bg-white';
-
-                                return (
-                                    <div key={sup.name} className="grid grid-cols-[2fr_1fr_2fr_1fr_1fr] text-xs font-bold border-b border-black text-center items-center">
-                                        <div className="p-1 border-r border-black bg-white">{sup.name}</div>
-                                        <div className="p-1 border-r border-black bg-white">{sup.totalQr}</div>
-                                        <div className="p-1 border-r border-black bg-white">{sup.scanTiming}</div>
-                                        <div className={`p-1 border-r border-black ${scannedBg}`}>{sup.scanned}</div>
-                                        <div className={`p-1 ${pendingBg}`}>{sup.pending}</div>
-                                    </div>
-                                );
-                            })}
-
-                            {/* Zone Total */}
-                            <div className="grid grid-cols-[2fr_1fr_2fr_1fr_1fr] bg-[#00b0f0] text-xs font-bold border-b border-black text-center">
-                                <div className="p-1 border-r border-black">TOTAL</div>
-                                <div className="p-1 border-r border-black">{zone.totalQr}</div>
-                                <div className="p-1 border-r border-black"></div>
-                                <div className="p-1 border-r border-black">{zone.scanned}</div>
-                                <div className="p-1">{zone.pending}</div>
-                            </div>
+                    {/* Detailed Site List */}
+                    <div className="mt-8 border-t-4 border-black">
+                        <div className="bg-[#4472c4] text-white p-2 font-bold text-center uppercase tracking-widest text-sm">
+                            Detailed Site-wise Performance Status
                         </div>
-                    ))}
+                        <div className="grid grid-cols-[0.5fr_1.5fr_2fr_2fr_1fr_1fr] bg-[#bdd7ee] text-[10px] font-bold border-b border-black text-center uppercase">
+                            <div className="p-1 border-r border-black">S.No</div>
+                            <div className="p-1 border-r border-black">Ward</div>
+                            <div className="p-1 border-r border-black">Site Name</div>
+                            <div className="p-1 border-r border-black">Location/Address</div>
+                            <div className="p-1 border-r border-black">Status</div>
+                            <div className="p-1">Time</div>
+                        </div>
+                        {localData.sort((a, b) => {
+                            const zoneA = (a.zone.includes('4') || a.zone.toUpperCase().includes('VRINDAVAN')) ? 'VRINDAVAN' : 'MATHURA';
+                            const zoneB = (b.zone.includes('4') || b.zone.toUpperCase().includes('VRINDAVAN')) ? 'VRINDAVAN' : 'MATHURA';
+                            if (zoneA !== zoneB) return zoneA.localeCompare(zoneB);
+                            
+                            const getNum = (w: string) => parseInt(w.match(/^(\d+)/)?.[1] || '0');
+                            return getNum(a.ward) - getNum(b.ward);
+                        }).map((record, idx) => (
+                            <div key={record.qrId} className="grid grid-cols-[0.5fr_1.5fr_2fr_2fr_1fr_1fr] text-[9px] border-b border-black text-center items-center font-medium">
+                                <div className="p-1 border-r border-black">{idx + 1}</div>
+                                <div className="p-1 border-r border-black text-left pl-1">{record.ward}</div>
+                                <div className="p-1 border-r border-black text-left pl-1">{record.siteName}</div>
+                                <div className="p-1 border-r border-black text-left pl-1">{record.buildingName}</div>
+                                <div className={`p-1 border-r border-black font-bold ${record.status === 'Scanned' ? 'text-green-600' : 'text-red-500'}`}>
+                                    {record.status}
+                                </div>
+                                <div className="p-1">{record.scanTime || '-'}</div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Footer */}

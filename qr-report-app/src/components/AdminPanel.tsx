@@ -1,21 +1,22 @@
 import React, { useState } from 'react';
 import { 
-    Settings, 
-    Database, 
     ShieldCheck, 
     RefreshCw, 
-    Users, 
-    AlertTriangle,
-    CheckCircle2,
     ArrowRight,
     MapPin,
-    ArrowLeft
+    ArrowLeft,
+    QrCode,
+    Database,
+    Users,
+    CheckCircle2,
+    AlertTriangle
 } from 'lucide-react';
 import { seedSupervisorsToFirestore } from '../utils/firebaseMigration';
 import { WardZonalMapping } from './WardZonalMapping';
+import { MasterQRManager } from './MasterQRManager';
 
 export const AdminPanel: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'overview' | 'ward-mapping'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'ward-mapping' | 'qr-master'>('overview');
     const [status, setStatus] = useState<{ loading: boolean; message: string; type: 'success' | 'error' | 'info' | null }>({
         loading: false,
         message: '',
@@ -48,6 +49,32 @@ export const AdminPanel: React.FC = () => {
                     <ArrowLeft size={16} /> Back to Administration
                 </button>
                 <WardZonalMapping />
+            </div>
+        );
+    }
+
+    if (activeTab === 'qr-master') {
+        return (
+            <div className="admin-panel-container" style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+                <button 
+                    onClick={() => setActiveTab('overview')}
+                    className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-semibold text-sm mb-6 transition-colors"
+                >
+                    <ArrowLeft size={16} /> Back to Administration
+                </button>
+                <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="bg-blue-50 p-3 rounded-xl">
+                            <QrCode size={24} className="text-blue-600" />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black text-slate-800">Master QR Data</h2>
+                            <p className="text-sm text-slate-500">Upload and manage the global master list of QR Codes.</p>
+                        </div>
+                    </div>
+                    
+                    <MasterQRManager />
+                </div>
             </div>
         );
     }
@@ -101,6 +128,45 @@ export const AdminPanel: React.FC = () => {
                         }}
                     >
                         Configure Wards <ArrowRight size={16} />
+                    </button>
+                </div>
+
+                {/* QR Master Card */}
+                <div style={{ 
+                    background: '#ffffff', 
+                    borderRadius: '16px', 
+                    border: '1.5px solid #e2e8f0', 
+                    padding: '24px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                    cursor: 'pointer'
+                }} onClick={() => setActiveTab('qr-master')}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                        <div style={{ padding: '10px', background: '#eff6ff', borderRadius: '12px', color: '#2563eb' }}>
+                            <QrCode size={20} />
+                        </div>
+                        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>Master QR List</h3>
+                    </div>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '24px', lineHeight: 1.5 }}>
+                        Upload official QR Excel files to update the global database.
+                    </p>
+                    <button 
+                        style={{
+                            width: '100%',
+                            padding: '12px',
+                            background: '#f8fafc',
+                            color: '#1e293b',
+                            border: '1.5px solid #e2e8f0',
+                            borderRadius: '10px',
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        Manage Master Data <ArrowRight size={16} />
                     </button>
                 </div>
 

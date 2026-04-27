@@ -4,6 +4,7 @@ export interface WardAssignment {
     wardNo: number;
     supervisor: string;
     zonalHead: string;
+    totalQRCodes?: number;
 }
 
 export interface ReportRecord {
@@ -49,6 +50,7 @@ export interface WardAssignment {
     wardNo: number;
     supervisor: string;
     zonalHead: string;
+    totalQRCodes?: number;
     lastUpdated?: any;
 }
 
@@ -88,21 +90,27 @@ export const processData = (
 
     // First load from static supervisor data
     supervisorData.forEach((row) => {
-        let ward = row['Ward No'] ? String(row['Ward No']).trim() : (row['WARD NO.'] ? String(row['WARD NO.']).trim() : '');
-        // Normalize: remove leading zeros (e.g. "01" -> "1")
-        ward = ward.replace(/^0+/, '');
-
+        let wardNum = row['Ward No'] ? String(row['Ward No']).trim() : (row['WARD NO.'] ? String(row['WARD NO.']).trim() : '');
+        wardNum = wardNum.replace(/^0+/, ''); // Normalize: "01" -> "1"
+        
+        const wardName = (row['Ward Name'] || row['WARD NAME'] || '').toString().trim().toUpperCase();
         const supervisor = row['Supervisor'] || row['SUPERVISOR NAME'] || '';
         const zonalHead = row['Zonal Head'] || '';
-        if (ward) wardMap.set(ward, { supervisor, zonalHead });
+        
+        if (wardNum) wardMap.set(wardNum, { supervisor, zonalHead });
+        if (wardName) wardMap.set(wardName, { supervisor, zonalHead }); // Fallback by name
     });
+
+    console.log('Ward Map populated with', wardMap.size, 'entries (including name fallbacks)');
 
     // Then override with Firestore assignments if provided
     if (wardAssignments) {
         Object.entries(wardAssignments).forEach(([wardNum, assignment]) => {
             wardMap.set(wardNum, {
-                supervisor: assignment.supervisor,
-                zonalHead: assignment.zonalHead
+                supervisor: assignment.supervisor || 'Unassigned',
+                zonalHead: assignment.zonalHead || 'Unassigned',
+                // @ts-ignore
+                totalQRCodes: assignment.totalQRCodes || 0
             });
         });
     }
@@ -119,32 +127,41 @@ export const processData = (
     };
 
     masterData.forEach((row) => {
-        const qrId = row['QR Code ID'] ? String(row['QR Code ID']).trim() : '';
+        const qrId = (row['QR Code ID'] || row['qrId'] || '').toString().trim();
         if (!qrId) return;
 
-        const wardRaw = row['Ward'] ? String(row['Ward']).trim() : '';
-        let zone = row['Zone & Circle'] ? String(row['Zone & Circle']).trim() : '';
+        const wardRaw = (row['Ward'] || row['ward'] || '').toString().trim();
+        let zone = (row['Zone & Circle'] || row['zone'] || '').toString().trim();
 
         // Apply Zone Mapping
         if (zoneMapping[zone]) {
             zone = zoneMapping[zone];
         }
 
-        const buildingName = row['Building/Street'] || '';
-        const siteName = row['Site Name'] || '';
-        let type = row['Type'] || '';
+        const buildingName = row['Building/Street'] || row['address'] || '';
+        const siteName = row['Site Name'] || row['siteName'] || '';
+        let type = row['Type'] || row['type'] || '';
 
         // Identify Underground Dustbins
         if (siteName.toUpperCase().includes('UNDERGROUND') || siteName.toUpperCase().includes('UNDER GROUND')) {
             type = 'Underground Dustbin';
         }
 
-        // Extract Ward Number from "60-Jagannath Puri" -> "60"
-        let wardNum = wardRaw.split('-')[0].trim();
-        // Normalize: remove leading zeros
-        wardNum = wardNum.replace(/^0+/, '');
+        // Extract Ward Number: handle "60-Name", "60 Name", or just "60"
+        let wardNum = '';
+        const wardMatch = wardRaw.match(/^(\d+)/);
+        if (wardMatch) {
+            wardNum = wardMatch[1].replace(/^0+/, ''); // Normalize: "01" -> "1"
+        }
 
-        const mapping = wardMap.get(wardNum) || { supervisor: 'Unassigned', zonalHead: 'Unassigned' };
+        // Try lookup by number, then by full raw name (case-insensitive)
+        const wardNameNormalized = wardRaw.toUpperCase().trim();
+        const mapping = wardMap.get(wardNum) || wardMap.get(wardNameNormalized) || { supervisor: 'Unassigned', zonalHead: 'Unassigned' };
+        
+        if (qrId === 'MVNNDG90') {
+            console.log('Debugging QR MVNNDG90:', { wardRaw, wardNum, wardNameNormalized, mapping, wardMapSize: wardMap.size });
+        }
+
         const assignedTo = mapping.supervisor;
         const zonalHead = mapping.zonalHead;
 
@@ -432,9 +449,14 @@ export const processData = (
     report.forEach((r) => {
         if (r.status === 'Unknown') return;
         const wardLabel = r.ward || 'Unknown';
+        
+        // Extract ward number for override lookup
+        let wardNum = wardLabel.split('-')[0].trim().replace(/^0+/, '');
+        const override = wardMap.get(wardNum);
+
         if (!wardPerformanceMap.has(wardLabel)) {
             wardPerformanceMap.set(wardLabel, {
-                total: 0,
+                total: (override as any)?.totalQRCodes || 0,
                 scanned: 0,
                 pending: 0,
                 supervisor: r.assignedTo,
@@ -442,20 +464,30 @@ export const processData = (
             });
         }
         const stats = wardPerformanceMap.get(wardLabel)!;
-        stats.total++;
+        
+        // If no override, increment total based on records
+        if (!((override as any)?.totalQRCodes > 0)) {
+            stats.total++;
+        }
+        
         if (r.status === 'Scanned') stats.scanned++;
-        if (r.status === 'Pending') stats.pending++;
     });
 
-    const wardStats = Array.from(wardPerformanceMap.entries()).map(([ward, data]) => ({
-        ward,
-        supervisor: data.supervisor,
-        zonalHead: data.zonalHead,
-        total: data.total,
-        scanned: data.scanned,
-        pending: data.pending,
-        percentage: data.total > 0 ? Math.round((data.scanned / data.total) * 100) : 0
-    })).sort((a, b) => b.percentage - a.percentage);
+    // Finalize pending and percentages for each ward
+    const wardStats = Array.from(wardPerformanceMap.entries()).map(([ward, stats]) => {
+        const total = stats.total || stats.scanned; // fallback to scanned if total is somehow 0
+        const pending = Math.max(0, total - stats.scanned);
+        return {
+            ward,
+            supervisor: stats.supervisor,
+            zonalHead: stats.zonalHead,
+            total,
+            scanned: stats.scanned,
+            pending,
+            percentage: total > 0 ? Math.round((stats.scanned / total) * 100) : 0
+        };
+    }).sort((a, b) => b.percentage - a.percentage);
+
 
     return {
         report,

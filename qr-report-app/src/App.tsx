@@ -5,29 +5,17 @@ import type { AppSection, ViewMode } from './components/Sidebar';
 import NagarNigamLogo from './assets/nagar-nigam-logo.png';
 import NatureGreenLogo from './assets/NatureGreen_Logo.png';
 import { Dashboard } from './components/Dashboard';
-import TripReport from './components/TripReport';
 import CdwasteComplaintReport from './components/CdwasteComplaintReport';
-import { CoverageReport } from './components/CoverageReport';
 import { KYCSurveyChecker } from './components/KYCSurveyChecker';
 import { SupervisorCountReport } from './components/SupervisorCountReport';
-import QRStatusReport from './components/QRStatusReport';
 import { ZonalReport } from './components/ZonalReport';
-import { BeforeAfterReport } from './components/BeforeAfterReport';
-import { UndergroundReport } from './components/UndergroundReport';
-import { ZonalUndergroundReport } from './components/ZonalUndergroundReport';
-import DistanceReport from './components/DistanceReport';
 import WardWiseStatusReport from './components/WardWiseStatusReport';
 import { WhatsAppReport } from './components/WhatsAppReport';
-import { SupervisorZonalMapping } from './components/SupervisorZonalMapping';
 import { KYCCalendarView } from './components/KYCCalendarView';
 import { KPIChecker } from './components/KPIChecker';
 import { UCCReport } from './components/UCCReport';
-import type { ReportRecord, SummaryStats } from './utils/dataProcessor';
 import './App.css';
-
 import { LoadingScreen } from './components/LoadingScreen';
-
-import SupervisorDailyReport from './components/SupervisorDailyReport';
 import { DailyKycStatusReport } from './components/DailyKycStatusReport';
 import { WardKYCCrossCheck } from './components/WardKYCCrossCheck';
 import NewKycTeamReport from './components/NewKycTeamReport';
@@ -36,23 +24,19 @@ import MSWDateWiseReport from './components/MSWDateWiseReport';
 import MonthWiseKPICalendar from './components/MonthWiseKPICalendar';
 import { AdminPanel } from './components/AdminPanel';
 import { useAuth } from './contexts/AuthContext';
-
 import LoginPage from './components/LoginPage';
 import { LogOut } from 'lucide-react';
+import { processData } from './utils/dataProcessor';
+import masterData from './data/masterData.json';
+import supervisorData from './data/supervisorData.json';
+import { db } from './firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
+import type { WardAssignment, SummaryStats, ReportRecord } from './utils/dataProcessor';
 
 const App: React.FC = () => {
   const { currentUser, isLoading: authLoading, logout, isAdmin } = useAuth();
-
-  const [currentSection, setCurrentSection] = useState<AppSection>('daily');
-  const [currentView, setCurrentView] = useState<ViewMode>('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [pendingView, setPendingView] = useState<string | null>(null);
-
-  console.log('App: Current User:', currentUser?.email, 'isAdmin:', isAdmin);
-
-
-  // Auth guards
+  
+  // Auth guard MUST be before state definitions to prevent flashes or errors
   if (authLoading) {
     return (
       <div style={{
@@ -77,21 +61,54 @@ const App: React.FC = () => {
     return <LoginPage />;
   }
 
+  const [currentSection, setCurrentSection] = useState<AppSection>('daily');
+  const [currentView, setCurrentView] = useState<ViewMode>('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [pendingView, setPendingView] = useState<string | null>(null);
 
-  // Mock stats for dashboard - in a real app, this would come from a data source
-  const mockStats: SummaryStats = {
-    total: 1250,
-    scanned: 980,
-    pending: 270,
-    unknown: 0,
-    scannedPercentage: 78,
-    zoneStats: {},
-    zonalHeadStats: {},
-    wardStats: []
+  console.log('App: Current User:', currentUser?.email, 'isAdmin:', isAdmin);
+
+
+  const [reportData, setReportData] = useState<ReportRecord[]>(() => {
+    const { report } = processData(masterData, supervisorData, [], 'All', {});
+    return report;
+  });
+  const [reportStats, setReportStats] = useState<SummaryStats>(() => {
+    const { stats } = processData(masterData, supervisorData, [], 'All', {});
+    return stats;
+  });
+  const [reportDate, setReportDate] = useState<string>(new Date().toLocaleDateString('en-GB'));
+  const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
+
+  // Fetch Ward Assignments from Firestore
+  React.useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
+      const mapping: Record<string, WardAssignment> = {};
+      snapshot.forEach((doc) => {
+        mapping[doc.id] = doc.data() as WardAssignment;
+      });
+      setWardAssignments(mapping);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Update report when ward assignments change
+  React.useEffect(() => {
+    // We only want to re-process if we don't have an active upload, 
+    // but for now let's keep it simple: any mapping change updates the view.
+    // In a real scenario, we'd need to keep the 'scanned' data separate.
+    const { report, stats } = processData(masterData, supervisorData, [], 'All', wardAssignments);
+    setReportData(report);
+    setReportStats(stats);
+  }, [wardAssignments]);
+
+  const handleGlobalUpload = (newData: any[], date: string) => {
+    const { report, stats } = processData(masterData, supervisorData, newData, 'All', wardAssignments);
+    setReportData(report);
+    setReportStats(stats);
+    if (date) setReportDate(date);
   };
-
-  const mockReportData: ReportRecord[] = [];
-  const mockDate = "";
 
   const handleViewChange = (newView: any) => {
     setPendingView(newView);
@@ -106,23 +123,9 @@ const App: React.FC = () => {
   const renderCurrentView = () => {
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard stats={mockStats} />;
-      case 'detailed':
-        return <CoverageReport />;
+        return <Dashboard stats={reportStats} onUpload={handleGlobalUpload} />;
       case 'zonal':
-        return <ZonalReport data={mockReportData} date={mockDate} />;
-      case 'beforeAfter':
-        return <BeforeAfterReport data={mockReportData} date={mockDate} />;
-      case 'mapping':
-        return <SupervisorZonalMapping />;
-      case 'underground':
-        return <UndergroundReport data={mockReportData} />;
-      case 'zonalUnderground':
-        return <ZonalUndergroundReport data={mockReportData} date={mockDate} />;
-      case 'distance-report':
-        return <DistanceReport />;
-      case 'trip-report':
-        return <TripReport />;
+        return <ZonalReport data={reportData} date={reportDate} onUpload={handleGlobalUpload} />;
       case 'kyc-survey':
         return <KYCSurveyChecker />;
       case 'supervisor-count-report':
@@ -135,8 +138,6 @@ const App: React.FC = () => {
         return <WardWiseStatusReport />;
       case 'ward-status-new':
         return <WardWiseStatusReport />;
-      case 'qr-status-view':
-        return <QRStatusReport />;
       case 'cd-waste-complaint':
         return <CdwasteComplaintReport />;
       case 'kpi-checker':
@@ -145,8 +146,6 @@ const App: React.FC = () => {
         return <MonthWiseKPICalendar />;
       case 'ucc-report':
         return <UCCReport />;
-      case 'supervisor-daily-report':
-        return <SupervisorDailyReport />;
       case 'daily-kyc-status':
         return <DailyKycStatusReport />;
       case 'ward-kyc-cross-check':
@@ -160,41 +159,19 @@ const App: React.FC = () => {
       case 'admin-panel':
         return <AdminPanel />;
       default:
-
-        return <Dashboard stats={mockStats} />;
+        return <Dashboard stats={reportStats} onUpload={handleGlobalUpload} />;
     }
   };
 
   const sectionLabel = (() => {
     const allItems = [
       { id: 'dashboard', label: 'Summary Dashboard' },
-      { id: 'detailed', label: 'Detailed View' },
       { id: 'zonal', label: 'Zonal Report' },
-      { id: 'beforeAfter', label: 'Before / After Report' },
       { id: 'mapping', label: 'Supervisor Mapping' },
-      { id: 'underground', label: 'Underground Bins' },
-      { id: 'zonalUnderground', label: 'Zonal Underground' },
-      { id: 'distance-report', label: 'Distance Report' },
       { id: 'trip-report', label: 'Trip Report' },
       { id: 'supervisor-daily-report', label: 'Supervisor Daily Analysis' },
       { id: 'kpi-checker', label: 'KPI Compliance' },
       { id: 'kpi-monthly-calendar', label: 'Monthly KPI Calendar' },
-      { id: 'secondary-trip-view', label: 'Trip Report' },
-      { id: 'secondary-vehicle-history', label: 'Vehicle History' },
-      { id: 'route-map-generator', label: 'Route Map PDF Generator' },
-      { id: 'cd-waste-complaint', label: 'C&D Waste Complaint' },
-      { id: 'complaint-register', label: 'Resolution Analysis' },
-      { id: 'ucc-report', label: 'UCC Collection Analysis' },
-      { id: 'kyc-survey', label: 'KYC Survey' },
-      { id: 'supervisor-count-report', label: 'Supervisor Count Report' },
-      { id: 'kyc-calendar', label: 'KYC Calendar' },
-      { id: 'kyc-whatsapp', label: 'WhatsApp Reports' },
-      { id: 'ward-household-status', label: 'Ward Household Status' },
-      { id: 'ward-status-new', label: 'Ward Wise Status (New)' },
-      { id: 'daily-kyc-status', label: 'Daily KYC Status' },
-      { id: 'ward-kyc-cross-check', label: 'Ward KYC Cross-Check' },
-      { id: 'new-kyc-team-report', label: 'New KYC Team Report' },
-      { id: 'qr-status-view', label: 'Daily QR Status' },
       { id: 'msw-date-wise', label: 'Date Wise MSW Data' },
       { id: 'admin-panel', label: 'Admin Panel' },
     ];

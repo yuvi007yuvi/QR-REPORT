@@ -22,6 +22,7 @@ import NewKycTeamReport from './components/NewKycTeamReport';
 import ComplaintRegisterReport from './components/ComplaintRegisterReport';
 import MSWDateWiseReport from './components/MSWDateWiseReport';
 import MonthWiseKPICalendar from './components/MonthWiseKPICalendar';
+import DoorToDoorReport from './components/DoorToDoorReport';
 import { AdminPanel } from './components/AdminPanel';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
@@ -156,6 +157,8 @@ const App: React.FC = () => {
         return <ComplaintRegisterReport />;
       case 'msw-date-wise':
         return <MSWDateWiseReport />;
+      case 'door-to-door-report':
+        return <DoorToDoorReport />;
       case 'admin-panel':
         return <AdminPanel />;
       default:

@@ -43,6 +43,7 @@ export type ViewMode =
     | 'new-kyc-team-report'
     | 'complaint-register'
     | 'msw-date-wise'
+    | 'door-to-door-report'
     | 'admin-panel';
 
 
@@ -65,6 +66,7 @@ const menuItems = [
         items: [
             { id: 'dashboard', label: 'Summary Dashboard', icon: LayoutDashboard },
             { id: 'zonal', label: 'Zonal Report', icon: Map },
+            { id: 'door-to-door-report', label: 'Door to Door Report', icon: FileSpreadsheet },
         ]
     },
     {

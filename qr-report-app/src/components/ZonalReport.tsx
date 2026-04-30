@@ -97,8 +97,8 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload, 
             const override = wardAssignments?.[normalizedNo] || wardAssignments?.[`0${normalizedNo}`];
             if (override && override.zonalHead !== 'Unassigned') {
                 return {
-                    supervisor: override.supervisor || 'Unassigned',
-                    zonalHead: override.zonalHead || 'Unassigned'
+                    supervisor: (override.supervisor || override.supervisorName || 'Unassigned'),
+                    zonalHead: (override.zonalHead || override.zonalName || 'Unassigned')
                 };
             }
             
@@ -129,11 +129,11 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload, 
 
             // Check for overrides
             const override = wardAssignments?.[wardNo] || wardAssignments?.[`0${wardNo}`];
-            const supervisorName = (override && override.supervisor && override.supervisor !== 'Unassigned') 
-                ? override.supervisor 
+            const supervisorName = (override && (override.supervisor || override.supervisorName) && (override.supervisor !== 'Unassigned' && override.supervisorName !== 'Unassigned')) 
+                ? (override.supervisor || override.supervisorName) 
                 : (mapping['Supervisor'] || mapping['SUPERVISOR NAME'] || mapping['supervisor'] || 'Unassigned');
-            const headName = (override && override.zonalHead && override.zonalHead !== 'Unassigned') 
-                ? override.zonalHead 
+            const headName = (override && (override.zonalHead || override.zonalName) && (override.zonalHead !== 'Unassigned' && override.zonalName !== 'Unassigned')) 
+                ? (override.zonalHead || override.zonalName) 
                 : (mapping['Zonal Head'] || mapping['ZONAL HEAD'] || mapping['zonalHead'] || 'Unassigned');
             
             // Count total QR codes for this ward from masterData

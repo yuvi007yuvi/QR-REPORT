@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Papa from 'papaparse';
 import { 
-  FileText, 
   Download, 
   Upload, 
   Search, 
@@ -80,7 +79,7 @@ const DoorToDoorReport: React.FC = () => {
 
   // Re-process data when mappings or CSV content changes
   useEffect(() => {
-    if (rawCsvContent && mappings.length > 0) {
+    if (rawCsvContent) {
       processAndSetData(rawCsvContent, mappings);
     }
   }, [rawCsvContent, mappings]);
@@ -100,14 +99,16 @@ const DoorToDoorReport: React.FC = () => {
           
           // Find mapping from Firestore first
           let mapping = currentMappings.find(m => 
-            m.wardNumber === wardNumPrefix ||
+            String(m.wardNumber) === String(wardNumPrefix) ||
+            String(m.wardNo) === String(wardNumPrefix) ||
             m.area?.toLowerCase().trim() === cleanWardName ||
             (m.area && cleanWardName && (m.area.toLowerCase().includes(cleanWardName) || cleanWardName.includes(m.area.toLowerCase())))
           );
 
-          // If not found in current mappings and no Firestore data yet, check fallback
-          if (!mapping && currentMappings.length === 0) {
+          // Fallback to static JSON if not found in Firestore
+          if (!mapping) {
             mapping = supervisorDataFallback.find(s => 
+              String(s['Ward No']) === String(wardNumPrefix) ||
               s['Ward Name'].toLowerCase() === cleanWardName?.toLowerCase()
             );
           }
@@ -115,11 +116,12 @@ const DoorToDoorReport: React.FC = () => {
           let supervisor = mapping ? (mapping.supervisorName || mapping.Supervisor || 'Unknown') : 'Unknown';
           let zonalHead = mapping ? (mapping.zonalName || mapping['Zonal Head'] || 'Unknown') : 'Unknown';
 
-          // Only keep C&T supervisors if there are multiple
+          // Handle multiple supervisors if present (comma separated)
           if (supervisor !== 'Unknown' && supervisor.includes(',')) {
             const parts = supervisor.split(',').map((s: string) => s.trim());
+            // Prioritize C&T if multiple exist, else take the first one
             const ctParts = parts.filter((p: string) => p.toLowerCase().includes('(c&t)'));
-            supervisor = ctParts.length > 0 ? ctParts.join(', ') : 'Unknown';
+            supervisor = ctParts.length > 0 ? ctParts.join(', ') : parts[0];
           }
 
           return {
@@ -128,7 +130,7 @@ const DoorToDoorReport: React.FC = () => {
             zonalHead
           };
         })
-        .filter(row => row.supervisor.toLowerCase().includes('(c&t)'))
+        // Removed strict (c&t) filter to allow custom mapped supervisors to show up
         .filter(row => {
           // Exclude specific zonal heads
           const excludedZonals = ['suresh', 'alok', 'pankaj'];
@@ -355,18 +357,31 @@ const DoorToDoorReport: React.FC = () => {
 
   return (
     <div className="report-container p-6 space-y-6 animate-in fade-in duration-700">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Top Header Section - Premium Dashboard Style */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-100 pb-8">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <LayoutGrid className="text-emerald-500" />
-            Door to Door Coverage Report
+          <div className="flex items-center gap-3 mb-2">
+            <div className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+              System Live
+            </div>
+            <span className="text-slate-300 text-xs font-bold">|</span>
+            <span className="text-slate-400 text-xs font-bold">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+          </div>
+          <h2 className="text-4xl font-black text-slate-800 tracking-tight flex items-center gap-3">
+            <div className="p-2 bg-slate-900 text-white rounded-2xl shadow-xl shadow-slate-200">
+              <LayoutGrid size={28} />
+            </div>
+            Door to Door Coverage
           </h2>
-          <p className="text-slate-500 text-sm mt-1">Detailed operational analysis by supervisor and zonal heads</p>
+          <p className="text-slate-500 text-sm mt-3 font-medium max-w-md leading-relaxed">
+            Comprehensive real-time analysis of waste collection efficiency across all zones and wards of Mathura-Vrindavan.
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-all shadow-sm font-medium text-sm cursor-pointer">
-            <Upload size={18} className="text-blue-500" />
+        
+        <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-[2rem] border border-slate-100 shadow-inner">
+          <label className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-[1.5rem] text-slate-700 hover:bg-slate-50 transition-all shadow-sm font-black text-xs cursor-pointer uppercase tracking-wider group">
+            <Upload size={16} className="text-blue-500 group-hover:scale-110 transition-transform" />
             Upload CSV
             <input 
               type="file" 
@@ -377,104 +392,113 @@ const DoorToDoorReport: React.FC = () => {
           </label>
           <button 
             onClick={handleExportExcel}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-all shadow-sm font-medium text-sm"
+            className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-[1.5rem] text-slate-700 hover:bg-slate-50 transition-all shadow-sm font-black text-xs uppercase tracking-wider group"
           >
-            <FileSpreadsheet size={18} className="text-emerald-500" />
+            <FileSpreadsheet size={16} className="text-emerald-500 group-hover:scale-110 transition-transform" />
             Export Excel
           </button>
           <button 
             onClick={handleExportPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 font-medium text-sm"
+            className="flex items-center gap-2 px-8 py-3 bg-slate-900 text-white rounded-[1.5rem] hover:bg-black transition-all shadow-xl shadow-slate-200 font-black text-xs uppercase tracking-widest group"
           >
-            <Download size={18} />
+            {loading ? (
+              <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Download size={16} className="group-hover:translate-y-0.5 transition-transform" />
+            )}
             Download PDF
           </button>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Cards - Premium Dashboard Style */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {[
-          { label: 'Total Routes', value: stats.totalRoutes, icon: MapPin, color: 'blue' },
-          { label: 'Avg Coverage', value: `${stats.avgCoverage}%`, icon: CheckCircle2, color: 'emerald' },
-          { label: 'Total POI', value: stats.totalTotal, icon: Users, color: 'slate' },
-          { label: 'Scanned POI', value: stats.totalCovered, icon: CheckCircle2, color: 'emerald' },
-          { label: 'Efficiency', value: `${stats.efficiency}%`, icon: ArrowUpRight, color: 'orange' },
+          { label: 'Total Routes', value: stats.totalRoutes, icon: MapPin, color: 'blue', bg: 'bg-blue-50', text: 'text-blue-600' },
+          { label: 'Avg Coverage', value: `${stats.avgCoverage}%`, icon: CheckCircle2, color: 'emerald', bg: 'bg-emerald-50', text: 'text-emerald-600' },
+          { label: 'Total POI', value: stats.totalTotal, icon: Users, color: 'indigo', bg: 'bg-indigo-50', text: 'text-indigo-600' },
+          { label: 'Scanned POI', value: stats.totalCovered, icon: CheckCircle2, color: 'emerald', bg: 'bg-emerald-50', text: 'text-emerald-600' },
+          { label: 'Efficiency', value: `${stats.efficiency}%`, icon: ArrowUpRight, color: 'orange', bg: 'bg-orange-50', text: 'text-orange-600' },
         ].map((kpi, i) => (
-          <div key={i} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-            <div className="flex items-center justify-between mb-3">
-              <div className={`p-2 rounded-xl bg-${kpi.color}-50 text-${kpi.color}-500 group-hover:scale-110 transition-transform`}>
-                <kpi.icon size={20} />
+          <div key={i} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+            <div className="flex items-center justify-between mb-4">
+              <div className={`p-2.5 rounded-2xl ${kpi.bg} ${kpi.text} group-hover:scale-110 transition-transform`}>
+                <kpi.icon size={22} />
               </div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Live Analysis</span>
+              <div className="flex flex-col items-end">
+                <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.15em]">Live</span>
+                <div className={`w-1.5 h-1.5 rounded-full ${kpi.color === 'emerald' ? 'bg-emerald-500' : 'bg-blue-500'} animate-pulse`} />
+              </div>
             </div>
-            <div className="text-2xl font-bold text-slate-800">{kpi.value}</div>
-            <div className="text-sm text-slate-500 mt-1 font-medium">{kpi.label}</div>
+            <div className="text-2xl font-black text-slate-800 tracking-tight">{kpi.value}</div>
+            <div className="text-[11px] text-slate-500 mt-1 font-bold uppercase tracking-wide">{kpi.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Filters Section */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-wrap items-center gap-4">
-        <div className="relative flex-1 min-w-[240px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+      {/* Filters Section - Premium Segmented Controls */}
+      <div className="bg-white p-3 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 min-w-[280px] group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
           <input 
             type="text" 
             placeholder="Search ward, vehicle or route..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
+            className="w-full pl-11 pr-4 py-2.5 bg-slate-50/50 border border-transparent rounded-2xl text-sm focus:bg-white focus:border-emerald-100 focus:ring-4 focus:ring-emerald-500/5 transition-all outline-none font-medium placeholder:text-slate-400"
           />
         </div>
         
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Filter size={16} className="text-slate-400" />
-            <span className="text-sm font-semibold text-slate-600">Filters:</span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 px-2">
+            <Filter size={14} className="text-slate-400" />
+            <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Filters</span>
           </div>
           
-          <select 
-            value={selectedZonal}
-            onChange={(e) => {
-              setSelectedZonal(e.target.value);
-              setSelectedSupervisor('All');
-            }}
-            className="px-4 py-2 bg-slate-50 border-none rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/20"
-          >
-            <option value="All">All Zonals</option>
-            {zonals.map(z => <option key={z} value={z}>{z}</option>)}
-          </select>
+          <div className="flex items-center gap-2">
+            <select 
+              value={selectedZonal}
+              onChange={(e) => {
+                setSelectedZonal(e.target.value);
+                setSelectedSupervisor('All');
+              }}
+              className="pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-black text-slate-600 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20fill%3D%27none%27%20viewBox%3D%270%200%2020%2020%27%3E%3Cpath%20stroke%3D%27%2364748b%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%20stroke-width%3D%271.5%27%20d%3D%27m6%208%204%204%204-4%27%2F%3E%3C%2Fsvg%3E')] bg-[length:20px_20px] bg-[right_8px_center] bg-no-repeat"
+            >
+              <option value="All">All Zonals</option>
+              {zonals.map(z => <option key={z} value={z}>{z}</option>)}
+            </select>
 
-          <select 
-            value={selectedSupervisor}
-            onChange={(e) => {
-              setSelectedSupervisor(e.target.value);
-              setSelectedWard('All');
-            }}
-            className="px-4 py-2 bg-slate-50 border-none rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/20"
-          >
-            <option value="All">All Supervisors</option>
-            {supervisors.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+            <select 
+              value={selectedSupervisor}
+              onChange={(e) => {
+                setSelectedSupervisor(e.target.value);
+                setSelectedWard('All');
+              }}
+              className="pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-black text-slate-600 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20fill%3D%27none%27%20viewBox%3D%270%200%2020%2020%27%3E%3Cpath%20stroke%3D%27%2364748b%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%20stroke-width%3D%271.5%27%20d%3D%27m6%208%204%204%204-4%27%2F%3E%3C%2Fsvg%3E')] bg-[length:20px_20px] bg-[right_8px_center] bg-no-repeat"
+            >
+              <option value="All">All Supervisors</option>
+              {supervisors.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
 
-          <select 
-            value={selectedWard}
-            onChange={(e) => setSelectedWard(e.target.value)}
-            className="px-4 py-2 bg-slate-50 border-none rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/20"
-          >
-            <option value="All">All Wards</option>
-            {wards.filter(w => w !== 'All').map(w => <option key={w} value={w}>{w}</option>)}
-          </select>
+            <select 
+              value={selectedWard}
+              onChange={(e) => setSelectedWard(e.target.value)}
+              className="pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-black text-slate-600 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20fill%3D%27none%27%20viewBox%3D%270%200%2020%2020%27%3E%3Cpath%20stroke%3D%27%2364748b%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%20stroke-width%3D%271.5%27%20d%3D%27m6%208%204%204%204-4%27%2F%3E%3C%2Fsvg%3E')] bg-[length:20px_20px] bg-[right_8px_center] bg-no-repeat"
+            >
+              <option value="All">All Wards</option>
+              {wards.filter(w => w !== 'All').map(w => <option key={w} value={w}>{w}</option>)}
+            </select>
+          </div>
         </div>
 
-        <div className="h-8 w-[1px] bg-slate-100 mx-2 hidden lg:block" />
+        <div className="h-8 w-[1px] bg-slate-100 mx-2 hidden xl:block" />
 
-        <div className="flex bg-slate-50 p-1 rounded-xl">
+        <div className="flex bg-slate-100/80 p-1 rounded-2xl">
           <button
             onClick={() => setViewMode('detailed')}
-            className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
+            className={`px-6 py-2 rounded-[0.9rem] text-[11px] font-black uppercase tracking-wider transition-all duration-300 ${
               viewMode === 'detailed' 
-                ? 'bg-white text-emerald-600 shadow-sm' 
+                ? 'bg-white text-emerald-600 shadow-md scale-[1.02]' 
                 : 'text-slate-400 hover:text-slate-600'
             }`}
           >
@@ -482,9 +506,9 @@ const DoorToDoorReport: React.FC = () => {
           </button>
           <button
             onClick={() => setViewMode('supervisor')}
-            className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
+            className={`px-6 py-2 rounded-[0.9rem] text-[11px] font-black uppercase tracking-wider transition-all duration-300 ${
               viewMode === 'supervisor' 
-                ? 'bg-white text-emerald-600 shadow-sm' 
+                ? 'bg-white text-emerald-600 shadow-md scale-[1.02]' 
                 : 'text-slate-400 hover:text-slate-600'
             }`}
           >
@@ -523,15 +547,15 @@ const DoorToDoorReport: React.FC = () => {
                   </div>
               </div>
 
-              {/* Grid for Head Cards */}
-              <div className="flex flex-wrap justify-center gap-6">
+              {/* Structured Grid for Head Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
                 {zonalStats.map((head) => {
                     const percentage = Math.round((head.covered / head.total) * 1000) / 10;
 
                     return (
-                        <div key={head.name} className="flex-1 min-w-[220px] max-w-[260px] bg-[#f8fafc] rounded-[2rem] p-6 shadow-sm border border-slate-50 flex flex-col items-center transition-transform hover:scale-[1.02]">
-                            {/* Donut Chart */}
-                            <div className="relative w-36 h-36 mb-6">
+                        <div key={head.name} className="bg-[#f8fafc] rounded-[2.5rem] p-6 shadow-sm border border-slate-100 flex flex-col items-center transition-all hover:shadow-xl hover:bg-white group">
+                            {/* Donut Chart with Progress Shadow */}
+                            <div className="relative w-32 h-32 mb-6">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
@@ -541,46 +565,56 @@ const DoorToDoorReport: React.FC = () => {
                                             ]}
                                             cx="50%"
                                             cy="50%"
-                                            innerRadius={45}
-                                            outerRadius={60}
+                                            innerRadius={42}
+                                            outerRadius={56}
                                             paddingAngle={0}
                                             dataKey="value"
                                             stroke="none"
                                             startAngle={90}
                                             endAngle={450}
                                         >
-                                            <Cell fill="#22c55e" /> {/* Covered - Green */}
-                                            <Cell fill="#ef4444" /> {/* Left - Red */}
+                                            <Cell fill="#10b981" /> {/* Covered - Emerald */}
+                                            <Cell fill="#f43f5e" /> {/* Left - Rose */}
                                         </Pie>
                                     </PieChart>
                                 </ResponsiveContainer>
-                                {/* Center Percentage */}
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="text-xl font-black text-black">
+                                {/* Center Percentage Overlay */}
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span className="text-lg font-black text-slate-800 leading-none">
                                         {percentage}%
                                     </span>
+                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">Coverage</span>
                                 </div>
                             </div>
 
-                            {/* Head Info */}
-                            <h3 className="text-sm font-black text-black uppercase tracking-wider mb-1 text-center">
-                                {head.name}
-                            </h3>
-                            <div className="flex flex-col items-center">
-                                <span className="text-xs font-black text-emerald-700">{head.covered}</span>
-                                <div className="w-8 h-[1px] bg-slate-200 my-1"></div>
-                                <span className="text-xs font-black text-slate-500">{head.total} POI</span>
+                            {/* Head Info with High Contrast */}
+                            <div className="w-full text-center">
+                                <h3 className="text-[12px] font-black text-slate-800 uppercase tracking-widest mb-3 line-clamp-1">
+                                    {head.name}
+                                </h3>
+                                
+                                <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm flex justify-between items-center mb-4">
+                                    <div className="flex flex-col items-start">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Covered</span>
+                                        <span className="text-sm font-black text-emerald-600 leading-none">{head.covered}</span>
+                                    </div>
+                                    <div className="w-[1px] h-6 bg-slate-100"></div>
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Total POI</span>
+                                        <span className="text-sm font-black text-slate-700 leading-none">{head.total}</span>
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Custom Legend */}
-                            <div className="flex items-center gap-4">
+                            {/* Refined Legend */}
+                            <div className="flex items-center gap-4 mt-auto">
                                 <div className="flex items-center gap-1.5">
-                                    <div className="w-2 h-2 rounded-full bg-[#22c55e]"></div>
-                                    <span className="text-[9px] font-bold text-black uppercase">Scanned</span>
+                                    <div className="w-2 h-2 rounded-full bg-[#10b981] shadow-sm shadow-emerald-200"></div>
+                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-tight">Done</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                    <div className="w-2 h-2 rounded-full bg-[#ef4444]"></div>
-                                    <span className="text-[9px] font-bold text-black uppercase">Not Scanned</span>
+                                    <div className="w-2 h-2 rounded-full bg-[#f43f5e] shadow-sm shadow-rose-200"></div>
+                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-tight">Pending</span>
                                 </div>
                             </div>
                         </div>
@@ -665,171 +699,194 @@ const DoorToDoorReport: React.FC = () => {
 
       {/* Main Report Content */}
       {data.length > 0 ? (
-        <div ref={reportRef} className="space-y-8 bg-slate-50/30 p-6 rounded-3xl">
-          <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 overflow-hidden">
-            <div className="bg-white px-8 py-12 text-center relative overflow-hidden border-b border-slate-100">
-              <div className="absolute top-0 left-0 w-full h-full opacity-40 pointer-events-none">
-                <div className="absolute top-[-50%] left-[-10%] w-[40%] h-[200%] bg-emerald-50 rotate-45 blur-3xl" />
-                <div className="absolute bottom-[-50%] right-[-10%] w-[40%] h-[200%] bg-blue-50 rotate-45 blur-3xl" />
-              </div>
-              
-              <div className="relative z-10">
-                <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2 uppercase" style={{ color: '#0f172a', fontWeight: 900 }}>
-                  Door to Door Route Wise Performance Report
-                </h1>
-                <div className="flex items-center justify-center gap-3">
-                  <div className="h-[1.5px] w-12 bg-emerald-500" />
-                  <p className="font-bold tracking-[0.2em] text-xs uppercase" style={{ color: '#059669' }}>
-                    NAGAR NIGAM MATHURA-VRINDAVAN
-                  </p>
-                  <div className="h-[1.5px] w-12 bg-emerald-500" />
+        <div ref={reportRef} className="space-y-8 bg-white p-12 rounded-[3rem] shadow-2xl">
+          {/* Professional Municipal Letterhead */}
+          <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-100 bg-slate-50/50 p-12 mb-10">
+            {/* Decorative Background Elements */}
+            <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-emerald-100/30 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-blue-100/30 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-12 border-b border-slate-200 pb-10">
+                <img src={nagarNigamLogo} alt="Logo" className="h-24 w-auto object-contain" />
+                <div className="text-right">
+                  <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-2">
+                    Operational Performance
+                  </h1>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-xs font-black text-emerald-600 uppercase tracking-[0.3em]">
+                      Nagar Nigam Mathura-Vrindavan
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                      Report Generated: {new Date().toLocaleString()}
+                    </span>
+                  </div>
                 </div>
+              </div>
+
+              <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto">
+                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight mb-8 px-8 py-3 bg-white shadow-xl shadow-slate-200/50 rounded-2xl border border-slate-100">
+                  Door to Door Route Wise Coverage Report
+                </h2>
                 
                 {fileName && (
-                  <div className="mt-6 flex flex-col items-center gap-4">
-                    {(selectedZonal !== 'All' || selectedSupervisor !== 'All' || selectedWard !== 'All') && (
-                      <div className="flex flex-wrap justify-center gap-3">
-                        {selectedZonal !== 'All' && (
-                          <div className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-[11px] font-black uppercase tracking-wider shadow-lg">
-                            Zonal Head: {selectedZonal}
-                          </div>
-                        )}
-                        {selectedSupervisor !== 'All' && (
-                          <div className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-[11px] font-black uppercase tracking-wider shadow-lg">
-                            Supervisor: {selectedSupervisor}
-                          </div>
-                        )}
-                        {selectedWard !== 'All' && (
-                          <div className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-[11px] font-black uppercase tracking-wider shadow-lg">
-                            Ward: {selectedWard}
-                          </div>
-                        )}
+                  <div className="flex flex-wrap justify-center gap-4 w-full">
+                    {selectedZonal !== 'All' && (
+                      <div className="px-6 py-2.5 bg-slate-900 rounded-2xl shadow-lg shadow-slate-200">
+                        <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Zonal Head</span>
+                        <span className="text-xs font-black text-white uppercase">{selectedZonal}</span>
                       </div>
                     )}
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-slate-500 text-[10px] font-bold uppercase tracking-widest shadow-sm">
-                      <FileText size={12} className="text-emerald-500" />
-                      Source: {fileName}
+                    {selectedSupervisor !== 'All' && (
+                      <div className="px-6 py-2.5 bg-blue-600 rounded-2xl shadow-lg shadow-blue-100">
+                        <span className="block text-[8px] font-black text-blue-200 uppercase tracking-widest mb-0.5">Supervisor</span>
+                        <span className="text-xs font-black text-white uppercase">{selectedSupervisor}</span>
+                      </div>
+                    )}
+                    {selectedWard !== 'All' && (
+                      <div className="px-6 py-2.5 bg-emerald-600 rounded-2xl shadow-lg shadow-emerald-100">
+                        <span className="block text-[8px] font-black text-emerald-200 uppercase tracking-widest mb-0.5">Ward No.</span>
+                        <span className="text-xs font-black text-white uppercase">{selectedWard}</span>
+                      </div>
+                    )}
+                    <div className="px-6 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Data Source</span>
+                      <span className="text-xs font-black text-slate-600 truncate max-w-[150px]">{fileName}</span>
                     </div>
                   </div>
                 )}
               </div>
             </div>
+          </div>
 
-            <div className="p-8 border-b border-slate-50 bg-slate-50/30">
+            <div className="p-8 border-b border-slate-50 bg-slate-50/10">
               {viewMode === 'detailed' ? (
-                <table className="w-full border-collapse bg-white" style={{ border: '1px solid black' }}>
-                  <thead className="sticky top-0 z-10">
-                    <tr style={{ backgroundColor: '#e2e8f0' }}>
-                      <th style={{ border: '1px solid black' }} className="px-2 py-1 text-[10px] font-black text-black uppercase text-center w-8">S.No</th>
-                      <th style={{ border: '1px solid black' }} className="px-2 py-1 text-[10px] font-black text-black uppercase text-left">Ward Name</th>
-                      <th style={{ border: '1px solid black' }} className="px-2 py-1 text-[10px] font-black text-black uppercase text-left">Route Name</th>
-                      <th style={{ border: '1px solid black' }} className="px-2 py-1 text-[10px] font-black text-black uppercase text-left">Supervisor / Head</th>
-                      <th style={{ border: '1px solid black' }} className="px-2 py-1 text-[10px] font-black text-black uppercase text-left">Vehicle Info</th>
-                      <th style={{ border: '1px solid black' }} className="px-2 py-1 text-[10px] font-black text-black uppercase text-center">Total POI</th>
-                      <th style={{ border: '1px solid black' }} className="px-2 py-1 text-[10px] font-black text-black uppercase text-center">Scanned POI</th>
-                      <th style={{ border: '1px solid black' }} className="px-2 py-1 text-[10px] font-black text-black uppercase text-center">Coverage %</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredData.map((row, index) => (
-                      <tr key={index} className="hover:bg-slate-50 transition-colors">
-                        <td style={{ border: '1px solid black' }} className="px-2 py-1 text-center text-[10px] font-bold text-black">{index + 1}</td>
-                        <td style={{ border: '1px solid black' }} className="px-2 py-1 text-[10px] font-bold text-black">{row['Ward Name']}</td>
-                        <td style={{ border: '1px solid black' }} className="px-2 py-1 text-[10px] font-medium text-black">{row['Route Name']}</td>
-                        <td style={{ border: '1px solid black' }} className="px-2 py-1">
-                          <div className="text-[10px] font-bold text-black">{row.supervisor}</div>
-                          <div className="text-[9px] text-slate-500 font-bold uppercase">{row.zonalHead}</div>
-                        </td>
-                        <td style={{ border: '1px solid black' }} className="px-2 py-1">
-                          <div className="text-[10px] font-bold text-black">{row['Vehicle Number']}</div>
-                          <div className="text-[9px] text-slate-500">{row['Vehicle Type']}</div>
-                        </td>
-                        <td style={{ border: '1px solid black' }} className="px-2 py-1 text-center text-[10px] font-black text-slate-700">
-                          {row.Total}
-                        </td>
-                        <td style={{ border: '1px solid black' }} className="px-2 py-1 text-center text-[10px] font-black text-emerald-700">
-                          {row.Covered}
-                        </td>
-                        <td style={{ border: '1px solid black' }} className="px-2 py-1 text-center">
-                          <span className={`text-[10px] font-black ${
-                            parseFloat(row.Coverage) >= 90 ? 'text-emerald-700' : 
-                            parseFloat(row.Coverage) >= 70 ? 'text-amber-700' : 'text-rose-700'
-                          }`}>{row.Coverage}%</span>
-                        </td>
+                <div className="overflow-x-auto rounded-xl border border-black">
+                  <table className="w-full border-collapse bg-white">
+                    <thead>
+                      <tr className="bg-slate-900">
+                        <th style={{ border: '1px solid black' }} className="px-3 py-3 text-[11px] font-black text-white uppercase tracking-wider text-center w-12">S.No</th>
+                        <th style={{ border: '1px solid black' }} className="px-4 py-3 text-[11px] font-black text-white uppercase tracking-wider text-left">Ward Name</th>
+                        <th style={{ border: '1px solid black' }} className="px-4 py-3 text-[11px] font-black text-white uppercase tracking-wider text-left">Route Name</th>
+                        <th style={{ border: '1px solid black' }} className="px-4 py-3 text-[11px] font-black text-white uppercase tracking-wider text-left">Supervisor / Head</th>
+                        <th style={{ border: '1px solid black' }} className="px-4 py-3 text-[11px] font-black text-white uppercase tracking-wider text-left">Vehicle Info</th>
+                        <th style={{ border: '1px solid black' }} className="px-4 py-3 text-[11px] font-black text-white uppercase tracking-wider text-center">Total POI</th>
+                        <th style={{ border: '1px solid black' }} className="px-4 py-3 text-[11px] font-black text-white uppercase tracking-wider text-center">Scanned</th>
+                        <th style={{ border: '1px solid black' }} className="px-4 py-3 text-[11px] font-black text-white uppercase tracking-wider text-center">Coverage</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {filteredData.map((row, index) => (
+                        <tr key={index} className="hover:bg-slate-50 transition-colors group">
+                          <td style={{ border: '1px solid black' }} className="px-3 py-2 text-center text-[11px] font-bold text-slate-900 group-hover:bg-slate-100/50">{index + 1}</td>
+                          <td style={{ border: '1px solid black' }} className="px-4 py-2 text-[11px] font-black text-slate-900">{row['Ward Name']}</td>
+                          <td style={{ border: '1px solid black' }} className="px-4 py-2 text-[11px] font-bold text-slate-700">{row['Route Name']}</td>
+                          <td style={{ border: '1px solid black' }} className="px-4 py-2">
+                            <div className="text-[11px] font-black text-blue-700">{row.supervisor}</div>
+                            <div className="text-[9px] text-slate-400 font-bold uppercase">{row.zonalHead}</div>
+                          </td>
+                          <td style={{ border: '1px solid black' }} className="px-4 py-2">
+                            <div className="text-[11px] font-black text-slate-700">{row['Vehicle Number']}</div>
+                            <div className="text-[9px] text-slate-400 font-bold">{row['Vehicle Type']}</div>
+                          </td>
+                          <td style={{ border: '1px solid black' }} className="px-4 py-2 text-center text-[12px] font-black text-slate-900 bg-slate-50/30">
+                            {row.Total}
+                          </td>
+                          <td style={{ border: '1px solid black' }} className="px-4 py-2 text-center text-[12px] font-black text-emerald-600 bg-emerald-50/10">
+                            {row.Covered}
+                          </td>
+                          <td style={{ border: '1px solid black' }} className="px-4 py-2 text-center">
+                            <div className="flex flex-col items-center gap-1">
+                              <span className={`text-[12px] font-black ${
+                                parseFloat(row.Coverage) >= 90 ? 'text-emerald-600' : 
+                                parseFloat(row.Coverage) >= 70 ? 'text-orange-600' : 'text-rose-600'
+                              }`}>{row.Coverage}%</span>
+                              <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full ${
+                                    parseFloat(row.Coverage) >= 90 ? 'bg-emerald-500' : 
+                                    parseFloat(row.Coverage) >= 70 ? 'bg-orange-500' : 'bg-rose-500'
+                                  }`}
+                                  style={{ width: `${row.Coverage}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {supervisorSummary.map((summary, sIndex) => {
                     const supervisorRoutes = filteredData.filter(d => d.supervisor === summary.supervisor);
                     const supervisorCoverage = ((summary.covered / (summary.total || 1)) * 100).toFixed(1);
                     
                     return (
-                      <div key={sIndex} className="border border-black mb-6">
-                        <div className="bg-slate-100 px-4 py-1.5 flex items-center justify-between border-b border-black">
-                          <div className="flex items-center gap-6">
-                            <span className="text-[10px] font-black text-black w-4">{sIndex + 1}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black text-black uppercase">Supervisor:</span>
-                              <span className="text-xs font-black text-black">{summary.supervisor}</span>
+                      <div key={sIndex} className="border border-black rounded-xl overflow-hidden shadow-sm">
+                        <div className="bg-slate-900 px-6 py-3 flex items-center justify-between border-b border-black">
+                          <div className="flex items-center gap-8">
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Supervisor</span>
+                              <span className="text-sm font-black text-white">{summary.supervisor}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black text-slate-600 uppercase">Zonal Head:</span>
-                              <span className="text-[10px] font-bold text-black">{summary.zonalHead}</span>
+                            <div className="w-[1px] h-8 bg-slate-700"></div>
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Zonal Head</span>
+                              <span className="text-[11px] font-bold text-emerald-400 uppercase">{summary.zonalHead}</span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-8">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black text-black uppercase">Routes:</span>
-                              <span className="text-xs font-black text-blue-700">{summary.routes}</span>
+                          <div className="flex items-center gap-10">
+                            <div className="text-right">
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Total Routes</span>
+                              <span className="text-sm font-black text-white">{summary.routes}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black text-black uppercase">Avg Coverage:</span>
-                              <span className="text-xs font-black text-emerald-700">{supervisorCoverage}%</span>
+                            <div className="text-right">
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Overall Coverage</span>
+                              <span className="text-lg font-black text-emerald-400">{supervisorCoverage}%</span>
                             </div>
                           </div>
                         </div>
 
                         <div className="overflow-x-auto">
-                          <table className="w-full border-collapse bg-white" style={{ border: '1px solid black' }}>
+                          <table className="w-full border-collapse bg-white">
                             <thead>
-                              <tr style={{ backgroundColor: '#f1f5f9' }}>
-                                <th style={{ border: '1px solid black' }} className="px-2 py-1 text-[9px] font-black text-black uppercase text-center w-8">S.No</th>
-                                <th style={{ border: '1px solid black' }} className="px-2 py-1 text-[9px] font-black text-black uppercase text-left">Ward Name</th>
-                                <th style={{ border: '1px solid black' }} className="px-2 py-1 text-[9px] font-black text-black uppercase text-left">Route Name</th>
-                                <th style={{ border: '1px solid black' }} className="px-2 py-1 text-[9px] font-black text-black uppercase text-left">Vehicle Info</th>
-                                <th style={{ border: '1px solid black' }} className="px-2 py-1 text-[9px] font-black text-black uppercase text-center">Total POI</th>
-                                <th style={{ border: '1px solid black' }} className="px-2 py-1 text-[9px] font-black text-black uppercase text-center">Scanned POI</th>
-                                <th style={{ border: '1px solid black' }} className="px-2 py-1 text-[9px] font-black text-black uppercase text-center">Coverage %</th>
+                              <tr className="bg-slate-50 border-b border-black">
+                                <th style={{ borderRight: '1px solid black' }} className="px-3 py-2 text-[10px] font-black text-slate-900 uppercase tracking-wider text-center w-12">S.No</th>
+                                <th style={{ borderRight: '1px solid black' }} className="px-4 py-2 text-[10px] font-black text-slate-900 uppercase tracking-wider text-left">Ward Name</th>
+                                <th style={{ borderRight: '1px solid black' }} className="px-4 py-2 text-[10px] font-black text-slate-900 uppercase tracking-wider text-left">Route Name</th>
+                                <th style={{ borderRight: '1px solid black' }} className="px-4 py-2 text-[10px] font-black text-slate-900 uppercase tracking-wider text-left">Vehicle Info</th>
+                                <th style={{ borderRight: '1px solid black' }} className="px-4 py-2 text-[10px] font-black text-slate-900 uppercase tracking-wider text-center">Total POI</th>
+                                <th style={{ borderRight: '1px solid black' }} className="px-4 py-2 text-[10px] font-black text-slate-900 uppercase tracking-wider text-center">Scanned</th>
+                                <th className="px-4 py-2 text-[10px] font-black text-slate-900 uppercase tracking-wider text-center">Coverage</th>
                               </tr>
                             </thead>
                             <tbody>
                               {supervisorRoutes.map((row, rIndex) => (
-                                <tr key={rIndex} className="hover:bg-slate-50">
-                                  <td style={{ border: '1px solid black' }} className="border border-black px-2 py-0.5 text-center text-[9px] font-bold text-black">
+                                <tr key={rIndex} className="hover:bg-slate-50 border-b border-slate-200 last:border-b-0 group">
+                                  <td style={{ borderRight: '1px solid black' }} className="px-3 py-1.5 text-center text-[10px] font-bold text-slate-900 group-hover:bg-slate-100/50">
                                     {rIndex + 1}
                                   </td>
-                                  <td style={{ border: '1px solid black' }} className="border border-black px-2 py-0.5 text-[10px] font-bold text-black">
+                                  <td style={{ borderRight: '1px solid black' }} className="px-4 py-1.5 text-[11px] font-black text-slate-900">
                                     {row['Ward Name']}
                                   </td>
-                                  <td style={{ border: '1px solid black' }} className="border border-black px-2 py-0.5 text-[9px] text-black">
+                                  <td style={{ borderRight: '1px solid black' }} className="px-4 py-1.5 text-[10px] font-bold text-slate-700">
                                     {row['Route Name']}
                                   </td>
-                                  <td style={{ border: '1px solid black' }} className="border border-black px-2 py-0.5">
-                                    <div className="text-[9px] font-bold text-black">{row['Vehicle Number']}</div>
-                                    <div className="text-[8px] text-slate-500 uppercase">{row['Vehicle Type']}</div>
+                                  <td style={{ borderRight: '1px solid black' }} className="px-4 py-1.5">
+                                    <div className="text-[10px] font-black text-slate-800">{row['Vehicle Number']}</div>
+                                    <div className="text-[8px] text-slate-400 font-bold uppercase">{row['Vehicle Type']}</div>
                                   </td>
-                                  <td style={{ border: '1px solid black' }} className="border border-black px-2 py-0.5 text-center text-[10px] font-black text-slate-700">
+                                  <td style={{ borderRight: '1px solid black' }} className="px-4 py-1.5 text-center text-[11px] font-black text-slate-900 bg-slate-50/30">
                                     {row.Total}
                                   </td>
-                                  <td style={{ border: '1px solid black' }} className="border border-black px-2 py-0.5 text-center text-[10px] font-black text-emerald-700">
+                                  <td style={{ borderRight: '1px solid black' }} className="px-4 py-1.5 text-center text-[11px] font-black text-emerald-600 bg-emerald-50/10">
                                     {row.Covered}
                                   </td>
-                                  <td style={{ border: '1px solid black' }} className="border border-black px-2 py-0.5 text-center">
-                                    <span className={`text-[10px] font-black ${
-                                      parseFloat(row.Coverage) >= 90 ? 'text-emerald-700' : 'text-rose-700'
+                                  <td className="px-4 py-1.5 text-center">
+                                    <span className={`text-[11px] font-black ${
+                                      parseFloat(row.Coverage) >= 90 ? 'text-emerald-600' : 'text-rose-600'
                                     }`}>{row.Coverage}%</span>
                                   </td>
                                 </tr>
@@ -852,7 +909,6 @@ const DoorToDoorReport: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200 shadow-sm animate-in fade-in zoom-in duration-500">
           <div className="p-6 bg-blue-50 rounded-full text-blue-500 mb-6 group-hover:scale-110 transition-transform">

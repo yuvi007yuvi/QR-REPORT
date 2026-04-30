@@ -4,6 +4,10 @@ export interface WardAssignment {
     wardNo: number;
     supervisor: string;
     zonalHead: string;
+    supervisorName?: string;
+    zonalName?: string;
+    wardNumber?: number;
+    area?: string;
     totalQRCodes?: number;
     lastUpdated?: any;
 }
@@ -100,18 +104,21 @@ export const processData = (
     if (wardAssignments) {
         Object.entries(wardAssignments).forEach(([wardKey, assignment]) => {
             const normalizedKey = wardKey.trim().replace(/^0+/, '');
-            if (normalizedKey && assignment.zonalHead && assignment.zonalHead !== 'Unassigned') {
+            const supervisor = assignment.supervisor || (assignment as any).supervisorName;
+            const zonalHead = assignment.zonalHead || (assignment as any).zonalName;
+            
+            if (normalizedKey && zonalHead && zonalHead !== 'Unassigned') {
                 wardMap.set(normalizedKey, {
-                    supervisor: assignment.supervisor || 'Unassigned',
-                    zonalHead: assignment.zonalHead
+                    supervisor: supervisor || 'Unassigned',
+                    zonalHead: zonalHead
                 });
             }
             
             // Also store by name if provided and not unassigned
-            if ((assignment as any).wardName && assignment.zonalHead && assignment.zonalHead !== 'Unassigned') {
+            if ((assignment as any).wardName && zonalHead && zonalHead !== 'Unassigned') {
                 wardMap.set(String((assignment as any).wardName).trim().toUpperCase(), {
-                    supervisor: assignment.supervisor || 'Unassigned',
-                    zonalHead: assignment.zonalHead
+                    supervisor: supervisor || 'Unassigned',
+                    zonalHead: zonalHead
                 });
             }
         });

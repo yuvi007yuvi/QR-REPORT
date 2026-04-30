@@ -37,7 +37,47 @@ import type { WardAssignment, SummaryStats, ReportRecord } from './utils/dataPro
 const App: React.FC = () => {
   const { currentUser, isLoading: authLoading, logout, isAdmin } = useAuth();
   
-  // Auth guard MUST be before state definitions to prevent flashes or errors
+  const [currentSection, setCurrentSection] = useState<AppSection>('daily');
+  const [currentView, setCurrentView] = useState<ViewMode>('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [pendingView, setPendingView] = useState<string | null>(null);
+
+  const [reportData, setReportData] = useState<ReportRecord[]>(() => {
+    const { report } = processData(masterData, supervisorData, [], 'All', {});
+    return report;
+  });
+  const [reportStats, setReportStats] = useState<SummaryStats>(() => {
+    const { stats } = processData(masterData, supervisorData, [], 'All', {});
+    return stats;
+  });
+  const [reportDate, setReportDate] = useState<string>(new Date().toLocaleDateString('en-GB'));
+  const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
+
+  // Fetch Ward Assignments from Firestore
+  React.useEffect(() => {
+    if (!currentUser) return;
+    const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
+      const mapping: Record<string, WardAssignment> = {};
+      snapshot.forEach((doc) => {
+        mapping[doc.id] = doc.data() as WardAssignment;
+      });
+      setWardAssignments(mapping);
+    });
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  // Update report when ward assignments change
+  React.useEffect(() => {
+    // We only want to re-process if we don't have an active upload, 
+    // but for now let's keep it simple: any mapping change updates the view.
+    // In a real scenario, we'd need to keep the 'scanned' data separate.
+    const { report, stats } = processData(masterData, supervisorData, [], 'All', wardAssignments);
+    setReportData(report);
+    setReportStats(stats);
+  }, [wardAssignments]);
+
+  // Auth guard MUST be after state definitions to prevent flashes or errors
   if (authLoading) {
     return (
       <div style={{
@@ -62,47 +102,10 @@ const App: React.FC = () => {
     return <LoginPage />;
   }
 
-  const [currentSection, setCurrentSection] = useState<AppSection>('daily');
-  const [currentView, setCurrentView] = useState<ViewMode>('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [pendingView, setPendingView] = useState<string | null>(null);
-
   console.log('App: Current User:', currentUser?.email, 'isAdmin:', isAdmin);
 
 
-  const [reportData, setReportData] = useState<ReportRecord[]>(() => {
-    const { report } = processData(masterData, supervisorData, [], 'All', {});
-    return report;
-  });
-  const [reportStats, setReportStats] = useState<SummaryStats>(() => {
-    const { stats } = processData(masterData, supervisorData, [], 'All', {});
-    return stats;
-  });
-  const [reportDate, setReportDate] = useState<string>(new Date().toLocaleDateString('en-GB'));
-  const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
 
-  // Fetch Ward Assignments from Firestore
-  React.useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
-      const mapping: Record<string, WardAssignment> = {};
-      snapshot.forEach((doc) => {
-        mapping[doc.id] = doc.data() as WardAssignment;
-      });
-      setWardAssignments(mapping);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Update report when ward assignments change
-  React.useEffect(() => {
-    // We only want to re-process if we don't have an active upload, 
-    // but for now let's keep it simple: any mapping change updates the view.
-    // In a real scenario, we'd need to keep the 'scanned' data separate.
-    const { report, stats } = processData(masterData, supervisorData, [], 'All', wardAssignments);
-    setReportData(report);
-    setReportStats(stats);
-  }, [wardAssignments]);
 
   const handleGlobalUpload = (newData: any[], date: string) => {
     const { report, stats } = processData(masterData, supervisorData, newData, 'All', wardAssignments);
@@ -126,7 +129,7 @@ const App: React.FC = () => {
       case 'dashboard':
         return <Dashboard stats={reportStats} onUpload={handleGlobalUpload} />;
       case 'zonal':
-        return <ZonalReport data={reportData} date={reportDate} onUpload={handleGlobalUpload} />;
+        return <ZonalReport data={reportData} date={reportDate} onUpload={handleGlobalUpload} wardAssignments={wardAssignments} />;
       case 'kyc-survey':
         return <KYCSurveyChecker />;
       case 'supervisor-count-report':
@@ -169,7 +172,7 @@ const App: React.FC = () => {
   const sectionLabel = (() => {
     const allItems = [
       { id: 'dashboard', label: 'Summary Dashboard' },
-      { id: 'zonal', label: 'Zonal Report' },
+      { id: 'zonal', label: 'Zonal QR Report' },
       { id: 'mapping', label: 'Supervisor Mapping' },
       { id: 'trip-report', label: 'Trip Report' },
       { id: 'supervisor-daily-report', label: 'Supervisor Daily Analysis' },

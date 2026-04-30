@@ -1,21 +1,24 @@
 import React, { useMemo } from 'react';
-import type { ReportRecord } from '../utils/dataProcessor';
 import { Image as ImageIcon, Upload } from 'lucide-react';
 import { exportToJPEG } from '../utils/exporter';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import natureGreenLogo from '../assets/NatureGreen_Logo.png';
-import { parseFile } from '../utils/dataProcessor';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { parseFile, type ReportRecord, type WardAssignment } from '../utils/dataProcessor';
+import supervisorData from '../data/supervisorData.json';
+import masterData from '../data/masterData.json';
 
 interface ZonalReportProps {
     data: ReportRecord[];
     date: string;
     onUpload: (data: any[], date: string) => void;
+    wardAssignments?: Record<string, WardAssignment>;
 }
 
-interface SupervisorStats {
-    name: string;
-    wards: Set<string>;
-    wardNames: Set<string>;
+interface WardStats {
+    ward: string;
+    wardName: string;
+    supervisor: string;
     totalQr: number;
     scanned: number;
     pending: number;
@@ -24,13 +27,13 @@ interface SupervisorStats {
 
 interface ZoneHeadStats {
     name: string;
-    supervisors: SupervisorStats[];
+    wards: WardStats[];
     totalQr: number;
     scanned: number;
     pending: number;
 }
 
-export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload }) => {
+export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload, wardAssignments }) => {
     const [localData, setLocalData] = React.useState<ReportRecord[]>(data);
     const [localDate, setLocalDate] = React.useState<string>(date);
     const [loading, setLoading] = React.useState(false);
@@ -41,6 +44,14 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload }
             setLocalDate(date);
         }
     }, [data, date]);
+
+    const [filterZone, setFilterZone] = React.useState<string>('ALL');
+    const [filterHead, setFilterHead] = React.useState<string>('ALL');
+    const [searchQuery, setSearchQuery] = React.useState('');
+
+    React.useEffect(() => {
+        document.title = "Zonal QR Report | Nagar Nigam Mathura-Vrindavan";
+    }, []);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -78,19 +89,73 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload }
 
         const normalize = (s: string) => s ? s.trim() : 'Unknown';
 
-        localData.forEach(record => {
-            const headName = normalize(record.zonalHead);
-            const supervisorName = normalize(record.assignedTo);
+        // Helper to get latest mapping for a ward
+        const getMapping = (wardNo: string, wardName?: string) => {
+            const normalizedNo = wardNo.replace(/^0+/, '');
             
-            // Map zone name to MATHURA or VRINDAVAN
-            // Heuristic: Zone 4 is Vrindavan, others are Mathura
-            const isVrindavan = record.zone.includes('4') || record.zone.toUpperCase().includes('VRINDAVAN');
+            // 1. Check Firestore overrides first (highest priority)
+            const override = wardAssignments?.[normalizedNo] || wardAssignments?.[`0${normalizedNo}`];
+            if (override && override.zonalHead !== 'Unassigned') {
+                return {
+                    supervisor: override.supervisor || 'Unassigned',
+                    zonalHead: override.zonalHead || 'Unassigned'
+                };
+            }
+            
+            // 2. Check static supervisorData
+            const staticMatch = (supervisorData as any[]).find(s => {
+                const sNo = String(s['Ward No'] || s['WARD NO.'] || '').replace(/^0+/, '');
+                if (sNo === normalizedNo) return true;
+                if (wardName && s['Ward Name'] && String(s['Ward Name']).trim().toUpperCase() === wardName.trim().toUpperCase()) return true;
+                return false;
+            });
+
+            if (staticMatch) {
+                return {
+                    supervisor: staticMatch['Supervisor'] || 'Unassigned',
+                    zonalHead: staticMatch['Zonal Head'] || 'Unassigned'
+                };
+            }
+            
+            return { supervisor: 'Unassigned', zonalHead: 'Unassigned' };
+        };
+
+        // Pre-populate wards from supervisor data
+        (supervisorData as any[]).forEach((mapping: any) => {
+            const rawWardNo = String(mapping['Ward No'] || mapping['WARD NO.'] || '');
+            const wardNo = rawWardNo.replace(/^0+/, '');
+            const wName = mapping['Ward Name'] || mapping['WARD NAME'] || '';
+            if (!wardNo) return;
+
+            // Check for overrides
+            const override = wardAssignments?.[wardNo] || wardAssignments?.[`0${wardNo}`];
+            const supervisorName = (override && override.supervisor && override.supervisor !== 'Unassigned') 
+                ? override.supervisor 
+                : (mapping['Supervisor'] || mapping['SUPERVISOR NAME'] || mapping['supervisor'] || 'Unassigned');
+            const headName = (override && override.zonalHead && override.zonalHead !== 'Unassigned') 
+                ? override.zonalHead 
+                : (mapping['Zonal Head'] || mapping['ZONAL HEAD'] || mapping['zonalHead'] || 'Unassigned');
+            
+            // Count total QR codes for this ward from masterData
+            const masterTotal = (masterData as any[]).filter(m => {
+                const mWardRaw = String(m['Ward'] || m['WARD'] || m['ward'] || '');
+                const mWardNo = mWardRaw.match(/^(\d+)/)?.[1].replace(/^0+/, '') || '';
+                return mWardNo === wardNo;
+            }).length;
+
+            // Only show wards that have at least one QR code in master data
+            if (masterTotal === 0) return;
+
+            // Note: Vrindavan zone heuristics - prioritize Zonal Head name
+            const isVrindavan = headName.toUpperCase().includes('VRINDAVAN') || 
+                               (mapping['Zone'] && String(mapping['Zone']).includes('4')) ||
+                               (mapping['ZONE'] && String(mapping['ZONE']).includes('4'));
             const zoneKey = isVrindavan ? 'VRINDAVAN' : 'MATHURA';
 
             if (!zones[zoneKey][headName]) {
                 zones[zoneKey][headName] = {
                     name: headName,
-                    supervisors: [],
+                    wards: [],
                     totalQr: 0,
                     scanned: 0,
                     pending: 0
@@ -98,72 +163,143 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload }
             }
 
             const headStats = zones[zoneKey][headName];
-            headStats.totalQr++;
-            if (record.status === 'Scanned') headStats.scanned++;
-            else headStats.pending++;
-
-            let supervisorStats = headStats.supervisors.find(s => s.name === supervisorName);
-            if (!supervisorStats) {
-                supervisorStats = {
-                    name: supervisorName,
-                    wards: new Set<string>(),
-                    wardNames: new Set<string>(),
-                    totalQr: 0,
+            
+            let wardStats = headStats.wards.find(w => w.ward === wardNo);
+            if (!wardStats) {
+                wardStats = {
+                    ward: wardNo,
+                    wardName: wName,
+                    supervisor: supervisorName,
+                    totalQr: masterTotal,
                     scanned: 0,
-                    pending: 0,
+                    pending: masterTotal,
                     scanTiming: 'DAY'
                 };
-                headStats.supervisors.push(supervisorStats);
+                headStats.wards.push(wardStats);
+                headStats.totalQr += masterTotal;
+                headStats.pending += masterTotal;
+            }
+        });
+
+        // 2. Local Data Processing (Scans)
+        localData.forEach(record => {
+            const wardRaw = record.ward || '';
+            const wardMatch = wardRaw.match(/^(\d+)/);
+            const wardNo = wardMatch ? wardMatch[1].replace(/^0+/, '') : '';
+            const wardNamePart = wardRaw.includes('-') ? wardRaw.split('-')[1].trim() : '';
+
+            const { supervisor: mappedSupervisor, zonalHead: mappedHead } = getMapping(wardNo, wardNamePart);
+            
+            // Priority: Record assigned name -> Mapped name -> "Unassigned"
+            const supervisorName = record.assignedTo && record.assignedTo !== 'Unassigned' 
+                ? normalize(record.assignedTo) 
+                : mappedSupervisor;
+            const headName = record.zonalHead && record.zonalHead !== 'Unassigned' 
+                ? normalize(record.zonalHead) 
+                : mappedHead;
+            
+            const isVrindavan = record.zone.includes('4') || 
+                               record.zone.toUpperCase().includes('VRINDAVAN') || 
+                               headName.toUpperCase().includes('VRINDAVAN');
+            const zoneKey = isVrindavan ? 'VRINDAVAN' : 'MATHURA';
+
+            if (!zones[zoneKey][headName]) {
+                zones[zoneKey][headName] = {
+                    name: headName,
+                    wards: [],
+                    totalQr: 0,
+                    scanned: 0,
+                    pending: 0
+                };
             }
 
-            // Extract ward number and name for display
-            // Format is "60-Jagannath Puri"
-            const wardMatch = record.ward.match(/^(\d+)-(.*)/);
-            if (wardMatch) {
-                supervisorStats.wards.add(wardMatch[1]);
-                supervisorStats.wardNames.add(wardMatch[2].trim());
-            } else {
-                // Fallback if no dash
-                const numMatch = record.ward.match(/^(\d+)/);
-                if (numMatch) supervisorStats.wards.add(numMatch[1]);
-                supervisorStats.wardNames.add(record.ward);
+            const headStats = zones[zoneKey][headName];
+            
+            let wardStats = headStats.wards.find(w => w.ward === wardNo);
+            if (wardStats) {
+                if (record.status === 'Scanned') {
+                    wardStats.scanned++;
+                    wardStats.pending = Math.max(0, wardStats.totalQr - wardStats.scanned);
+                    headStats.scanned++;
+                    headStats.pending = Math.max(0, headStats.totalQr - headStats.scanned);
+                }
+                
+                // Update supervisor name if it was unassigned but we have a better name now
+                if (supervisorName !== 'Unassigned') {
+                    wardStats.supervisor = supervisorName;
+                }
             }
-
-            supervisorStats.totalQr++;
-            if (record.status === 'Scanned') supervisorStats.scanned++;
-            else supervisorStats.pending++;
         });
 
         return zones;
-    }, [localData]);
+    }, [localData, wardAssignments]);
 
-    // Calculate Grand Totals for Header
+    // Calculate Grand Totals for Header using processed zones
     const grandTotals = useMemo(() => {
         let mathuraTotal = 0;
         let mathuraScanned = 0;
         let vrindavanTotal = 0;
         let vrindavanScanned = 0;
 
-        // Naive logic to separate Mathura/Vrindavan based on Zonal Head or Zone if available
-        // Since we don't have explicit city mapping in Zonal Head, we'll try to infer or just sum all for now.
-        // Looking at the user image, it seems they separate by city. 
-        // Let's check the data. Zone 4 is Vrindavan.
+        Object.values(reportData.MATHURA).forEach(head => {
+            mathuraTotal += head.totalQr;
+            mathuraScanned += head.scanned;
+        });
 
-        localData.forEach(r => {
-            const zoneStr = (r.zone || '').toLowerCase();
-            const headStr = (r.zonalHead || '').toLowerCase();
-            const isVrindavan = zoneStr.includes('vrindavan') || headStr.includes('vrindavan');
-            if (isVrindavan) {
-                vrindavanTotal++;
-                if (r.status === 'Scanned') vrindavanScanned++;
-            } else {
-                mathuraTotal++;
-                if (r.status === 'Scanned') mathuraScanned++;
-            }
+        Object.values(reportData.VRINDAVAN).forEach(head => {
+            vrindavanTotal += head.totalQr;
+            vrindavanScanned += head.scanned;
         });
 
         return { mathuraTotal, mathuraScanned, vrindavanTotal, vrindavanScanned };
-    }, [localData]);
+    }, [reportData]);
+
+    // Apply filters to reportData for display
+    const filteredReportData = useMemo(() => {
+        const filtered: Record<string, Record<string, ZoneHeadStats>> = {};
+        
+        Object.entries(reportData).forEach(([zoneName, heads]) => {
+            if (filterZone !== 'ALL' && zoneName !== filterZone) return;
+            
+            const zoneHeads: Record<string, ZoneHeadStats> = {};
+            Object.entries(heads).forEach(([headName, headStats]) => {
+                if (filterHead !== 'ALL' && headName !== filterHead) return;
+                
+                if (searchQuery) {
+                    const query = searchQuery.toLowerCase();
+                    const filteredWards = headStats.wards.filter(w => 
+                        w.ward.toLowerCase().includes(query) ||
+                        w.wardName.toLowerCase().includes(query) ||
+                        w.supervisor.toLowerCase().includes(query)
+                    );
+                    
+                    if (filteredWards.length > 0) {
+                        zoneHeads[headName] = {
+                            ...headStats,
+                            wards: filteredWards
+                        };
+                    }
+                } else {
+                    zoneHeads[headName] = headStats;
+                }
+            });
+            
+            if (Object.keys(zoneHeads).length > 0) {
+                filtered[zoneName] = zoneHeads;
+            }
+        });
+        
+        return filtered;
+    }, [reportData, filterZone, filterHead, searchQuery]);
+
+    // Get all unique zonal heads for the filter dropdown
+    const allHeads = useMemo(() => {
+        const heads = new Set<string>();
+        Object.values(reportData).forEach(zoneHeads => {
+            Object.keys(zoneHeads).forEach(h => heads.add(h));
+        });
+        return Array.from(heads).sort();
+    }, [reportData]);
 
     return (
         <div className="space-y-6">
@@ -186,6 +322,64 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload }
                     <ImageIcon className="w-4 h-4" />
                     Export JPEG
                 </button>
+            </div>
+
+            {/* Filter Toolbar */}
+            <div className="bg-white p-4 mb-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center gap-4">
+                <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Filter by Zone</label>
+                    <select 
+                        value={filterZone}
+                        onChange={(e) => {
+                            setFilterZone(e.target.value);
+                            setFilterHead('ALL'); // Reset head filter when zone changes
+                        }}
+                        className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    >
+                        <option value="ALL">All Zones</option>
+                        <option value="MATHURA">Mathura</option>
+                        <option value="VRINDAVAN">Vrindavan</option>
+                    </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Filter Zonal Head</label>
+                    <select 
+                        value={filterHead}
+                        onChange={(e) => setFilterHead(e.target.value)}
+                        className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none min-w-[150px]"
+                    >
+                        <option value="ALL">All Zonal Heads</option>
+                        {allHeads.map(head => (
+                            <option key={head} value={head}>{head}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Search Ward / Supervisor</label>
+                    <input 
+                        type="text"
+                        placeholder="Search by ward no, name or supervisor..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1 opacity-0">-</label>
+                    <button 
+                        onClick={() => {
+                            setFilterZone('ALL');
+                            setFilterHead('ALL');
+                            setSearchQuery('');
+                        }}
+                        className="px-4 py-2 text-blue-600 font-bold text-xs uppercase hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                        Reset Filters
+                    </button>
+                </div>
             </div>
 
             <div id="zonal-report-container" className="bg-white p-4 min-w-[800px] overflow-x-auto">
@@ -211,7 +405,7 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload }
                                 <span className="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">Official Report</span>
                             </div>
                             <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-gray-900 tracking-tight leading-none mb-2">
-                                ZONAL DAILY<br />
+                                ZONAL QR<br />
                                 <span className="text-blue-600">REPORT</span>
                             </h1>
                             <div className="h-1 w-20 bg-blue-600 rounded-full mb-2"></div>
@@ -232,6 +426,105 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload }
                                 Nature Green<br />Waste Management
                             </p>
                         </div>
+                    </div>
+                </div>
+
+                {/* ZONAL HEAD WISE COVERAGE - Reference Implementation */}
+                <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 mb-10">
+                    {/* Header with Title and Lines */}
+                    <div className="flex items-center justify-between gap-6 mb-12">
+                        <div className="flex items-center gap-4">
+                            <img src={nagarNigamLogo} alt="Logo" className="h-16 w-auto object-contain" />
+                        </div>
+                        
+                        <div className="flex-1 flex flex-col items-center">
+                            <h2 className="text-xl font-extrabold text-[#334155] tracking-tight uppercase">
+                                Zonal Head Wise Coverage
+                            </h2>
+                            <div className="flex items-center gap-4 w-full mt-2">
+                                <div className="h-[2px] flex-1 bg-gradient-to-r from-transparent via-[#10b981] to-[#10b981]"></div>
+                                <span className="text-[10px] font-black text-[#10b981] uppercase tracking-[0.2em] whitespace-nowrap">
+                                    QR Coverage Breakdown Per Zonal Head
+                                </span>
+                                <div className="h-[2px] flex-1 bg-gradient-to-l from-transparent via-[#10b981] to-[#10b981]"></div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <img src={natureGreenLogo} alt="Logo" className="h-12 w-auto object-contain" />
+                        </div>
+                    </div>
+
+                    {/* Horizontal Scrollable or Wrap Grid for Head Cards */}
+                    <div className="flex flex-wrap justify-center gap-6">
+                        {(() => {
+                            const allHeadsList: ZoneHeadStats[] = [];
+                            Object.values(reportData).forEach(zone => {
+                                Object.values(zone).forEach(head => {
+                                    if (head.totalQr > 0) allHeadsList.push(head);
+                                });
+                            });
+                            
+                            return allHeadsList.sort((a, b) => b.scanned - a.scanned).map((head) => {
+                                const percentage = Math.round((head.scanned / head.totalQr) * 1000) / 10;
+
+                                return (
+                                    <div key={head.name} className="flex-1 min-w-[220px] max-w-[260px] bg-[#f8fafc] rounded-[2rem] p-6 shadow-sm border border-slate-50 flex flex-col items-center transition-transform hover:scale-[1.02]">
+                                        {/* Donut Chart */}
+                                        <div className="relative w-36 h-36 mb-6">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie
+                                                        data={[
+                                                            { name: 'Scanned', value: head.scanned },
+                                                            { name: 'Not Scanned', value: Math.max(0, head.totalQr - head.scanned) }
+                                                        ]}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={45}
+                                                        outerRadius={60}
+                                                        paddingAngle={0}
+                                                        dataKey="value"
+                                                        stroke="none"
+                                                        startAngle={90}
+                                                        endAngle={450}
+                                                    >
+                                                        <Cell fill="#22c55e" /> {/* Covered - Green */}
+                                                        <Cell fill="#ef4444" /> {/* Left - Red */}
+                                                    </Pie>
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                            {/* Center Percentage */}
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <span className="text-xl font-black text-black">
+                                                    {percentage}%
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Head Info */}
+                                        <h3 className="text-sm font-black text-black uppercase tracking-wider mb-1">
+                                            {head.name}
+                                        </h3>
+                                        <p className="text-[10px] font-bold text-black uppercase tracking-tight mb-4">
+                                            {head.scanned}/{head.totalQr} QR
+                                        </p>
+
+                                        {/* Custom Legend */}
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-2 h-2 rounded-full bg-[#22c55e]"></div>
+                                                <span className="text-[9px] font-bold text-slate-500 uppercase">Scanned</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-2 h-2 rounded-full bg-[#ef4444]"></div>
+                                                <span className="text-[9px] font-bold text-slate-500 uppercase">Not Scanned</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            });
+                        })()}
                     </div>
                 </div>
 
@@ -266,7 +559,7 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload }
                     </div>
 
                     {/* Zonal Sections Grouped by Zone */}
-                    {Object.entries(reportData).map(([zoneName, heads]) => {
+                    {Object.entries(filteredReportData).map(([zoneName, heads]) => {
                         const headList = Object.values(heads).sort((a, b) => a.name.localeCompare(b.name));
                         if (headList.length === 0) return null;
 
@@ -278,11 +571,9 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload }
                                 </div>
 
                                 {headList.map((zone) => {
-                                    // Sort supervisors by ward number
-                                    const sortedSupervisors = [...zone.supervisors].sort((a, b) => {
-                                        const wardA = parseInt(Array.from(a.wards)[0] || '999');
-                                        const wardB = parseInt(Array.from(b.wards)[0] || '999');
-                                        return wardA - wardB;
+                                    // Sort wards numerically
+                                    const sortedWards = [...zone.wards].sort((a, b) => {
+                                        return parseInt(a.ward || '999') - parseInt(b.ward || '999');
                                     });
 
                                     return (
@@ -302,30 +593,27 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload }
                                                 <div className="p-1">PENDING QR</div>
                                             </div>
 
-                                            {/* Supervisors */}
-                                            {sortedSupervisors.map((sup) => {
-                                                const isZeroScanned = sup.scanned === 0;
+                                            {/* Wards */}
+                                            {sortedWards.map((wData, wIdx) => {
+                                                const isZeroScanned = wData.scanned === 0;
                                                 const scannedBg = isZeroScanned
                                                     ? 'bg-gradient-to-r from-red-500 via-orange-500 to-red-500 text-white'
                                                     : 'bg-white text-black';
 
-                                                const pendingBg = sup.pending === 0 ? 'bg-green-400' : 'bg-white';
+                                                const pendingBg = wData.pending === 0 ? 'bg-green-400' : 'bg-white';
                                                 
-                                                // Format Ward display: "60-Jagannath Puri"
-                                                const wardNums = Array.from(sup.wards).sort((a, b) => parseInt(a) - parseInt(b));
-                                                const wardNames = Array.from(sup.wardNames);
-                                                const wardDisplay = wardNums.map((n, i) => `${n}-${wardNames[i] || ''}`).join(', ');
+                                                const wardDisplay = wData.ward ? `${wData.ward}-${wData.wardName}` : wData.wardName;
 
                                                 return (
-                                                    <div key={sup.name} className="grid grid-cols-[2fr_1.5fr_1fr_2fr_1fr_1fr] text-xs font-bold border-b border-black text-center items-center">
+                                                    <div key={`${wData.ward}-${wData.supervisor}-${wIdx}`} className="grid grid-cols-[2fr_1.5fr_1fr_2fr_1fr_1fr] text-xs font-bold border-b border-black text-center items-center">
                                                         <div className="p-1 border-r border-black bg-white text-left pl-1">
                                                             {wardDisplay}
                                                         </div>
-                                                        <div className="p-1 border-r border-black bg-white">{sup.name}</div>
-                                                        <div className="p-1 border-r border-black bg-white">{sup.totalQr}</div>
-                                                        <div className="p-1 border-r border-black bg-white">{sup.scanTiming}</div>
-                                                        <div className={`p-1 border-r border-black ${scannedBg}`}>{sup.scanned}</div>
-                                                        <div className={`p-1 ${pendingBg}`}>{sup.pending}</div>
+                                                        <div className="p-1 border-r border-black bg-white">{wData.supervisor}</div>
+                                                        <div className="p-1 border-r border-black bg-white">{wData.totalQr}</div>
+                                                        <div className="p-1 border-r border-black bg-white">{wData.scanTiming}</div>
+                                                        <div className={`p-1 border-r border-black ${scannedBg}`}>{wData.scanned}</div>
+                                                        <div className={`p-1 ${pendingBg}`}>{wData.pending}</div>
                                                     </div>
                                                 );
                                             })}
@@ -346,39 +634,6 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload }
                         );
                     })}
 
-                    {/* Detailed Site List */}
-                    <div className="mt-8 border-t-4 border-black">
-                        <div className="bg-[#4472c4] text-white p-2 font-bold text-center uppercase tracking-widest text-sm">
-                            Detailed Site-wise Performance Status
-                        </div>
-                        <div className="grid grid-cols-[0.5fr_1.5fr_2fr_2fr_1fr_1fr] bg-[#bdd7ee] text-[10px] font-bold border-b border-black text-center uppercase">
-                            <div className="p-1 border-r border-black">S.No</div>
-                            <div className="p-1 border-r border-black">Ward</div>
-                            <div className="p-1 border-r border-black">Site Name</div>
-                            <div className="p-1 border-r border-black">Location/Address</div>
-                            <div className="p-1 border-r border-black">Status</div>
-                            <div className="p-1">Time</div>
-                        </div>
-                        {localData.sort((a, b) => {
-                            const zoneA = (a.zone.includes('4') || a.zone.toUpperCase().includes('VRINDAVAN')) ? 'VRINDAVAN' : 'MATHURA';
-                            const zoneB = (b.zone.includes('4') || b.zone.toUpperCase().includes('VRINDAVAN')) ? 'VRINDAVAN' : 'MATHURA';
-                            if (zoneA !== zoneB) return zoneA.localeCompare(zoneB);
-                            
-                            const getNum = (w: string) => parseInt(w.match(/^(\d+)/)?.[1] || '0');
-                            return getNum(a.ward) - getNum(b.ward);
-                        }).map((record, idx) => (
-                            <div key={record.qrId} className="grid grid-cols-[0.5fr_1.5fr_2fr_2fr_1fr_1fr] text-[9px] border-b border-black text-center items-center font-medium">
-                                <div className="p-1 border-r border-black">{idx + 1}</div>
-                                <div className="p-1 border-r border-black text-left pl-1">{record.ward}</div>
-                                <div className="p-1 border-r border-black text-left pl-1">{record.siteName}</div>
-                                <div className="p-1 border-r border-black text-left pl-1">{record.buildingName}</div>
-                                <div className={`p-1 border-r border-black font-bold ${record.status === 'Scanned' ? 'text-green-600' : 'text-red-500'}`}>
-                                    {record.status}
-                                </div>
-                                <div className="p-1">{record.scanTime || '-'}</div>
-                            </div>
-                        ))}
-                    </div>
                 </div>
 
                 {/* Footer */}

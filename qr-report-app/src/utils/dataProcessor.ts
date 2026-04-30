@@ -5,6 +5,7 @@ export interface WardAssignment {
     supervisor: string;
     zonalHead: string;
     totalQRCodes?: number;
+    lastUpdated?: any;
 }
 
 export interface ReportRecord {
@@ -44,14 +45,6 @@ export interface SummaryStats {
         pending: number;
         percentage: number;
     }>;
-}
-
-export interface WardAssignment {
-    wardNo: number;
-    supervisor: string;
-    zonalHead: string;
-    totalQRCodes?: number;
-    lastUpdated?: any;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -105,13 +98,22 @@ export const processData = (
 
     // Then override with Firestore assignments if provided
     if (wardAssignments) {
-        Object.entries(wardAssignments).forEach(([wardNum, assignment]) => {
-            wardMap.set(wardNum, {
-                supervisor: assignment.supervisor || 'Unassigned',
-                zonalHead: assignment.zonalHead || 'Unassigned',
-                // @ts-ignore
-                totalQRCodes: assignment.totalQRCodes || 0
-            });
+        Object.entries(wardAssignments).forEach(([wardKey, assignment]) => {
+            const normalizedKey = wardKey.trim().replace(/^0+/, '');
+            if (normalizedKey && assignment.zonalHead && assignment.zonalHead !== 'Unassigned') {
+                wardMap.set(normalizedKey, {
+                    supervisor: assignment.supervisor || 'Unassigned',
+                    zonalHead: assignment.zonalHead
+                });
+            }
+            
+            // Also store by name if provided and not unassigned
+            if ((assignment as any).wardName && assignment.zonalHead && assignment.zonalHead !== 'Unassigned') {
+                wardMap.set(String((assignment as any).wardName).trim().toUpperCase(), {
+                    supervisor: assignment.supervisor || 'Unassigned',
+                    zonalHead: assignment.zonalHead
+                });
+            }
         });
     }
 

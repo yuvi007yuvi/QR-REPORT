@@ -65,7 +65,7 @@ const menuItems = [
         icon: LayoutDashboard,
         items: [
             { id: 'dashboard', label: 'Summary Dashboard', icon: LayoutDashboard },
-            { id: 'zonal', label: 'Zonal Report', icon: Map },
+            { id: 'zonal', label: 'Zonal QR Report', icon: Map },
             { id: 'door-to-door-report', label: 'Door to Door Report', icon: FileSpreadsheet },
         ]
     },

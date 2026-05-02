@@ -159,7 +159,10 @@ const MSWDateWiseReport: React.FC = () => {
         const dateTimeStr = (val: any) => {
             if (!val) return ["", ""];
             if (val instanceof Date) {
-               return [val.toLocaleDateString('en-GB'), val.toLocaleTimeString('en-GB')];
+               const day = val.getDate().toString().padStart(2, '0');
+               const month = (val.getMonth() + 1).toString().padStart(2, '0');
+               const year = val.getFullYear();
+               return [`${day} / ${month} / ${year}`, val.toLocaleTimeString('en-GB')];
             }
             const parts = String(val).split(' ');
             return [parts[0] || "", parts[1] || ""];
@@ -185,7 +188,12 @@ const MSWDateWiseReport: React.FC = () => {
             "Tare Weight (Kg)": tareWeight,
             "Net Weight (Kg)": netWeight,
             "Content Type": na(getVal("WASTE TYPE")),
-            "Date Of Weighment": na(dateVal instanceof Date ? dateVal.toLocaleDateString('en-GB') : String(dateVal || "")),
+            "Date Of Weighment": na(dateVal instanceof Date ? (() => {
+                const day = dateVal.getDate().toString().padStart(2, '0');
+                const month = (dateVal.getMonth() + 1).toString().padStart(2, '0');
+                const year = dateVal.getFullYear();
+                return `${day} / ${month} / ${year}`;
+            })() : String(dateVal || "")),
             "Receipt Number": na(receiptNo),
             "Vehicle Type": mapVehicleType(getVal("VEHICLE TYPE")),
             "Weighbridge Party Name": na(getVal("PARTY NAME")),
@@ -226,7 +234,13 @@ const MSWDateWiseReport: React.FC = () => {
         vNum.toLowerCase().includes(searchTerm.toLowerCase()) ||
         rNum.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesDate = !dateFilter || item["Date Of Weighment"] === new Date(dateFilter).toLocaleDateString('en-GB');
+      const matchesDate = !dateFilter || (() => {
+        const d = new Date(dateFilter);
+        const day = d.getDate().toString().padStart(2, '0');
+        const month = (d.getMonth() + 1).toString().padStart(2, '0');
+        const year = d.getFullYear();
+        return item["Date Of Weighment"] === `${day} / ${month} / ${year}`;
+      })();
       const matchesVehicle = vehicleFilter === 'All' || item["Vehicle Number"] === vehicleFilter;
       const matchesWaste = wasteTypeFilter === 'All' || item["Content Type"] === wasteTypeFilter;
 

@@ -8,7 +8,7 @@ import {
     RefreshCw
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { collection, query, onSnapshot, doc, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, writeBatch, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 interface MasterQR {
@@ -27,10 +27,22 @@ export const MasterQRManager: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedWard, setSelectedWard] = useState('All');
+    const [selectedZone, setSelectedZone] = useState('All');
     const [status, setStatus] = useState<{ message: string; type: 'success' | 'error' | 'info' | null }>({
         message: '',
         type: null
     });
+
+    const uniqueWards = useMemo(() => {
+        const wards = Array.from(new Set(qrList.map(qr => qr.ward.toString()))).filter(Boolean);
+        return wards.sort((a, b) => parseInt(a) - parseInt(b));
+    }, [qrList]);
+
+    const uniqueZones = useMemo(() => {
+        const zones = Array.from(new Set(qrList.map(qr => qr.zone.toString()))).filter(Boolean);
+        return zones.sort();
+    }, [qrList]);
 
     useEffect(() => {
         const q = query(collection(db, 'qr_master'));
@@ -46,13 +58,18 @@ export const MasterQRManager: React.FC = () => {
     }, []);
 
     const filteredList = useMemo(() => {
-        return qrList.filter(qr => 
-            qr.qrId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            qr.siteName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            qr.ward?.toString().includes(searchTerm) ||
-            qr.area?.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [qrList, searchTerm]);
+        return qrList.filter(qr => {
+            const matchesSearch = 
+                qr.qrId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                qr.siteName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                qr.area?.toLowerCase().includes(searchTerm.toLowerCase());
+            
+            const matchesWard = selectedWard === 'All' || qr.ward?.toString() === selectedWard;
+            const matchesZone = selectedZone === 'All' || qr.zone?.toString() === selectedZone;
+
+            return matchesSearch && matchesWard && matchesZone;
+        });
+    }, [qrList, searchTerm, selectedWard, selectedZone]);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -139,6 +156,17 @@ export const MasterQRManager: React.FC = () => {
         setUploading(false);
     };
 
+    const deleteSingleRecord = async (id: string, qrId: string) => {
+        if (!window.confirm(`Are you sure you want to delete QR record: ${qrId}?`)) return;
+        
+        try {
+            await deleteDoc(doc(db, 'qr_master', id));
+            setStatus({ message: `Record ${qrId} deleted successfully.`, type: 'success' });
+        } catch (err: any) {
+            setStatus({ message: 'Delete failed: ' + err.message, type: 'error' });
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center p-12">
@@ -191,15 +219,51 @@ export const MasterQRManager: React.FC = () => {
 
             {/* Search & List */}
             <div className="space-y-4">
-                <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                    <input 
-                        type="text"
-                        placeholder="Search by QR ID, Site Name, or Area..."
-                        className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-medium"
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                    />
+                <div className="flex flex-col md:flex-row gap-3">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                        <input 
+                            type="text"
+                            placeholder="Search by QR ID, Site Name, or Area..."
+                            className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-medium"
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex gap-2">
+                        <select
+                            value={selectedZone}
+                            onChange={(e) => setSelectedZone(e.target.value)}
+                            className="px-6 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-bold text-slate-700 min-w-[160px] appearance-none cursor-pointer"
+                            style={{
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'right 1.5rem center',
+                                backgroundSize: '1.25rem'
+                            }}
+                        >
+                            <option value="All">All Zones</option>
+                            {uniqueZones.map(zone => (
+                                <option key={zone} value={zone}>Zone {zone}</option>
+                            ))}
+                        </select>
+                        <select
+                            value={selectedWard}
+                            onChange={e => setSelectedWard(e.target.value)}
+                            className="px-6 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm font-bold text-slate-700 min-w-[160px] appearance-none cursor-pointer"
+                            style={{
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'right 1.5rem center',
+                                backgroundSize: '1.25rem'
+                            }}
+                        >
+                            <option value="All">All Wards</option>
+                            {uniqueWards.map(ward => (
+                                <option key={ward} value={ward}>Ward {ward}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
                 <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
@@ -209,13 +273,16 @@ export const MasterQRManager: React.FC = () => {
                                 <tr>
                                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">QR ID</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Site Name</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Zone</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Ward</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Area</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Address</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Type</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filteredList.slice(0, 50).map((qr) => (
+                                {filteredList.slice(0, 100).map((qr) => (
                                     <tr key={qr.id} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="px-6 py-4">
                                             <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-black border border-blue-100">
@@ -223,22 +290,35 @@ export const MasterQRManager: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-sm font-bold text-slate-700">{qr.siteName}</td>
+                                        <td className="px-6 py-4 text-xs font-semibold text-slate-600 uppercase">{qr.zone}</td>
                                         <td className="px-6 py-4 text-center">
                                             <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black">
                                                 {qr.ward}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-500 font-medium">{qr.area}</td>
+                                        <td className="px-6 py-4 text-[11px] text-slate-400 font-medium italic max-w-[200px] truncate" title={qr.address}>
+                                            {qr.address || '—'}
+                                        </td>
                                         <td className="px-6 py-4">
                                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 uppercase tracking-tight">
                                                 {qr.type}
                                             </span>
                                         </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <button 
+                                                onClick={() => deleteSingleRecord(qr.id, qr.qrId)}
+                                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                title="Delete Record"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                                 {filteredList.length === 0 && (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">
+                                        <td colSpan={8} className="px-6 py-12 text-center text-slate-400 italic">
                                             No records found. Upload a file to get started.
                                         </td>
                                     </tr>
@@ -248,7 +328,7 @@ export const MasterQRManager: React.FC = () => {
                     </div>
                     {filteredList.length > 50 && (
                         <div className="p-4 bg-slate-50 text-center border-t border-slate-200">
-                            <p className="text-xs font-bold text-slate-400">Showing first 50 of {filteredList.length} matching records</p>
+                            <p className="text-xs font-bold text-slate-400">Showing first 100 of {filteredList.length} matching records</p>
                         </div>
                     )}
                 </div>

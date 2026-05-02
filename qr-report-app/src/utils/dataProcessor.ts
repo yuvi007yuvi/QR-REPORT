@@ -12,6 +12,41 @@ export interface WardAssignment {
     lastUpdated?: any;
 }
 
+export const formatDisplayDate = (dateVal: any): string => {
+    if (!dateVal) return 'N/A';
+    const dateStr = String(dateVal);
+    
+    let dateObj: Date | null = null;
+
+    // 1. If it's an Excel serial number
+    if (!isNaN(Number(dateStr)) && dateStr.length > 4 && Number(dateStr) > 40000) {
+        const excelDate = Number(dateStr);
+        dateObj = new Date((excelDate - 25569) * 86400 * 1000);
+    } else {
+        // 2. Try parsing DD/MM/YYYY or DD-MM-YYYY
+        const dmyMatch = dateStr.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+        if (dmyMatch) {
+            const [_, day, month, year] = dmyMatch;
+            dateObj = new Date(Number(year), Number(month) - 1, Number(day));
+        } else {
+            // 3. Try parsing common date strings
+            const parsed = new Date(dateStr);
+            if (!isNaN(parsed.getTime())) {
+                dateObj = parsed;
+            }
+        }
+    }
+
+    if (dateObj && !isNaN(dateObj.getTime())) {
+        const d = dateObj.getDate().toString().padStart(2, '0');
+        const m = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+        const y = dateObj.getFullYear();
+        return `${d} / ${m} / ${y}`;
+    }
+
+    return dateStr;
+};
+
 export interface ReportRecord {
     qrId: string;
     ward: string;

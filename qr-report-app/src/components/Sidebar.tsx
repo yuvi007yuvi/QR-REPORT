@@ -44,6 +44,9 @@ export type ViewMode =
     | 'complaint-register'
     | 'msw-date-wise'
     | 'door-to-door-report'
+    | 'detailed-zonal-qr'
+    | 'zonal-tabular-report'
+    | 'detailed-qr-list'
     | 'admin-panel';
 
 
@@ -66,6 +69,9 @@ const menuItems = [
         items: [
             { id: 'dashboard', label: 'Summary Dashboard', icon: LayoutDashboard },
             { id: 'zonal', label: 'Zonal QR Report', icon: Map },
+            { id: 'detailed-zonal-qr', label: 'Detailed Zonal Analytics', icon: BarChart3 },
+            { id: 'zonal-tabular-report', label: 'Zonal Tabular Analysis', icon: FileText },
+            { id: 'detailed-qr-list', label: 'Detailed QR Audit', icon: FileSearch },
             { id: 'door-to-door-report', label: 'Door to Door Report', icon: FileSpreadsheet },
         ]
     },

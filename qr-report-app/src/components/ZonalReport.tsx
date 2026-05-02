@@ -1,9 +1,11 @@
 import React, { useMemo } from 'react';
-import { Image as ImageIcon, Upload } from 'lucide-react';
+import { Image as ImageIcon, Upload, Download, Trash2 } from 'lucide-react';
 import { exportToJPEG } from '../utils/exporter';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import natureGreenLogo from '../assets/NatureGreen_Logo.png';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import jsPDF from 'jspdf';
+import { toPng } from 'html-to-image';
 import { parseFile, type ReportRecord, type WardAssignment } from '../utils/dataProcessor';
 import supervisorData from '../data/supervisorData.json';
 import masterData from '../data/masterData.json';
@@ -38,15 +40,52 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload, 
     const [localDate, setLocalDate] = React.useState<string>(date);
     const [loading, setLoading] = React.useState(false);
 
+    const formatDisplayDate = (dateVal: any) => {
+        if (!dateVal) return 'N/A';
+        const dateStr = String(dateVal);
+        
+        let dateObj: Date | null = null;
+
+        // 1. If it's an Excel serial number
+        if (!isNaN(Number(dateStr)) && dateStr.length > 4 && Number(dateStr) > 40000) {
+            const excelDate = Number(dateStr);
+            dateObj = new Date((excelDate - 25569) * 86400 * 1000);
+        } else {
+            // 2. Try parsing DD/MM/YYYY or DD-MM-YYYY
+            const dmyMatch = dateStr.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+            if (dmyMatch) {
+                const [_, day, month, year] = dmyMatch;
+                dateObj = new Date(Number(year), Number(month) - 1, Number(day));
+            } else {
+                // 3. Try parsing common date strings
+                const parsed = new Date(dateStr);
+                if (!isNaN(parsed.getTime())) {
+                    dateObj = parsed;
+                }
+            }
+        }
+
+        if (dateObj && !isNaN(dateObj.getTime())) {
+            const d = dateObj.getDate().toString().padStart(2, '0');
+            const m = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+            const y = dateObj.getFullYear();
+            return `${d} / ${m} / ${y}`;
+        }
+
+        return dateStr;
+    };
+
     React.useEffect(() => {
         if (data) {
             setLocalData(data);
-            setLocalDate(date);
+            setLocalDate(formatDisplayDate(date));
         }
     }, [data, date]);
 
     const [filterZone, setFilterZone] = React.useState<string>('ALL');
     const [filterHead, setFilterHead] = React.useState<string>('ALL');
+    const [filterWard, setFilterWard] = React.useState<string>('ALL');
+    const [filterEvidence, setFilterEvidence] = React.useState<'ALL' | 'BOTH' | 'BEFORE' | 'AFTER' | 'NONE'>('ALL');
     const [searchQuery, setSearchQuery] = React.useState('');
 
     React.useEffect(() => {
@@ -72,7 +111,7 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload, 
                     }
                 }
             }
-            onUpload(jsonData, fileDate);
+            onUpload(jsonData, formatDisplayDate(fileDate));
         } catch (error) {
             console.error("Upload failed", error);
             alert("Failed to process file");
@@ -182,6 +221,9 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload, 
         });
 
         // 2. Local Data Processing (Scans)
+        // Use a Set to track unique QR scans per ward to avoid double counting
+        const uniqueScans = new Map<string, Set<string>>();
+
         localData.forEach(record => {
             const wardRaw = record.ward || '';
             const wardMatch = wardRaw.match(/^(\d+)/);
@@ -198,8 +240,8 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload, 
                 ? normalize(record.zonalHead) 
                 : mappedHead;
             
-            const isVrindavan = record.zone.includes('4') || 
-                               record.zone.toUpperCase().includes('VRINDAVAN') || 
+            const isVrindavan = (record.zone && record.zone.includes('4')) || 
+                               (record.zone && record.zone.toUpperCase().includes('VRINDAVAN')) || 
                                headName.toUpperCase().includes('VRINDAVAN');
             const zoneKey = isVrindavan ? 'VRINDAVAN' : 'MATHURA';
 
@@ -214,14 +256,33 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload, 
             }
 
             const headStats = zones[zoneKey][headName];
-            
             let wardStats = headStats.wards.find(w => w.ward === wardNo);
+            
             if (wardStats) {
                 if (record.status === 'Scanned') {
-                    wardStats.scanned++;
-                    wardStats.pending = Math.max(0, wardStats.totalQr - wardStats.scanned);
-                    headStats.scanned++;
-                    headStats.pending = Math.max(0, headStats.totalQr - headStats.scanned);
+                    // Unique ID for the scan to prevent double counting
+                    const scanId = record.qrId || `${record.ward}-${record.buildingName}-${record.siteName}`;
+                    
+                    if (!uniqueScans.has(wardNo)) {
+                        uniqueScans.set(wardNo, new Set());
+                    }
+                    
+                    if (!uniqueScans.get(wardNo)!.has(scanId)) {
+                        // Apply Evidence Filter
+                        const matchesEvidence = filterEvidence === 'ALL' ||
+                            (filterEvidence === 'BOTH' && record.beforeScanStatus === 'Scanned' && record.afterScanStatus === 'Scanned') ||
+                            (filterEvidence === 'BEFORE' && record.beforeScanStatus === 'Scanned') ||
+                            (filterEvidence === 'AFTER' && record.afterScanStatus === 'Scanned') ||
+                            (filterEvidence === 'NONE' && record.beforeScanStatus !== 'Scanned' && record.afterScanStatus !== 'Scanned');
+
+                        if (matchesEvidence) {
+                            wardStats.scanned++;
+                            uniqueScans.get(wardNo)!.add(scanId);
+                            wardStats.pending = Math.max(0, wardStats.totalQr - wardStats.scanned);
+                            headStats.scanned++;
+                            headStats.pending = Math.max(0, headStats.totalQr - headStats.scanned);
+                        }
+                    }
                 }
                 
                 // Update supervisor name if it was unassigned but we have a better name now
@@ -265,22 +326,21 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload, 
             Object.entries(heads).forEach(([headName, headStats]) => {
                 if (filterHead !== 'ALL' && headName !== filterHead) return;
                 
-                if (searchQuery) {
-                    const query = searchQuery.toLowerCase();
-                    const filteredWards = headStats.wards.filter(w => 
-                        w.ward.toLowerCase().includes(query) ||
-                        w.wardName.toLowerCase().includes(query) ||
-                        w.supervisor.toLowerCase().includes(query)
+                const filteredWards = headStats.wards.filter(w => {
+                    const matchesSearch = !searchQuery || (
+                        w.ward.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        w.wardName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        w.supervisor.toLowerCase().includes(searchQuery.toLowerCase())
                     );
-                    
-                    if (filteredWards.length > 0) {
-                        zoneHeads[headName] = {
-                            ...headStats,
-                            wards: filteredWards
-                        };
-                    }
-                } else {
-                    zoneHeads[headName] = headStats;
+                    const matchesWard = filterWard === 'ALL' || w.ward === filterWard;
+                    return matchesSearch && matchesWard;
+                });
+                
+                if (filteredWards.length > 0) {
+                    zoneHeads[headName] = {
+                        ...headStats,
+                        wards: filteredWards
+                    };
                 }
             });
             
@@ -293,6 +353,17 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload, 
     }, [reportData, filterZone, filterHead, searchQuery]);
 
     // Get all unique zonal heads for the filter dropdown
+    // Get all unique wards for filter
+    const allWards = useMemo(() => {
+        const wards = new Set<string>();
+        Object.values(reportData).forEach(zoneHeads => {
+            Object.values(zoneHeads).forEach(h => {
+                h.wards.forEach(w => wards.add(w.ward));
+            });
+        });
+        return Array.from(wards).sort((a, b) => parseInt(a) - parseInt(b));
+    }, [reportData]);
+
     const allHeads = useMemo(() => {
         const heads = new Set<string>();
         Object.values(reportData).forEach(zoneHeads => {
@@ -300,6 +371,104 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload, 
         });
         return Array.from(heads).sort();
     }, [reportData]);
+
+    const [pdfExporting, setPdfExporting] = React.useState(false);
+
+    const handleExportPDF = async () => {
+        const element = document.getElementById('zonal-report-container');
+        if (!element) return;
+        setPdfExporting(true);
+        try {
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const margin = 10;
+            let currentY = margin;
+
+            // 1. Capture Header Section (Logo + Title)
+            const headerSection = element.querySelector('.rounded-xl.shadow-lg.border-2.border-blue-100') as HTMLElement;
+            if (headerSection) {
+                const dataUrl = await toPng(headerSection, { pixelRatio: 2, backgroundColor: '#ffffff' });
+                const imgProps = pdf.getImageProperties(dataUrl);
+                const imgWidth = pdfWidth - (margin * 2);
+                const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+                pdf.addImage(dataUrl, 'PNG', margin, currentY, imgWidth, imgHeight);
+                currentY += imgHeight + 10;
+            }
+
+            // 2. Capture Stats Cards
+            const statsCards = element.querySelector('.flex.flex-wrap.justify-center.gap-6.mb-10') as HTMLElement;
+            if (statsCards) {
+                const dataUrl = await toPng(statsCards, { pixelRatio: 2, backgroundColor: '#ffffff' });
+                const imgProps = pdf.getImageProperties(dataUrl);
+                const imgWidth = pdfWidth - (margin * 2);
+                const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+                if (currentY + imgHeight > pdfHeight - margin) {
+                    pdf.addPage();
+                    currentY = margin;
+                }
+                pdf.addImage(dataUrl, 'PNG', margin, currentY, imgWidth, imgHeight);
+                currentY += imgHeight + 10;
+            }
+
+            // 3. Capture Main Summary Table Header
+            const mainSummaryHeader = element.querySelector('.border-2.border-black') as HTMLElement;
+            if (mainSummaryHeader) {
+                const summaryHeaderOnly = mainSummaryHeader.cloneNode(true) as HTMLElement;
+                // Remove the zonal sections from the clone to only capture the summary part
+                const zonalSections = summaryHeaderOnly.querySelectorAll('.border-t-4.border-black');
+                zonalSections.forEach(s => s.remove());
+                
+                const dataUrl = await toPng(summaryHeaderOnly, { pixelRatio: 2, backgroundColor: '#ffffff' });
+                const imgProps = pdf.getImageProperties(dataUrl);
+                const imgWidth = pdfWidth - (margin * 2);
+                const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+                
+                if (currentY + imgHeight > pdfHeight - margin) {
+                    pdf.addPage();
+                    currentY = margin;
+                }
+                pdf.addImage(dataUrl, 'PNG', margin, currentY, imgWidth, imgHeight);
+                currentY += imgHeight;
+            }
+
+            // 4. Capture Zonal Sections by Head
+            const zonalSections = Array.from(element.querySelectorAll('.border-t-4.border-black')) as HTMLElement[];
+            for (const section of zonalSections) {
+                const dataUrl = await toPng(section, { pixelRatio: 2, backgroundColor: '#ffffff' });
+                const imgProps = pdf.getImageProperties(dataUrl);
+                const imgWidth = pdfWidth - (margin * 2);
+                const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+                if (currentY + imgHeight > pdfHeight - margin) {
+                    pdf.addPage();
+                    currentY = margin;
+                }
+                pdf.addImage(dataUrl, 'PNG', margin, currentY, imgWidth, imgHeight);
+                currentY += imgHeight + 5;
+            }
+
+            // 5. Footer
+            const footer = element.querySelector('.mt-12.mb-6') as HTMLElement;
+            if (footer) {
+                const dataUrl = await toPng(footer, { pixelRatio: 2, backgroundColor: '#ffffff' });
+                const imgProps = pdf.getImageProperties(dataUrl);
+                const imgWidth = pdfWidth - (margin * 2);
+                const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+                if (currentY + imgHeight > pdfHeight - margin) {
+                    pdf.addPage();
+                    currentY = margin;
+                }
+                pdf.addImage(dataUrl, 'PNG', margin, currentY, imgWidth, imgHeight);
+            }
+
+            pdf.save(`Zonal-QR-Report-${localDate.replace(/\//g, '-')}.pdf`);
+        } catch (err) {
+            console.error('PDF generation error:', err);
+        } finally {
+            setPdfExporting(false);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -316,6 +485,29 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload, 
                     />
                 </label>
                 <button
+                    onClick={() => {
+                        if (window.confirm('Are you sure you want to clear current report data?')) {
+                            onUpload([], '');
+                        }
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-50 transition-colors shadow-sm"
+                >
+                    <Trash2 className="w-4 h-4" />
+                    Clear Data
+                </button>
+                <button
+                    onClick={handleExportPDF}
+                    disabled={pdfExporting}
+                    className="flex items-center gap-1 px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                >
+                    {pdfExporting ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                        <Download className="w-4 h-4" />
+                    )}
+                    Export PDF
+                </button>
+                <button
                     onClick={() => exportToJPEG('zonal-report-container', `Zonal_Report_${localDate.replace(/\//g, '-')}`)}
                     className="flex items-center gap-1 px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors"
                 >
@@ -327,18 +519,63 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload, 
             {/* Filter Toolbar */}
             <div className="bg-white p-4 mb-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center gap-4">
                 <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Filter by Zone</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Evidence Status</label>
+                    <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                        {[
+                            { id: 'ALL', label: 'All' },
+                            { id: 'BOTH', label: 'Both' },
+                            { id: 'BEFORE', label: 'Before' },
+                            { id: 'AFTER', label: 'After' },
+                            { id: 'NONE', label: 'None' }
+                        ].map(f => (
+                            <button
+                                key={f.id}
+                                onClick={() => setFilterEvidence(f.id as any)}
+                                className={`px-3 py-1 rounded-md text-[10px] font-black uppercase transition-all ${
+                                    filterEvidence === f.id 
+                                    ? 'bg-slate-900 text-white shadow-sm' 
+                                    : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                {f.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Filter by Region</label>
+                    <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                        {(['ALL', 'MATHURA', 'VRINDAVAN'] as const).map(z => (
+                            <button
+                                key={z}
+                                onClick={() => {
+                                    setFilterZone(z);
+                                    setFilterHead('ALL');
+                                }}
+                                className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase transition-all ${
+                                    filterZone === z 
+                                    ? 'bg-white text-blue-600 shadow-sm' 
+                                    : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                {z}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Filter by Ward</label>
                     <select 
-                        value={filterZone}
-                        onChange={(e) => {
-                            setFilterZone(e.target.value);
-                            setFilterHead('ALL'); // Reset head filter when zone changes
-                        }}
-                        className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={filterWard}
+                        onChange={(e) => setFilterWard(e.target.value)}
+                        className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none min-w-[100px]"
                     >
-                        <option value="ALL">All Zones</option>
-                        <option value="MATHURA">Mathura</option>
-                        <option value="VRINDAVAN">Vrindavan</option>
+                        <option value="ALL">All Wards</option>
+                        {allWards.map(ward => (
+                            <option key={ward} value={ward}>Ward {ward}</option>
+                        ))}
                     </select>
                 </div>
 
@@ -472,7 +709,7 @@ export const ZonalReport: React.FC<ZonalReportProps> = ({ data, date, onUpload, 
                                     <div key={head.name} className="flex-1 min-w-[220px] max-w-[260px] bg-[#f8fafc] rounded-[2rem] p-6 shadow-sm border border-slate-50 flex flex-col items-center transition-transform hover:scale-[1.02]">
                                         {/* Donut Chart */}
                                         <div className="relative w-36 h-36 mb-6">
-                                            <ResponsiveContainer width="100%" height="100%">
+                                            <ResponsiveContainer width="100%" height="100%" minHeight={144}>
                                                 <PieChart>
                                                     <Pie
                                                         data={[

@@ -9,6 +9,9 @@ import CdwasteComplaintReport from './components/CdwasteComplaintReport';
 import { KYCSurveyChecker } from './components/KYCSurveyChecker';
 import { SupervisorCountReport } from './components/SupervisorCountReport';
 import { ZonalReport } from './components/ZonalReport';
+import { DetailedZonalQRReport } from './components/DetailedZonalQRReport';
+import { ZonalTabularReport } from './components/ZonalTabularReport';
+import { DetailedQRTable } from './components/DetailedQRTable';
 import WardWiseStatusReport from './components/WardWiseStatusReport';
 import { WhatsAppReport } from './components/WhatsAppReport';
 import { KYCCalendarView } from './components/KYCCalendarView';
@@ -33,6 +36,7 @@ import supervisorData from './data/supervisorData.json';
 import { db } from './firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
 import type { WardAssignment, SummaryStats, ReportRecord } from './utils/dataProcessor';
+import { formatDisplayDate } from './utils/dataProcessor';
 
 const App: React.FC = () => {
   const { currentUser, isLoading: authLoading, logout, isAdmin } = useAuth();
@@ -51,8 +55,11 @@ const App: React.FC = () => {
     const { stats } = processData(masterData, supervisorData, [], 'All', {});
     return stats;
   });
-  const [reportDate, setReportDate] = useState<string>(new Date().toLocaleDateString('en-GB'));
+  const [reportDate, setReportDate] = useState<string>(formatDisplayDate(new Date()));
   const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
+  const [masterQRPoints, setMasterQRPoints] = useState<any[]>([]);
+  const [scannedData, setScannedData] = useState<any[]>([]);
+  const [selectedZone, setSelectedZone] = useState<string>('All');
 
   // Fetch Ward Assignments from Firestore
   React.useEffect(() => {
@@ -67,15 +74,24 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Update report when ward assignments change
+  // Fetch Master QR Points from Firestore
   React.useEffect(() => {
-    // We only want to re-process if we don't have an active upload, 
-    // but for now let's keep it simple: any mapping change updates the view.
-    // In a real scenario, we'd need to keep the 'scanned' data separate.
-    const { report, stats } = processData(masterData, supervisorData, [], 'All', wardAssignments);
+    if (!currentUser) return;
+    const unsubscribe = onSnapshot(collection(db, 'qr_master'), (snapshot) => {
+      const points = snapshot.docs.map(doc => doc.data());
+      setMasterQRPoints(points);
+    });
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  // Update report when master data, scan data, or ward assignments change
+  React.useEffect(() => {
+    // If we have Firestore master points, use them. Otherwise fallback to JSON.
+    const masterSource = masterQRPoints.length > 0 ? masterQRPoints : masterData;
+    const { report, stats } = processData(masterSource, supervisorData, scannedData, selectedZone, wardAssignments);
     setReportData(report);
     setReportStats(stats);
-  }, [wardAssignments]);
+  }, [masterQRPoints, scannedData, wardAssignments, selectedZone]);
 
   // Auth guard MUST be after state definitions to prevent flashes or errors
   if (authLoading) {
@@ -108,10 +124,8 @@ const App: React.FC = () => {
 
 
   const handleGlobalUpload = (newData: any[], date: string) => {
-    const { report, stats } = processData(masterData, supervisorData, newData, 'All', wardAssignments);
-    setReportData(report);
-    setReportStats(stats);
-    if (date) setReportDate(date);
+    setScannedData(newData);
+    if (date) setReportDate(formatDisplayDate(date));
   };
 
   const handleViewChange = (newView: any) => {
@@ -162,6 +176,12 @@ const App: React.FC = () => {
         return <MSWDateWiseReport />;
       case 'door-to-door-report':
         return <DoorToDoorReport />;
+      case 'detailed-zonal-qr':
+        return <DetailedZonalQRReport data={reportData} date={reportDate} onUpload={handleGlobalUpload} wardAssignments={wardAssignments} />;
+      case 'zonal-tabular-report':
+        return <ZonalTabularReport data={reportData} date={reportDate} onUpload={handleGlobalUpload} wardAssignments={wardAssignments} />;
+      case 'detailed-qr-list':
+        return <DetailedQRTable data={reportData} date={reportDate} wardAssignments={wardAssignments} />;
       case 'admin-panel':
         return <AdminPanel />;
       default:
@@ -173,6 +193,9 @@ const App: React.FC = () => {
     const allItems = [
       { id: 'dashboard', label: 'Summary Dashboard' },
       { id: 'zonal', label: 'Zonal QR Report' },
+      { id: 'detailed-zonal-qr', label: 'Detailed Zonal Analytics' },
+      { id: 'zonal-tabular-report', label: 'Zonal Tabular Analysis' },
+      { id: 'detailed-qr-list', label: 'Detailed QR Audit' },
       { id: 'mapping', label: 'Supervisor Mapping' },
       { id: 'trip-report', label: 'Trip Report' },
       { id: 'supervisor-daily-report', label: 'Supervisor Daily Analysis' },
@@ -227,6 +250,22 @@ const App: React.FC = () => {
           </div>
 
           <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {/* Global Zone Filter */}
+            <div className="flex bg-slate-100/80 backdrop-blur-md p-1 rounded-xl border border-slate-200">
+              {(['All', 'Mathura', 'Vrindavan'] as const).map(z => (
+                <button
+                  key={z}
+                  onClick={() => setSelectedZone(z)}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                    selectedZone === z 
+                    ? 'bg-white text-indigo-600 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {z}
+                </button>
+              ))}
+            </div>
             {/* User info */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{

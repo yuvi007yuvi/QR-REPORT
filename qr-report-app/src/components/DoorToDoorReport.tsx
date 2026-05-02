@@ -10,14 +10,15 @@ import {
   Users, 
   MapPin, 
   CheckCircle2, 
-  ArrowUpRight
+  ArrowUpRight,
+  Table
 } from 'lucide-react';
 import { collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import supervisorDataFallback from '../data/supervisorData.json';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import { useRef } from 'react';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import natureGreenLogo from '../assets/NatureGreen_Logo.png';
@@ -62,6 +63,7 @@ const DoorToDoorReport: React.FC = () => {
   const [selectedWard, setSelectedWard] = useState('All');
   const [rawCsvContent, setRawCsvContent] = useState<string>('');
   const [mappings, setMappings] = useState<any[]>([]);
+  const [pdfExporting, setPdfExporting] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
   // Sync with Firestore Master Ward Assignments
@@ -303,47 +305,289 @@ const DoorToDoorReport: React.FC = () => {
 
   const handleExportPDF = async () => {
     if (!reportRef.current) return;
-    setLoading(true);
+    setPdfExporting(true);
     try {
-      // Give the UI a moment to settle if any new elements were just rendered
+      // Give the UI a moment to settle
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Create canvas from the report element
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2, // Higher scale for better quality
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        windowWidth: reportRef.current.scrollWidth,
-        windowHeight: reportRef.current.scrollHeight
-      });
-
-      const dataUrl = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-      
-      const imgProps = pdf.getImageProperties(dataUrl);
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      
-      let heightLeft = pdfHeight;
-      let position = 0;
-      const pageHeight = pdf.internal.pageSize.getHeight();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      let currentY = margin;
 
-      pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pageHeight;
+      // 1. Capture Header/Letterhead
+      const headerEl = reportRef.current.querySelector('.relative.overflow-hidden.rounded-\\[2\\.5rem\\]') as HTMLElement;
+      if (headerEl) {
+        const dataUrl = await toPng(headerEl, { pixelRatio: 2, backgroundColor: '#ffffff' });
+        const imgProps = pdf.getImageProperties(dataUrl);
+        const imgWidth = pdfWidth - (margin * 2);
+        const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+        
+        pdf.addImage(dataUrl, 'PNG', margin, currentY, imgWidth, imgHeight);
+        currentY += imgHeight + 10;
+      }
 
-      while (heightLeft >= 0) {
-        position = heightLeft - pdfHeight;
-        pdf.addPage();
-        pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pageHeight;
+      // 2. Capture Content based on viewMode
+      if (viewMode === 'supervisor') {
+        const blocks = Array.from(reportRef.current.querySelectorAll('.border.border-black.rounded-xl')) as HTMLElement[];
+        
+        for (const block of blocks) {
+          const blockHeader = block.querySelector('.bg-slate-900') as HTMLElement;
+          const table = block.querySelector('table') as HTMLElement;
+
+          if (blockHeader && table) {
+            // Capture Header first
+            const headerUrl = await toPng(blockHeader, { pixelRatio: 2, backgroundColor: '#0f172a' });
+            const hProps = pdf.getImageProperties(headerUrl);
+            const hWidth = pdfWidth - (margin * 2);
+            const hHeight = (hProps.height * hWidth) / hProps.width;
+
+            if (currentY + hHeight > pdfHeight - margin) {
+              pdf.addPage();
+              currentY = margin;
+            }
+            pdf.addImage(headerUrl, 'PNG', margin, currentY, hWidth, hHeight);
+            currentY += hHeight;
+
+            // Now Chunk the Table
+            const rows = Array.from(table.querySelectorAll('tbody tr')) as HTMLElement[];
+            const tableHeader = table.querySelector('thead') as HTMLElement;
+            const chunkSize = 15;
+
+            for (let i = 0; i < rows.length; i += chunkSize) {
+              const tempContainer = document.createElement('div');
+              tempContainer.style.position = 'absolute';
+              tempContainer.style.left = '-9999px';
+              tempContainer.style.width = table.offsetWidth + 'px';
+              tempContainer.style.backgroundColor = '#ffffff';
+              document.body.appendChild(tempContainer);
+
+              const tempTable = document.createElement('table');
+              tempTable.className = table.className;
+              tempTable.style.width = '100%';
+              tempTable.style.borderCollapse = 'collapse';
+              tempTable.style.border = '1px solid black';
+              
+              const tempHeader = tableHeader.cloneNode(true) as HTMLElement;
+              tempTable.appendChild(tempHeader);
+
+              const tempBody = document.createElement('tbody');
+              rows.slice(i, i + chunkSize).forEach(row => {
+                const clonedRow = row.cloneNode(true) as HTMLElement;
+                // Ensure styles are preserved for the clone
+                tempBody.appendChild(clonedRow);
+              });
+              tempTable.appendChild(tempBody);
+              tempContainer.appendChild(tempTable);
+
+              const dataUrl = await toPng(tempContainer, { pixelRatio: 2, backgroundColor: '#ffffff' });
+              const imgProps = pdf.getImageProperties(dataUrl);
+              const imgWidth = pdfWidth - (margin * 2);
+              const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+              if (currentY + imgHeight > pdfHeight - margin) {
+                pdf.addPage();
+                currentY = margin;
+                // If we started a new page, maybe repeat the supervisor header? 
+                // For now just continue to keep it simple and clean
+              }
+
+              pdf.addImage(dataUrl, 'PNG', margin, currentY, imgWidth, imgHeight);
+              currentY += imgHeight;
+
+              document.body.removeChild(tempContainer);
+            }
+            currentY += 5; // Gap between blocks
+          } else {
+            // Fallback for simple blocks
+            const dataUrl = await toPng(block, { pixelRatio: 2, backgroundColor: '#ffffff' });
+            const imgProps = pdf.getImageProperties(dataUrl);
+            const imgWidth = pdfWidth - (margin * 2);
+            const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+            if (currentY + imgHeight > pdfHeight - margin) {
+              pdf.addPage();
+              currentY = margin;
+            }
+
+            pdf.addImage(dataUrl, 'PNG', margin, currentY, imgWidth, imgHeight);
+            currentY += imgHeight + 5;
+          }
+        }
+      } else {
+        // Detailed mode - One big table.
+        const table = reportRef.current.querySelector('table') as HTMLElement;
+        if (table) {
+          const rows = Array.from(table.querySelectorAll('tbody tr')) as HTMLElement[];
+          const header = table.querySelector('thead') as HTMLElement;
+          const chunkSize = 20;
+
+          for (let i = 0; i < rows.length; i += chunkSize) {
+            const tempContainer = document.createElement('div');
+            tempContainer.style.position = 'absolute';
+            tempContainer.style.left = '-9999px';
+            tempContainer.style.width = table.offsetWidth + 'px';
+            tempContainer.style.backgroundColor = '#ffffff';
+            document.body.appendChild(tempContainer);
+
+            const tempTable = document.createElement('table');
+            tempTable.className = table.className;
+            tempTable.style.width = '100%';
+            tempTable.style.borderCollapse = 'collapse';
+            tempTable.style.border = '1px solid black';
+            
+            const tempHeader = header.cloneNode(true) as HTMLElement;
+            tempTable.appendChild(tempHeader);
+
+            const tempBody = document.createElement('tbody');
+            rows.slice(i, i + chunkSize).forEach(row => {
+              tempBody.appendChild(row.cloneNode(true));
+            });
+            tempTable.appendChild(tempBody);
+            tempContainer.appendChild(tempTable);
+
+            const dataUrl = await toPng(tempContainer, { pixelRatio: 2, backgroundColor: '#ffffff' });
+            const imgProps = pdf.getImageProperties(dataUrl);
+            const imgWidth = pdfWidth - (margin * 2);
+            const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+            if (currentY + imgHeight > pdfHeight - margin) {
+              pdf.addPage();
+              currentY = margin;
+            }
+
+            pdf.addImage(dataUrl, 'PNG', margin, currentY, imgWidth, imgHeight);
+            currentY += imgHeight;
+
+            document.body.removeChild(tempContainer);
+          }
+        }
+      }
+
+      // Add branding footer to the last page if there's room, or new page
+      const footerEl = reportRef.current.querySelector('.mt-12.mb-6.text-center') as HTMLElement;
+      if (footerEl) {
+        const dataUrl = await toPng(footerEl, { pixelRatio: 2, backgroundColor: '#ffffff' });
+        const imgProps = pdf.getImageProperties(dataUrl);
+        const imgWidth = pdfWidth - (margin * 2);
+        const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+        if (currentY + imgHeight > pdfHeight - margin) {
+          pdf.addPage();
+          currentY = margin;
+        }
+        pdf.addImage(dataUrl, 'PNG', margin, currentY, imgWidth, imgHeight);
       }
 
       pdf.save(`Door-to-Door-Report-${new Date().toLocaleDateString()}.pdf`);
     } catch (error) {
       console.error('PDF generation failed:', error);
     } finally {
-      setLoading(false);
+      setPdfExporting(false);
+    }
+  };
+
+  const [tableOnlyExporting, setTableOnlyExporting] = useState(false);
+
+  const handleExportTableOnly = async () => {
+    if (!reportRef.current) return;
+    setTableOnlyExporting(true);
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      let currentY = margin;
+
+      // Capture Header (Logos + Basic Title)
+      const headerSection = reportRef.current.querySelector('.relative.z-10') as HTMLElement;
+      if (headerSection) {
+        const dataUrl = await toPng(headerSection, { pixelRatio: 2, backgroundColor: '#ffffff' });
+        const imgProps = pdf.getImageProperties(dataUrl);
+        const imgWidth = pdfWidth - (margin * 2);
+        const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+        pdf.addImage(dataUrl, 'PNG', margin, currentY, imgWidth, imgHeight);
+        currentY += imgHeight + 10;
+      }
+
+      // Add a simple subtitle
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Detailed Coverage Table Only', margin, currentY);
+      currentY += 8;
+
+      // Find all tables (either main detailed or supervisor blocks)
+      const tables = Array.from(reportRef.current.querySelectorAll('table')) as HTMLElement[];
+      
+      for (const table of tables) {
+        // If it's supervisor view, try to capture the supervisor name header
+        const blockHeader = table.closest('.border.border-black.rounded-xl')?.querySelector('.bg-slate-900') as HTMLElement;
+        if (blockHeader) {
+          const headerUrl = await toPng(blockHeader, { pixelRatio: 2, backgroundColor: '#0f172a' });
+          const hProps = pdf.getImageProperties(headerUrl);
+          const hWidth = pdfWidth - (margin * 2);
+          const hHeight = (hProps.height * hWidth) / hProps.width;
+
+          if (currentY + hHeight > pdfHeight - margin) {
+            pdf.addPage();
+            currentY = margin;
+          }
+          pdf.addImage(headerUrl, 'PNG', margin, currentY, hWidth, hHeight);
+          currentY += hHeight;
+        }
+
+        // Chunk rendering for the table
+        const rows = Array.from(table.querySelectorAll('tbody tr')) as HTMLElement[];
+        const tableHeader = table.querySelector('thead') as HTMLElement;
+        const chunkSize = 20;
+
+        for (let i = 0; i < rows.length; i += chunkSize) {
+          const tempContainer = document.createElement('div');
+          tempContainer.style.position = 'absolute';
+          tempContainer.style.left = '-9999px';
+          tempContainer.style.width = table.offsetWidth + 'px';
+          tempContainer.style.backgroundColor = '#ffffff';
+          document.body.appendChild(tempContainer);
+
+          const tempTable = document.createElement('table');
+          tempTable.className = table.className;
+          tempTable.style.width = '100%';
+          tempTable.style.borderCollapse = 'collapse';
+          tempTable.style.border = '1px solid black';
+          
+          const tempHeader = tableHeader.cloneNode(true) as HTMLElement;
+          tempTable.appendChild(tempHeader);
+
+          const tempBody = document.createElement('tbody');
+          rows.slice(i, i + chunkSize).forEach(row => {
+            tempBody.appendChild(row.cloneNode(true));
+          });
+          tempTable.appendChild(tempBody);
+          tempContainer.appendChild(tempTable);
+
+          const dataUrl = await toPng(tempTable, { pixelRatio: 2, backgroundColor: '#ffffff' });
+          const imgProps = pdf.getImageProperties(dataUrl);
+          const imgWidth = pdfWidth - (margin * 2);
+          const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+          if (currentY + imgHeight > pdfHeight - margin) {
+            pdf.addPage();
+            currentY = margin;
+          }
+          pdf.addImage(dataUrl, 'PNG', margin, currentY, imgWidth, imgHeight);
+          currentY += imgHeight;
+
+          document.body.removeChild(tempContainer);
+        }
+        currentY += 10;
+      }
+
+      pdf.save(`Coverage_Table_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
+    } catch (err) {
+      console.error('Table export failed:', err);
+    } finally {
+      setTableOnlyExporting(false);
     }
   };
 
@@ -366,7 +610,28 @@ const DoorToDoorReport: React.FC = () => {
               System Live
             </div>
             <span className="text-slate-300 text-xs font-bold">|</span>
-            <span className="text-slate-400 text-xs font-bold">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+            <span className="text-slate-400 text-xs font-bold">
+              {data.length > 0 && data[0].Date ? 
+                (() => {
+                  const d = data[0].Date;
+                  const dateObj = new Date(d);
+                  if (!isNaN(dateObj.getTime())) {
+                    const day = dateObj.getDate().toString().padStart(2, '0');
+                    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+                    const year = dateObj.getFullYear();
+                    return `${day} / ${month} / ${year}`;
+                  }
+                  return d;
+                })() : 
+                (() => {
+                  const now = new Date();
+                  const day = now.getDate().toString().padStart(2, '0');
+                  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                  const year = now.getFullYear();
+                  return `${day} / ${month} / ${year}`;
+                })()
+              }
+            </span>
           </div>
           <h2 className="text-4xl font-black text-slate-800 tracking-tight flex items-center gap-3">
             <div className="p-2 bg-slate-900 text-white rounded-2xl shadow-xl shadow-slate-200">
@@ -400,13 +665,27 @@ const DoorToDoorReport: React.FC = () => {
           <button 
             onClick={handleExportPDF}
             className="flex items-center gap-2 px-8 py-3 bg-slate-900 text-white rounded-[1.5rem] hover:bg-black transition-all shadow-xl shadow-slate-200 font-black text-xs uppercase tracking-widest group"
+            disabled={pdfExporting}
           >
-            {loading ? (
+            {pdfExporting ? (
               <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <Download size={16} className="group-hover:translate-y-0.5 transition-transform" />
             )}
-            Download PDF
+            {pdfExporting ? 'Generating...' : 'Full Report'}
+          </button>
+
+          <button 
+            onClick={handleExportTableOnly}
+            className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white rounded-[1.5rem] hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 font-black text-xs uppercase tracking-widest group"
+            disabled={tableOnlyExporting}
+          >
+            {tableOnlyExporting ? (
+              <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Table size={16} className="group-hover:scale-110 transition-transform" />
+            )}
+            {tableOnlyExporting ? 'Processing...' : 'Table Only'}
           </button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import type { SummaryStats } from '../utils/dataProcessor';
+import { type SummaryStats, type WardAssignment, parseFile, formatDisplayDate } from '../utils/dataProcessor';
 import {
     QrCode,
     CheckCircle,
@@ -13,12 +13,12 @@ import {
     Image as ImageIcon,
     MessageCircle,
     Table,
-    Upload
+    Upload,
+    Trash2
 } from 'lucide-react';
 import { exportToJPEG } from '../utils/exporter';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import natureGreenLogo from '../assets/NatureGreen_Logo.png';
-import { parseFile } from '../utils/dataProcessor';
 
 import {
     BarChart,
@@ -74,7 +74,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onUpload }) => {
                     }
                 }
             }
-            onUpload(jsonData, fileDate);
+            onUpload(jsonData, formatDisplayDate(fileDate));
         } catch (error) {
             console.error("Upload failed", error);
             alert("Failed to process file");
@@ -259,17 +259,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onUpload }) => {
                     </div>
                 </div>
 
-                <label className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm cursor-pointer">
-                    <Upload className="w-4 h-4" />
-                    <span>{loading ? 'Processing...' : 'Upload Data'}</span>
-                    <input
-                        type="file"
-                        accept=".csv,.xlsx,.xls"
-                        className="hidden"
-                        onChange={handleFileUpload}
-                        disabled={loading}
-                    />
-                </label>
+                <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm cursor-pointer">
+                        <Upload className="w-4 h-4" />
+                        <span>{loading ? 'Processing...' : 'Upload Data'}</span>
+                        <input
+                            type="file"
+                            accept=".csv,.xlsx,.xls"
+                            className="hidden"
+                            onChange={handleFileUpload}
+                            disabled={loading}
+                        />
+                    </label>
+                    <button
+                        onClick={() => {
+                            if (window.confirm('Are you sure you want to clear current report data?')) {
+                                onUpload([], '');
+                            }
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors shadow-sm"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                        Clear Data
+                    </button>
+                </div>
                 <button
                     onClick={() => exportToJPEG('dashboard-report-container', 'Dashboard_Report')}
                     className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
@@ -352,7 +365,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onUpload }) => {
                     <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-6">Zone Wise Performance</h3>
                         <div className="h-[350px] w-full">
-                            <ResponsiveContainer width="100%" height="100%" minHeight={300}>
+                            <ResponsiveContainer width="100%" height="100%" minHeight={350}>
                                 <BarChart
                                     data={zoneChartData}
                                     margin={{
@@ -391,7 +404,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onUpload }) => {
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col">
                         <h3 className="text-lg font-bold text-gray-800 mb-4">Overall Completion</h3>
                         <div className="flex-1 min-h-[280px] relative mb-6">
-                            <ResponsiveContainer width="100%" height="100%" minHeight={250}>
+                            <ResponsiveContainer width="100%" height="100%" minHeight={280}>
                                 <PieChart>
                                     <Pie
                                         data={pieChartData}
@@ -458,7 +471,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onUpload }) => {
                     <div className="bg-white rounded-xl shadow-sm border-2 border-emerald-500 p-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-2">Scanned by Zonals</h3>
                         <div className="h-[350px] w-full relative">
-                            <ResponsiveContainer width="100%" height="100%" minHeight={300}>
+                            <ResponsiveContainer width="100%" height="100%" minHeight={350}>
                                 <PieChart margin={{ top: 5, right: 30, bottom: 5, left: 30 }}>
                                     <Pie
                                         data={zonalDonutData.scannedData}
@@ -533,7 +546,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onUpload }) => {
                     <div className="bg-white rounded-xl shadow-sm border-2 border-red-500 p-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-2">Pending by Zonals</h3>
                         <div className="h-[350px] w-full relative">
-                            <ResponsiveContainer width="100%" height="100%" minHeight={300}>
+                            <ResponsiveContainer width="100%" height="100%" minHeight={350}>
                                 <PieChart margin={{ top: 5, right: 30, bottom: 5, left: 30 }}>
                                     <Pie
                                         data={zonalDonutData.pendingData}
@@ -812,6 +825,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onUpload }) => {
                                         <th className="px-6 py-3 border-r border-emerald-400/50">Zonal Head</th>
                                         <th className="px-6 py-3 border-r border-emerald-400/50 text-right">Total</th>
                                         <th className="px-6 py-3 border-r border-emerald-400/50 text-right">Scanned</th>
+                                        <th className="px-6 py-3 border-r border-emerald-400/50 text-right text-[10px]">Before</th>
+                                        <th className="px-6 py-3 border-r border-emerald-400/50 text-right text-[10px]">After</th>
                                         <th className="px-6 py-3 border-r border-emerald-400/50 text-right">Pending</th>
                                         <th className="px-6 py-3 text-center">Progress</th>
                                     </tr>
@@ -822,8 +837,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onUpload }) => {
                                         const headDataFull = filteredWardStats.filter(w => w.zonalHead === headData.name).reduce((acc, curr) => ({
                                             total: acc.total + curr.total,
                                             scanned: acc.scanned + curr.scanned,
-                                            pending: acc.pending + curr.pending
-                                        }), { total: 0, scanned: 0, pending: 0 });
+                                            pending: acc.pending + curr.pending,
+                                            before: acc.before + (curr as any).beforeDone,
+                                            after: acc.after + (curr as any).afterDone
+                                        }), { total: 0, scanned: 0, pending: 0, before: 0, after: 0 });
 
                                         const percentage = headDataFull.total > 0 ? Math.round((headDataFull.scanned / headDataFull.total) * 100) : 0;
 
@@ -836,6 +853,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onUpload }) => {
                                                 <td className="px-6 py-3 font-bold text-gray-900 border-r border-gray-200">{headData.name}</td>
                                                 <td className="px-6 py-3 text-right text-gray-700 border-r border-gray-200 bg-emerald-50/30 font-mono font-bold">{headDataFull.total}</td>
                                                 <td className={`px-6 py-3 text-right font-mono font-bold border-r border-gray-200 ${scannedColor}`}>{headDataFull.scanned}</td>
+                                                <td className="px-6 py-3 text-right font-mono font-bold border-r border-gray-200 text-blue-600 bg-blue-50/20">{headDataFull.before}</td>
+                                                <td className="px-6 py-3 text-right font-mono font-bold border-r border-gray-200 text-indigo-600 bg-indigo-50/20">{headDataFull.after}</td>
                                                 <td className={`px-6 py-3 text-right font-mono font-bold border-r border-gray-200 ${pendingColor}`}>{headDataFull.pending}</td>
                                                 <td className="px-6 py-3 bg-gray-50/30">
                                                     <div className="flex items-center gap-2 justify-between">

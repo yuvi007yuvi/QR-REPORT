@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Papa from 'papaparse';
 import { Upload, Search, Download, Image as ImageIcon, Trash2, ClipboardCheck, MapPin } from 'lucide-react';
 import NagarNigamLogo from '../assets/nagar-nigam-logo.png';
@@ -7,6 +7,9 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toJpeg } from 'html-to-image';
 import { MASTER_SUPERVISORS } from '../data/master-supervisors';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
+import type { WardAssignment } from '../utils/dataProcessor';
 
 interface KPIRecord {
     'S.No': string;
@@ -39,6 +42,7 @@ export const KPIChecker: React.FC = () => {
     const [segregationFileName, setSegregationFileName] = useState<string | null>(null);
     const [rawUniformRecords, setRawUniformRecords] = useState<KPIRecord[]>([]);
     const [rawSegregationRecords, setRawSegregationRecords] = useState<KPIRecord[]>([]);
+    const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
 
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -48,6 +52,18 @@ export const KPIChecker: React.FC = () => {
     const uniformInputRef = useRef<HTMLInputElement>(null);
     const segregationInputRef = useRef<HTMLInputElement>(null);
     const reportRef = useRef<HTMLDivElement>(null);
+
+    // Fetch Ward Assignments from Firestore (updated via Admin Panel)
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
+            const mapping: Record<string, WardAssignment> = {};
+            snapshot.forEach((doc) => {
+                mapping[doc.id] = doc.data() as WardAssignment;
+            });
+            setWardAssignments(mapping);
+        });
+        return () => unsubscribe();
+    }, []);
 
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>, type: 'uniform' | 'segregation') => {
         const file = event.target.files?.[0];
@@ -71,6 +87,14 @@ export const KPIChecker: React.FC = () => {
         }
     };
 
+    // Re-process data when ward assignments update from Firestore
+    useEffect(() => {
+        if (rawUniformRecords.length > 0 || rawSegregationRecords.length > 0) {
+            recalculateStats(rawUniformRecords, rawSegregationRecords);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [wardAssignments]);
+
     // We need to keep track of the *other* dataset when processing one
     // So distinct process function isn't enough, we need to rebuild the map from both current raw sets
     // But since `handleFileUpload` is async and updates state, we might not have the *other* state updated yet if we rely on `rawUniformRecords` in the closure.
@@ -90,17 +114,45 @@ export const KPIChecker: React.FC = () => {
     const recalculateStats = (uniformRecs: KPIRecord[], segregationRecs: KPIRecord[]) => {
         const supervisorMap = new Map<string, SupervisorStat>();
 
-        // 1. Initialize with Master Data
+        // Build a lookup from Firestore ward_assignments: supervisor name -> { wards[], zonalName }
+        const wardsBySupName: Record<string, { wards: string[]; zonalName: string }> = {};
+        Object.entries(wardAssignments).forEach(([wardNum, assignment]) => {
+            const supNameRaw: string = (assignment as any).supervisorName || assignment.supervisor || '';
+            const zonalNameRaw: string = (assignment as any).zonalName || assignment.zonalHead || '';
+            if (!supNameRaw) return;
+
+            const supNames = supNameRaw.split(',').map((s: string) => s.trim()).filter(Boolean);
+            supNames.forEach((fullName: string) => {
+                const cleanName = fullName.replace(/\s*\(.*?\)\s*/g, '').trim().toLowerCase();
+                if (!cleanName) return;
+                if (!wardsBySupName[cleanName]) wardsBySupName[cleanName] = { wards: [], zonalName: zonalNameRaw };
+                wardsBySupName[cleanName].wards.push(wardNum);
+                if (zonalNameRaw) wardsBySupName[cleanName].zonalName = zonalNameRaw;
+            });
+        });
+
+        // Helper to find ward assignment for a supervisor by name
+        const findWardAssignment = (name: string): { wards: string[]; zonalName: string } | null => {
+            const cleanName = name.toLowerCase().trim().replace(/\s*\(.*?\)\s*/g, '').trim();
+            if (wardsBySupName[cleanName]) return wardsBySupName[cleanName];
+            for (const [adminName, data] of Object.entries(wardsBySupName)) {
+                if (adminName.includes(cleanName) || cleanName.includes(adminName)) return data;
+            }
+            return null;
+        };
+
+        // 1. Initialize with Master Data, enriched with admin panel data
         MASTER_SUPERVISORS.forEach(sup => {
             if (sup.department === 'UCC') return;
             const id = sup.empId.trim().toUpperCase();
+            const matched = findWardAssignment(sup.name);
             supervisorMap.set(id, {
                 name: sup.name,
                 id: sup.empId,
                 mobile: sup.mobile,
                 zone: 'N/A',
-                zonalName: sup.zonal,
-                ward: sup.ward,
+                zonalName: matched?.zonalName || sup.zonal,
+                ward: matched ? matched.wards.sort((a, b) => parseInt(a) - parseInt(b)).join(',') : sup.ward,
                 uniformCount: 0,
                 segregationCount: 0,
                 uniformLastTime: '-',
@@ -127,19 +179,26 @@ export const KPIChecker: React.FC = () => {
                         existing.segregationLastTime = record['Time'];
                     }
 
-                    // Update dynamic fields (prefer newer info?)
-                    // Just take valid data if missing
+                    // Update zone from CSV if missing
                     if (existing.zone === 'N/A' && zoneNum !== 'N/A') existing.zone = zoneNum;
-                    if (existing.ward === 'N/A' && wardStr !== 'N/A') existing.ward = wardStr;
+                    // Update ward/zonal from admin panel if available
+                    const matched = findWardAssignment(existing.name);
+                    if (matched) {
+                        if (matched.zonalName) existing.zonalName = matched.zonalName;
+                        if (matched.wards.length > 0) existing.ward = matched.wards.sort((a, b) => parseInt(a) - parseInt(b)).join(',');
+                    } else if (existing.ward === 'N/A' && wardStr !== 'N/A') {
+                        existing.ward = wardStr;
+                    }
                 } else {
-                    // New entry not in master
+                    // New entry not in master — try admin data
+                    const matched = findWardAssignment(name);
                     supervisorMap.set(id, {
                         name: name,
                         id: rawId || 'N/A',
                         mobile: record['Supervisor Number'] || 'N/A',
                         zone: zoneNum,
-                        zonalName: 'IEC TEAM (Sujeet Singh)',
-                        ward: wardStr,
+                        zonalName: matched?.zonalName || 'IEC TEAM (Sujeet Singh)',
+                        ward: matched ? matched.wards.sort((a, b) => parseInt(a) - parseInt(b)).join(',') : wardStr,
                         uniformCount: type === 'uniform' ? 1 : 0,
                         segregationCount: type === 'segregation' ? 1 : 0,
                         uniformLastTime: type === 'uniform' ? record['Time'] : '-',

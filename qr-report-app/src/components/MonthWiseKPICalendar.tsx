@@ -50,6 +50,7 @@ interface SupervisorMonthData {
     daysSegregationDone: number;
     bothDone: number;
     neitherDone: number;
+    rangeDays: number;
 }
 
 // ─────────────────────────────────────────────
@@ -129,8 +130,8 @@ interface SupCardProps {
 
 const SupCard: React.FC<SupCardProps> = ({ sup, year, month, daysInMonth, firstDay, onClick }) => {
     const today = new Date().toISOString().split('T')[0];
-    const compliance = daysInMonth > 0
-        ? Math.round((sup.bothDone / daysInMonth) * 100)
+    const compliance = sup.rangeDays > 0
+        ? Math.round((sup.bothDone / sup.rangeDays) * 100)
         : 0;
     const hasZeroUploads = sup.totalUniform === 0 && sup.totalSegregation === 0;
 
@@ -322,6 +323,21 @@ export const MonthWiseKPICalendar: React.FC = () => {
     const reportRef = useRef<HTMLDivElement>(null);
     const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
     const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const daysInMonth = getDaysInMonth(viewYear, viewMonth);
+    const firstDay = getFirstDayOfMonth(viewYear, viewMonth);
+
+    const activeDays = useMemo(() => {
+        const days = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dk = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            if (startDate && dk < startDate) continue;
+            if (endDate && dk > endDate) continue;
+            days.push(d);
+        }
+        return days;
+    }, [daysInMonth, viewYear, viewMonth, startDate, endDate]);
 
     // Fetch Ward Assignments from Firestore
     useEffect(() => {
@@ -338,31 +354,59 @@ export const MonthWiseKPICalendar: React.FC = () => {
     }, []);
 
     // ── parse & merge ──
-    const buildSupervisorData = (uRecs: KPIRecord[], sRecs: KPIRecord[], targetYear: number, targetMonth: number): SupervisorMonthData[] => {
+    const buildSupervisorData = (uRecs: KPIRecord[], sRecs: KPIRecord[], targetYear: number, targetMonth: number, sDate?: string, eDate?: string): SupervisorMonthData[] => {
         const map = new Map<string, SupervisorMonthData>();
 
-        // Seed from master
+        // Build a lookup: supervisor name -> { wards[], zonalName } from Firestore ward_assignments
+        // The admin saves fields as 'supervisorName' and 'zonalName'
+        const wardsBySupName: Record<string, { wards: string[]; zonalName: string }> = {};
+        Object.entries(wardAssignments).forEach(([wardNum, assignment]) => {
+            // Support both field naming conventions
+            const supNameRaw: string = (assignment as any).supervisorName || assignment.supervisor || '';
+            const zonalNameRaw: string = (assignment as any).zonalName || assignment.zonalHead || '';
+            if (!supNameRaw) return;
+
+            // Supervisor name may be a comma-separated list (e.g. "MAHAVEER (MSW), ANSHU (MSW)")
+            const supNames = supNameRaw.split(',').map(s => s.trim()).filter(Boolean);
+            supNames.forEach(fullName => {
+                // Strip department suffix like "(MSW)" or "(UCC)" for matching
+                const cleanName = fullName.replace(/\s*\(.*?\)\s*/g, '').trim().toLowerCase();
+                if (!cleanName) return;
+                if (!wardsBySupName[cleanName]) wardsBySupName[cleanName] = { wards: [], zonalName: zonalNameRaw };
+                wardsBySupName[cleanName].wards.push(wardNum);
+                // Always use the latest zonalName if multiple wards share the same supervisor
+                if (zonalNameRaw) wardsBySupName[cleanName].zonalName = zonalNameRaw;
+            });
+        });
+
+        console.log('KPI: wardsBySupName built from Firestore:', Object.keys(wardsBySupName).length, 'supervisors');
+
+        // Helper to find ward assignment for a supervisor by name
+        const findWardAssignment = (name: string): { wards: string[]; zonalName: string } | null => {
+            const cleanName = name.toLowerCase().trim().replace(/\s*\(.*?\)\s*/g, '').trim();
+            // Exact match first
+            if (wardsBySupName[cleanName]) return wardsBySupName[cleanName];
+            // Partial match: admin name contains this supervisor's name
+            for (const [adminName, data] of Object.entries(wardsBySupName)) {
+                if (adminName.includes(cleanName) || cleanName.includes(adminName)) return data;
+            }
+            return null;
+        };
+
+        // Seed from master supervisors list
         MASTER_SUPERVISORS.forEach(ms => {
             if (ms.department === 'UCC') return;
             const id = ms.empId.trim().toUpperCase();
 
-            // Try to find if this supervisor is in the dynamic ward assignments
-            const assignedWards: string[] = [];
-            let dynamicZonal = ms.zonal;
-
-            Object.entries(wardAssignments).forEach(([wardNum, assignment]) => {
-                if (assignment.supervisor.toLowerCase().includes(ms.name.toLowerCase())) {
-                    assignedWards.push(wardNum);
-                    dynamicZonal = assignment.zonalHead;
-                }
-            });
-
+            const matched = findWardAssignment(ms.name);
             map.set(id, {
                 name: ms.name, id: ms.empId, mobile: ms.mobile,
-                zone: 'N/A', zonalName: dynamicZonal, 
-                ward: assignedWards.length > 0 ? assignedWards.sort((a,b) => parseInt(a)-parseInt(b)).join(',') : ms.ward,
+                zone: 'N/A',
+                zonalName: matched?.zonalName || ms.zonal,
+                ward: matched ? matched.wards.sort((a, b) => parseInt(a) - parseInt(b)).join(',') : ms.ward,
                 days: {}, totalUniform: 0, totalSegregation: 0,
-                daysUniformDone: 0, daysSegregationDone: 0, bothDone: 0, neitherDone: 0
+                daysUniformDone: 0, daysSegregationDone: 0, bothDone: 0, neitherDone: 0,
+                rangeDays: 0
             });
         });
 
@@ -375,14 +419,28 @@ export const MonthWiseKPICalendar: React.FC = () => {
             if (!dateKey) return;
 
             if (!map.has(id)) {
+                // New supervisor from CSV not in master list — try to get zonal from admin
+                const matched = findWardAssignment(name);
                 map.set(id, {
                     name, id: rawId || 'N/A', mobile: rec['Supervisor Number'] || 'N/A',
-                    zone: rec['Zone-Circle'] || 'N/A', zonalName: 'IEC TEAM',
-                    ward: rec['Ward'] || 'N/A', days: {},
+                    zone: rec['Zone-Circle'] || 'N/A',
+                    zonalName: matched?.zonalName || 'IEC TEAM',
+                    ward: matched ? matched.wards.join(',') : (rec['Ward'] || 'N/A'),
+                    days: {},
                     totalUniform: 0, totalSegregation: 0,
-                    daysUniformDone: 0, daysSegregationDone: 0, bothDone: 0, neitherDone: 0
+                    daysUniformDone: 0, daysSegregationDone: 0, bothDone: 0, neitherDone: 0,
+                    rangeDays: 0
                 });
+            } else {
+                // Supervisor already in map (from master) — update ward/zonal from admin if available
+                const sup = map.get(id)!;
+                const matched = findWardAssignment(sup.name);
+                if (matched) {
+                    if (matched.zonalName) sup.zonalName = matched.zonalName;
+                    if (matched.wards.length > 0) sup.ward = matched.wards.sort((a, b) => parseInt(a) - parseInt(b)).join(',');
+                }
             }
+
             const sup = map.get(id)!;
             if (!sup.days[dateKey]) sup.days[dateKey] = { uniform: 0, segregation: 0 };
             if (type === 'uniform') {
@@ -400,9 +458,15 @@ export const MonthWiseKPICalendar: React.FC = () => {
         // Calculate day-level stats for the target month
         const daysInMonth = getDaysInMonth(targetYear, targetMonth);
         map.forEach(sup => {
-            let both = 0, neither = 0, uDays = 0, sDays = 0;
+            let both = 0, neither = 0, uDays = 0, sDays = 0, counted = 0;
             for (let d = 1; d <= daysInMonth; d++) {
                 const dk = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                
+                // If a specific range is provided, only count days within it
+                if (sDate && dk < sDate) continue;
+                if (eDate && dk > eDate) continue;
+                
+                counted++;
                 const entry = sup.days[dk];
                 const u = entry?.uniform ?? 0;
                 const s = entry?.segregation ?? 0;
@@ -415,6 +479,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
             sup.daysSegregationDone = sDays;
             sup.bothDone = both;
             sup.neitherDone = neither;
+            sup.rangeDays = counted || daysInMonth;
         });
 
         return Array.from(map.values()).sort((a, b) => b.bothDone - a.bothDone);
@@ -441,9 +506,9 @@ export const MonthWiseKPICalendar: React.FC = () => {
     };
 
     const supervisors = useMemo(
-        () => buildSupervisorData(rawUniform, rawSegregation, viewYear, viewMonth),
+        () => buildSupervisorData(rawUniform, rawSegregation, viewYear, viewMonth, startDate, endDate),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [rawUniform, rawSegregation, viewYear, viewMonth, wardAssignments]
+        [rawUniform, rawSegregation, viewYear, viewMonth, wardAssignments, startDate, endDate]
     );
 
     const uniqueZonals = useMemo(() =>
@@ -451,12 +516,9 @@ export const MonthWiseKPICalendar: React.FC = () => {
         [supervisors]
     );
 
-    const daysInMonth = getDaysInMonth(viewYear, viewMonth);
-    const firstDay = getFirstDayOfMonth(viewYear, viewMonth);
-
     const filteredSups = useMemo(() => {
         return supervisors.filter(s => {
-            const compliance = daysInMonth > 0 ? (s.bothDone / daysInMonth) * 100 : 0;
+            const compliance = s.rangeDays > 0 ? (s.bothDone / s.rangeDays) * 100 : 0;
             const matchSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 s.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 s.ward.toLowerCase().includes(searchTerm.toLowerCase());
@@ -468,7 +530,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
                 (filterCompliance === 'poor' && compliance < 50);
             return matchSearch && matchZonal && matchCompliance;
         });
-    }, [supervisors, searchTerm, filterZonal, filterCompliance, daysInMonth]);
+    }, [supervisors, searchTerm, filterZonal, filterCompliance]);
 
     // ── Navigation ──
     const prevMonth = () => {
@@ -482,10 +544,9 @@ export const MonthWiseKPICalendar: React.FC = () => {
 
     // ── Aggregated monthly stats ──
     const monthStats = useMemo(() => {
-        const totalDays = daysInMonth;
         const active = supervisors.filter(s => s.bothDone > 0 || s.daysUniformDone > 0 || s.daysSegregationDone > 0).length;
         const avgCompliance = supervisors.length > 0
-            ? Math.round(supervisors.reduce((acc, s) => acc + (s.bothDone / totalDays) * 100, 0) / supervisors.length)
+            ? Math.round(supervisors.reduce((acc, s) => acc + (s.rangeDays > 0 ? (s.bothDone / s.rangeDays) * 100 : 0), 0) / supervisors.length)
             : 0;
         const topPerformer = supervisors.find(s => s.bothDone === Math.max(...supervisors.map(x => x.bothDone)));
         return { active, avgCompliance, topPerformer };
@@ -500,7 +561,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
         doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 24);
 
         const tableData = filteredSups.map((s, i) => {
-            const comp = daysInMonth > 0 ? Math.round((s.bothDone / daysInMonth) * 100) : 0;
+            const comp = s.rangeDays > 0 ? Math.round((s.bothDone / s.rangeDays) * 100) : 0;
             return [
                 i + 1,
                 s.name,
@@ -615,7 +676,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
         ];
 
         filteredSups.forEach((s, i) => {
-            const comp = daysInMonth > 0 ? Math.round((s.bothDone / daysInMonth) * 100) : 0;
+            const comp = s.rangeDays > 0 ? Math.round((s.bothDone / s.rangeDays) * 100) : 0;
             summaryRows.push([
                 i + 1, s.name, s.id, s.mobile, s.zonalName, s.ward,
                 s.totalUniform, s.totalSegregation,
@@ -630,7 +691,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
 
         // ── Sheet 2: Day-wise Detail (all supervisors × all days) ──
         const dayHeaders = ['Supervisor', 'ID', 'Zonal'];
-        for (let d = 1; d <= daysInMonth; d++) dayHeaders.push(String(d));
+        activeDays.forEach(d => dayHeaders.push(String(d)));
         dayHeaders.push('Total U', 'Total S', 'Both Days', 'Compliance %');
 
         const dayRowsU: any[][] = [['=== UNIFORM COMPLIANCE ==='], dayHeaders];
@@ -639,13 +700,13 @@ export const MonthWiseKPICalendar: React.FC = () => {
         filteredSups.forEach(s => {
             const uRow: (string | number)[] = [s.name, s.id, s.zonalName];
             const sRow: (string | number)[] = [s.name, s.id, s.zonalName];
-            for (let d = 1; d <= daysInMonth; d++) {
+            activeDays.forEach(d => {
                 const dk = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 const entry = s.days[dk];
                 uRow.push(entry?.uniform ?? 0);
                 sRow.push(entry?.segregation ?? 0);
-            }
-            const comp = daysInMonth > 0 ? Math.round((s.bothDone / daysInMonth) * 100) : 0;
+            });
+            const comp = s.rangeDays > 0 ? Math.round((s.bothDone / s.rangeDays) * 100) : 0;
             uRow.push(s.totalUniform, s.totalSegregation, s.bothDone, `${comp}%`);
             sRow.push(s.totalUniform, s.totalSegregation, s.bothDone, `${comp}%`);
             dayRowsU.push(uRow);
@@ -749,6 +810,36 @@ export const MonthWiseKPICalendar: React.FC = () => {
                             className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
                             <ChevronRight className="w-5 h-5 text-slate-600" />
                         </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">From</span>
+                            <input 
+                                type="date" 
+                                value={startDate}
+                                onChange={e => setStartDate(e.target.value)}
+                                className="bg-transparent text-xs font-bold text-slate-700 focus:outline-none"
+                            />
+                        </div>
+                        <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">To</span>
+                            <input 
+                                type="date" 
+                                value={endDate}
+                                onChange={e => setEndDate(e.target.value)}
+                                className="bg-transparent text-xs font-bold text-slate-700 focus:outline-none"
+                            />
+                        </div>
+                        {(startDate || endDate) && (
+                            <button 
+                                onClick={() => { setStartDate(''); setEndDate(''); }}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Clear Range"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
@@ -883,47 +974,49 @@ export const MonthWiseKPICalendar: React.FC = () => {
                                     <span>Supervisor Coverage: {filteredSups.length} Records found</span>
                                     <span>Report Generated on: {new Date().toLocaleString()}</span>
                                 </div>
-                                <table className="w-full text-[10px] border-collapse min-w-[1500px] border border-slate-800">
+                                <table className="w-full text-[10px] border-collapse min-w-[1500px] border border-slate-300">
                                     <thead>
-                                        <tr className="bg-slate-50 border-b border-slate-800">
-                                            <th className="sticky left-0 z-20 bg-slate-50 px-2 py-3 text-left font-bold text-slate-800 border-r border-slate-800 w-12">#</th>
-                                            <th className="sticky left-12 z-20 bg-slate-50 px-3 py-3 text-left font-bold text-slate-800 border-r border-slate-800 w-48">Supervisor</th>
-                                            <th className="sticky left-60 z-20 bg-slate-50 px-2 py-3 text-center font-bold text-slate-800 border-r border-slate-800 w-24">ID</th>
-                                            {Array.from({ length: daysInMonth }).map((_, i) => (
-                                                <th key={i} className="px-1 py-3 text-center font-bold text-slate-800 border-r border-slate-800 min-w-[30px]">{i + 1}</th>
+                                        <tr className="bg-slate-100 border-b border-slate-300">
+                                            <th className="sticky left-0 z-20 bg-slate-100 px-2 py-2.5 text-left font-bold text-slate-700 border-r border-slate-300 w-12">#</th>
+                                            <th className="sticky left-12 z-20 bg-slate-100 px-3 py-2.5 text-left font-bold text-slate-700 border-r border-slate-300 w-48">Supervisor Name</th>
+                                            <th className="sticky left-60 z-20 bg-slate-100 px-2 py-2.5 text-center font-bold text-slate-700 border-r border-slate-300 w-24">Employee ID</th>
+                                            {activeDays.map((dayNum) => (
+                                                <th key={dayNum} className="px-1 py-2.5 text-center font-bold text-slate-600 border-r border-slate-200 min-w-[32px]">{dayNum}</th>
                                             ))}
-                                            <th className="px-2 py-3 text-center font-bold text-emerald-900 bg-emerald-50 border-r border-slate-800">Both</th>
-                                            <th className="px-2 py-3 text-center font-bold text-slate-700 bg-slate-50 border-r border-slate-800">U</th>
-                                            <th className="px-2 py-3 text-center font-bold text-amber-900 bg-amber-50 border-r border-slate-800">S</th>
+                                            <th className="px-2 py-2.5 text-center font-bold text-emerald-800 bg-emerald-50/50 border-r border-slate-300">Both</th>
+                                            <th className="px-2 py-2.5 text-center font-bold text-blue-800 bg-blue-50/50 border-r border-slate-300">U</th>
+                                            <th className="px-2 py-2.5 text-center font-bold text-amber-800 bg-amber-50/50 border-r border-slate-300">S</th>
+                                            <th className="px-2 py-2.5 text-center font-bold text-slate-800 bg-slate-100">Compliance %</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredSups.map((sup, idx) => {
+                                            const compliance = sup.rangeDays > 0 ? Math.round((sup.bothDone / sup.rangeDays) * 100) : 0;
                                             const hasZeroUploads = sup.totalUniform === 0 && sup.totalSegregation === 0;
                                             return (
-                                                <tr key={sup.id} className={`border-b border-slate-800 transition-colors ${hasZeroUploads ? 'bg-red-50/50 hover:bg-red-100/50' : 'hover:bg-slate-50'}`}>
-                                                    <td className={`sticky left-0 z-10 px-2 py-2 font-mono text-center border-r border-slate-800 ${hasZeroUploads ? 'bg-red-50 text-red-600' : 'bg-white text-slate-600'}`}>{idx + 1}</td>
-                                                    <td className={`sticky left-12 z-10 px-3 py-2 font-bold border-r border-slate-800 truncate max-w-[192px] ${hasZeroUploads ? 'bg-red-50 text-red-700' : 'bg-white text-slate-800'}`}>{sup.name}</td>
-                                                    <td className={`sticky left-60 z-10 px-2 py-2 text-center font-mono border-r border-slate-800 ${hasZeroUploads ? 'bg-red-50 text-red-600' : 'bg-white text-slate-600'}`}>{sup.id}</td>
-                                                    {Array.from({ length: daysInMonth }).map((_, i) => {
-                                                        const dayNum = i + 1;
+                                                <tr key={sup.id} className={`border-b border-slate-200 transition-colors ${hasZeroUploads ? 'bg-red-50/30' : 'hover:bg-slate-50'}`}>
+                                                    <td className={`sticky left-0 z-10 px-2 py-2 font-mono text-center border-r border-slate-300 ${hasZeroUploads ? 'bg-red-50 text-red-600' : 'bg-white text-slate-500'}`}>{idx + 1}</td>
+                                                    <td className={`sticky left-12 z-10 px-3 py-2 font-bold border-r border-slate-300 truncate max-w-[192px] ${hasZeroUploads ? 'bg-red-50 text-red-700' : 'bg-white text-slate-800'}`}>{sup.name}</td>
+                                                    <td className={`sticky left-60 z-10 px-2 py-2 text-center font-mono border-r border-slate-300 ${hasZeroUploads ? 'bg-red-50 text-red-600' : 'bg-white text-slate-600'}`}>{sup.id}</td>
+                                                    {activeDays.map((dayNum) => {
                                                         const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
                                                         const entry = sup.days[dateKey];
                                                         const u = entry?.uniform ?? 0;
                                                         const s = entry?.segregation ?? 0;
                                                         
-                                                        let bgColor = 'bg-red-50';
-                                                        let textColor = 'text-red-400';
-                                                        let label = '✕';
+                                                        let bgColor = 'bg-transparent';
+                                                        let textColor = 'text-slate-300';
+                                                        let label = '.';
 
                                                         if (u > 0 && s > 0) { bgColor = 'bg-emerald-500'; label = 'B'; textColor = 'text-white'; }
                                                         else if (u > 0) { bgColor = 'bg-emerald-400'; label = 'U'; textColor = 'text-white'; }
                                                         else if (s > 0) { bgColor = 'bg-amber-400'; label = 'S'; textColor = 'text-white'; }
+                                                        else if (u === 0 && s === 0 && !hasZeroUploads) { label = '✕'; textColor = 'text-red-300'; }
 
                                                         return (
-                                                            <td key={i} className="p-0.5 border-r border-slate-800">
+                                                            <td key={dayNum} className="p-0 border-r border-slate-200 h-10 w-8">
                                                                 <div 
-                                                                    className={`w-full aspect-square flex items-center justify-center rounded-sm font-black text-[9px] ${bgColor} ${textColor}`}
+                                                                    className={`w-full h-full flex items-center justify-center font-black text-[10px] ${bgColor} ${textColor}`}
                                                                     title={`Day ${dayNum}: U:${u} S:${s}`}
                                                                 >
                                                                     {label}
@@ -931,13 +1024,50 @@ export const MonthWiseKPICalendar: React.FC = () => {
                                                             </td>
                                                         );
                                                     })}
-                                                    <td className="px-2 py-2 text-center font-black text-emerald-800 bg-emerald-50 border-r border-slate-800">{sup.bothDone}</td>
-                                                    <td className="px-2 py-2 text-center font-bold text-slate-700 bg-slate-50 border-r border-slate-800">{sup.daysUniformDone}</td>
-                                                    <td className="px-2 py-2 text-center font-bold text-amber-800 bg-amber-50 border-r border-slate-800">{sup.daysSegregationDone}</td>
+                                                    <td className="px-2 py-2 text-center font-black text-emerald-800 bg-emerald-50/30 border-r border-slate-300">{sup.bothDone}</td>
+                                                    <td className="px-2 py-2 text-center font-bold text-blue-800 bg-blue-50/30 border-r border-slate-300">{sup.daysUniformDone}</td>
+                                                    <td className="px-2 py-2 text-center font-bold text-amber-800 bg-amber-50/30 border-r border-slate-300">{sup.daysSegregationDone}</td>
+                                                    <td className={`px-2 py-2 text-center font-black border-l border-slate-300 ${compliance >= 80 ? 'text-emerald-600 bg-emerald-50/20' : compliance >= 50 ? 'text-amber-600 bg-amber-50/20' : 'text-red-600 bg-red-50/20'}`}>
+                                                        {compliance}%
+                                                    </td>
                                                 </tr>
                                             );
                                         })}
                                     </tbody>
+                                    <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-400">
+                                        <tr className="border-b border-slate-300">
+                                            <td colSpan={3} className="sticky left-0 z-20 bg-slate-100 px-3 py-2 text-right border-r border-slate-300">Daily Both Done (B)</td>
+                                            {activeDays.map(dayNum => {
+                                                const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                                                const count = filteredSups.filter(s => (s.days[dateKey]?.uniform ?? 0) > 0 && (s.days[dateKey]?.segregation ?? 0) > 0).length;
+                                                return <td key={dayNum} className="text-center bg-emerald-50 text-emerald-700 border-r border-slate-200">{count}</td>
+                                            })}
+                                            <td className="text-center bg-emerald-100 border-r border-slate-300">{filteredSups.reduce((acc, s) => acc + s.bothDone, 0)}</td>
+                                            <td colSpan={3} className="bg-slate-50"></td>
+                                        </tr>
+                                        <tr className="border-b border-slate-300">
+                                            <td colSpan={3} className="sticky left-0 z-20 bg-slate-100 px-3 py-2 text-right border-r border-slate-300">Daily Uniform (U)</td>
+                                            {activeDays.map(dayNum => {
+                                                const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                                                const count = filteredSups.filter(s => (s.days[dateKey]?.uniform ?? 0) > 0).length;
+                                                return <td key={dayNum} className="text-center bg-blue-50 text-blue-700 border-r border-slate-200">{count}</td>
+                                            })}
+                                            <td className="bg-slate-50 border-r border-slate-300"></td>
+                                            <td className="text-center bg-blue-100 border-r border-slate-300">{filteredSups.reduce((acc, s) => acc + s.daysUniformDone, 0)}</td>
+                                            <td colSpan={2} className="bg-slate-50"></td>
+                                        </tr>
+                                        <tr className="border-b border-slate-300">
+                                            <td colSpan={3} className="sticky left-0 z-20 bg-slate-100 px-3 py-2 text-right border-r border-slate-300">Daily Segregation (S)</td>
+                                            {activeDays.map(dayNum => {
+                                                const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                                                const count = filteredSups.filter(s => (s.days[dateKey]?.segregation ?? 0) > 0).length;
+                                                return <td key={dayNum} className="text-center bg-amber-50 text-amber-700 border-r border-slate-200">{count}</td>
+                                            })}
+                                            <td colSpan={2} className="bg-slate-50 border-r border-slate-300"></td>
+                                            <td className="text-center bg-amber-100 border-r border-slate-300">{filteredSups.reduce((acc, s) => acc + s.daysSegregationDone, 0)}</td>
+                                            <td className="bg-slate-50"></td>
+                                        </tr>
+                                    </tfoot>
                                 </table>
                             </div>
                         )}
@@ -984,7 +1114,7 @@ export const MonthWiseKPICalendar: React.FC = () => {
                                 </thead>
                                 <tbody>
                                     {filteredSups.map((sup, i) => {
-                                        const compliance = daysInMonth > 0 ? Math.round((sup.bothDone / daysInMonth) * 100) : 0;
+                                        const compliance = sup.rangeDays > 0 ? Math.round((sup.bothDone / sup.rangeDays) * 100) : 0;
                                         const hasZeroUploads = sup.totalUniform === 0 && sup.totalSegregation === 0;
                                         return (
                                             <tr

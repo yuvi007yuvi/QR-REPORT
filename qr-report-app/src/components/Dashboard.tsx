@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { type SummaryStats, type WardAssignment, parseFile, formatDisplayDate } from '../utils/dataProcessor';
+import { type SummaryStats, parseFile, formatDisplayDate } from '../utils/dataProcessor';
 import {
     QrCode,
     CheckCircle,

@@ -17,6 +17,7 @@ import {
     ShieldCheck,
     Settings
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 
@@ -47,7 +48,13 @@ export type ViewMode =
     | 'detailed-zonal-qr'
     | 'zonal-tabular-report'
     | 'detailed-qr-list'
-    | 'admin-panel';
+    | 'admin-panel'
+    | 'admin-ward-mapping'
+    | 'admin-qr-master'
+    | 'admin-ucc-mapping'
+    | 'admin-user-management'
+    | 'admin-data-seeding'
+    | 'no-access';
 
 
 interface SidebarProps {
@@ -61,7 +68,7 @@ interface SidebarProps {
 }
 
 
-const menuItems = [
+export const menuItems = [
     {
         id: 'daily',
         label: 'Daily Reports',
@@ -95,7 +102,7 @@ const menuItems = [
     },
     {
         id: 'collection',
-        label: 'Collection Reports',
+        label: 'UCC Analysis',
         icon: Banknote,
         items: [
             { id: 'ucc-report', label: 'UCC Collection Analysis', icon: BarChart3 },
@@ -124,6 +131,19 @@ const menuItems = [
         items: [
             { id: 'msw-date-wise', label: 'Date Wise MSW', icon: Calendar },
         ]
+    },
+    {
+        id: 'admin',
+        label: 'Administration',
+        icon: ShieldCheck,
+        items: [
+            { id: 'admin-panel', label: 'Admin Overview', icon: Settings },
+            { id: 'admin-ward-mapping', label: 'Ward Mapping', icon: Map },
+            { id: 'admin-qr-master', label: 'Master QR List', icon: FileSpreadsheet },
+            { id: 'admin-ucc-mapping', label: 'UCC Mapping', icon: Map },
+            { id: 'admin-user-management', label: 'User Management', icon: Settings },
+            { id: 'admin-data-seeding', label: 'Data Seeding', icon: Settings },
+        ]
     }
 ];
 
@@ -136,19 +156,26 @@ const Sidebar: React.FC<SidebarProps> = ({
     onClose,
     isAdmin
 }) => {
-    // Merge base items with admin items if applicable
-    const accessibleMenuItems = [...menuItems];
-    
-    if (isAdmin) {
-        accessibleMenuItems.unshift({
-            id: 'admin' as any,
-            label: 'Administration',
-            icon: ShieldCheck as any,
-            items: [
-                { id: 'admin-panel', label: 'Admin Panel', icon: Settings as any },
-            ]
-        });
-    }
+    const { currentUser } = useAuth();
+
+    // Filter items based on RBAC
+    let accessibleMenuItems = menuItems.map(section => {
+        // Admins see everything
+        if (isAdmin) return section;
+
+        // If no allowedViews configured yet (legacy users), show everything except admin
+        if (!currentUser?.allowedViews || currentUser.allowedViews.length === 0) {
+            if (section.id === 'admin') return { ...section, items: [] };
+            return section;
+        }
+        
+        // Filter items in the section based on allowedViews
+        const filteredItems = section.items.filter(item => currentUser.allowedViews?.includes(item.id));
+        return {
+            ...section,
+            items: filteredItems
+        };
+    }).filter(section => section.items.length > 0); // Remove empty sections
 
 
     return (

@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyA9qyk4eaRdZZW7MY5ajM9KYqQjn3mmYZ8",
   authDomain: "portal-buddy-mvnn.firebaseapp.com",
   projectId: "portal-buddy-mvnn",

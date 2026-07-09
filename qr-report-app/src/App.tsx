@@ -29,7 +29,7 @@ import DoorToDoorReport from './components/DoorToDoorReport';
 import { AdminPanel } from './components/AdminPanel';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
-import { LogOut } from 'lucide-react';
+import { LogOut, ShieldCheck } from 'lucide-react';
 import { processData } from './utils/dataProcessor';
 import masterData from './data/masterData.json';
 import supervisorData from './data/supervisorData.json';
@@ -41,8 +41,12 @@ import { formatDisplayDate } from './utils/dataProcessor';
 const App: React.FC = () => {
   const { currentUser, isLoading: authLoading, logout, isAdmin } = useAuth();
   
-  const [currentSection, setCurrentSection] = useState<AppSection>('daily');
-  const [currentView, setCurrentView] = useState<ViewMode>('dashboard');
+  const [currentSection, setCurrentSection] = useState<AppSection>(() => {
+    return (localStorage.getItem('currentSection') as AppSection) || 'daily';
+  });
+  const [currentView, setCurrentView] = useState<ViewMode>(() => {
+    return (localStorage.getItem('currentView') as ViewMode) || 'dashboard';
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingView, setPendingView] = useState<string | null>(null);
@@ -60,6 +64,15 @@ const App: React.FC = () => {
   const [masterQRPoints, setMasterQRPoints] = useState<any[]>([]);
   const [scannedData, setScannedData] = useState<any[]>([]);
   const [selectedZone, setSelectedZone] = useState<string>('All');
+
+  // Persist routing state across refreshes
+  React.useEffect(() => {
+    localStorage.setItem('currentSection', currentSection);
+  }, [currentSection]);
+
+  React.useEffect(() => {
+    localStorage.setItem('currentView', currentView);
+  }, [currentView]);
 
   // Fetch Ward Assignments from Firestore
   React.useEffect(() => {
@@ -93,6 +106,29 @@ const App: React.FC = () => {
     setReportStats(stats);
   }, [masterQRPoints, scannedData, wardAssignments, selectedZone]);
 
+  // Enforce RBAC constraints on currentView
+  React.useEffect(() => {
+    if (!currentUser || isAdmin) return;
+    
+    const allowed = currentUser.allowedViews;
+    
+    // Legacy fallback: if allowedViews is undefined, allow all
+    if (!allowed) return;
+    
+    if (allowed.length === 0) {
+       // If no views allowed, maybe we should set to a special no-access view, but for now we let it render nothing or a restricted dashboard.
+       if (currentView !== 'no-access') {
+           setCurrentView('no-access');
+       }
+       return;
+    }
+    
+    // If current view is not allowed, redirect to the first allowed view
+    if (currentView !== 'no-access' && !allowed.includes(currentView)) {
+        setCurrentView(allowed[0] as ViewMode);
+    }
+  }, [currentUser, currentView, isAdmin]);
+
   // Auth guard MUST be after state definitions to prevent flashes or errors
   if (authLoading) {
     return (
@@ -118,6 +154,22 @@ const App: React.FC = () => {
     return <LoginPage />;
   }
 
+  if (currentUser.status === 'disabled') {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
+          <ShieldCheck size={64} className="text-rose-400 mb-4" />
+          <h2 className="text-2xl font-bold text-slate-800">Account Disabled</h2>
+          <p className="text-slate-500 mt-2">Your access to the portal has been suspended.</p>
+          <button 
+              onClick={() => logout()}
+              className="mt-6 px-6 py-2.5 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-colors"
+          >
+              Sign Out
+          </button>
+      </div>
+    );
+  }
+
   console.log('App: Current User:', currentUser?.email, 'isAdmin:', isAdmin);
 
 
@@ -139,6 +191,16 @@ const App: React.FC = () => {
   };
 
   const renderCurrentView = () => {
+    if (currentView === 'no-access') {
+      return (
+          <div className="flex flex-col items-center justify-center h-[70vh]">
+              <ShieldCheck size={64} className="text-slate-300 mb-4" />
+              <h2 className="text-2xl font-bold text-slate-700">Access Restricted</h2>
+              <p className="text-slate-500 mt-2">You don't have permission to view any modules. Please contact an administrator.</p>
+          </div>
+      );
+    }
+
     switch (currentView) {
       case 'dashboard':
         return <Dashboard stats={reportStats} onUpload={handleGlobalUpload} />;
@@ -183,7 +245,12 @@ const App: React.FC = () => {
       case 'detailed-qr-list':
         return <DetailedQRTable data={reportData} date={reportDate} wardAssignments={wardAssignments} />;
       case 'admin-panel':
-        return <AdminPanel />;
+      case 'admin-ward-mapping':
+      case 'admin-qr-master':
+      case 'admin-ucc-mapping':
+      case 'admin-user-management':
+      case 'admin-data-seeding':
+        return <AdminPanel initialTab={currentView} />;
       default:
         return <Dashboard stats={reportStats} onUpload={handleGlobalUpload} />;
     }

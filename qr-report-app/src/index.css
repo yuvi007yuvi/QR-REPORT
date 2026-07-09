@@ -2,7 +2,7 @@
 @import "tailwindcss";
 
 /* =====================================================
-   QR-REPORT PORTAL — DESIGN SYSTEM v3.0
+   QR-REPORT PORTAL â€” DESIGN SYSTEM v3.0
    Shell-only. Export components are NOT affected.
    ===================================================== */
 
@@ -94,7 +94,7 @@ body {
 }
 
 /* =====================================================
-   SIDEBAR — PRISTINE LIGHT THEME
+   SIDEBAR â€” PRISTINE LIGHT THEME
    ===================================================== */
 
 .portal-sidebar {
@@ -612,11 +612,11 @@ body {
 /* =====================================================
    GLOBAL CONTENT AREA IMPROVEMENTS
    Applies across ALL report pages.
-   Excel exports are binary — unaffected.
+   Excel exports are binary â€” unaffected.
    Image/PDF exports will look BETTER.
    ===================================================== */
 
-/* ── Typography ── */
+/* â”€â”€ Typography â”€â”€ */
 .portal-content h1,
 .portal-content h2,
 .portal-content h3,
@@ -639,9 +639,9 @@ body {
   color: #475569;
 }
 
-/* ── Global Card / Panel upgrade ──
+/* â”€â”€ Global Card / Panel upgrade â”€â”€
    Targets white rounded boxes used by all dashboards */
-/* ── Global Card / Panel upgrade ── */
+/* â”€â”€ Global Card / Panel upgrade â”€â”€ */
 .portal-content .bg-white {
   background: var(--color-surface) !important;
   border-radius: 16px !important;
@@ -656,7 +656,7 @@ body {
   transform: translateY(-2px);
 }
 
-/* ── Stat Cards — number emphasis ── */
+/* â”€â”€ Stat Cards â€” number emphasis â”€â”€ */
 .portal-content .text-3xl,
 .portal-content .text-4xl,
 .portal-content .text-5xl {
@@ -680,7 +680,7 @@ body {
   background: none !important;
 }
 
-/* ── Global Table Improvements ── */
+/* â”€â”€ Global Table Improvements â”€â”€ */
 .portal-content table {
   width: 100%;
   border-collapse: separate !important;
@@ -742,7 +742,7 @@ body {
   border-bottom: none !important;
 }
 
-/* ── Global Button improvements ── */
+/* â”€â”€ Global Button improvements â”€â”€ */
 .portal-content button,
 .portal-content .btn {
   font-family: var(--font-primary);
@@ -835,7 +835,7 @@ body {
   color: var(--accent-emerald) !important;
 }
 
-/* ── Global Select / Input styling ── */
+/* â”€â”€ Global Select / Input styling â”€â”€ */
 .portal-content select,
 .portal-content input[type="text"],
 .portal-content input[type="date"],
@@ -863,7 +863,7 @@ body {
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
 }
 
-/* ── Status / Badge Pills ── */
+/* â”€â”€ Status / Badge Pills â”€â”€ */
 .portal-content .badge,
 .portal-content [class*="badge"],
 .portal-content .px-2.py-1.rounded-full,
@@ -876,21 +876,21 @@ body {
   padding: 3px 10px !important;
 }
 
-/* ── Section headers / Filter bars ── */
+/* â”€â”€ Section headers / Filter bars â”€â”€ */
 .portal-content .filter-bar,
 .portal-content [class*="flex"][class*="gap"][class*="items-center"] > select,
 .portal-content [class*="flex"][class*="gap"][class*="items-center"] > input {
   height: 36px;
 }
 
-/* ── Dividers / separators ── */
+/* â”€â”€ Dividers / separators â”€â”€ */
 .portal-content hr {
   border-color: rgba(226, 232, 240, 0.7);
   border-top-width: 1px;
   margin: 16px 0;
 }
 
-/* ── Scrollable table containers ── */
+/* â”€â”€ Scrollable table containers â”€â”€ */
 .portal-content .overflow-x-auto,
 .portal-content .overflow-auto {
   border-radius: 12px;
@@ -899,24 +899,24 @@ body {
   background: var(--color-surface);
 }
 
-/* ── Card header sections (within reports) ── */
+/* â”€â”€ Card header sections (within reports) â”€â”€ */
 .portal-content [class*="bg-gray-50"],
 .portal-content [class*="bg-slate-50"] {
   border-radius: 10px;
 }
 
-/* ── Subtle section-level background ── */
+/* â”€â”€ Subtle section-level background â”€â”€ */
 .portal-content > * + * {
   margin-top: 0;
 }
 
-/* ── Animated number counters (where present) ── */
+/* â”€â”€ Animated number counters (where present) â”€â”€ */
 @keyframes count-in {
   from { opacity: 0; transform: translateY(6px) scale(0.95); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ── Global Page Title (inside reports) ── */
+/* â”€â”€ Global Page Title (inside reports) â”€â”€ */
 .portal-content .text-2xl,
 .portal-content .text-xl {
   font-family: var(--font-display) !important;
@@ -924,8 +924,8 @@ body {
   letter-spacing: -0.02em !important;
 }
 
-/* ── Subtle top gradient accent on the content area ── */
-/* ── Subtle top gradient accent on the content area ── */
+/* â”€â”€ Subtle top gradient accent on the content area â”€â”€ */
+/* â”€â”€ Subtle top gradient accent on the content area â”€â”€ */
 .portal-content::before {
   content: '';
   display: block;
@@ -938,30 +938,30 @@ body {
   box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
 }
 
-/* ── Empty state styling ── */
+/* â”€â”€ Empty state styling â”€â”€ */
 .portal-content .text-gray-400,
 .portal-content .text-gray-500 {
   font-family: var(--font-primary);
 }
 
-/* ── Tooltip-like hover labels ── */
+/* â”€â”€ Tooltip-like hover labels â”€â”€ */
 .portal-content [title] {
   cursor: help;
 }
 
-/* ── Loading spinner enhancement ── */
+/* â”€â”€ Loading spinner enhancement â”€â”€ */
 .portal-content .animate-spin {
   color: var(--accent-emerald);
 }
 
-/* ── Global focus visible ring ── */
+/* â”€â”€ Global focus visible ring â”€â”€ */
 .portal-content :focus-visible {
   outline: 2px solid #10b981;
   outline-offset: 2px;
   border-radius: 6px;
 }
 
-/* ── Subtle page-entry animation for main content ── */
+/* â”€â”€ Subtle page-entry animation for main content â”€â”€ */
 @keyframes page-enter {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -970,4 +970,37 @@ body {
 .portal-content > div,
 .portal-content > section {
   animation: page-enter 0.28s ease-out both;
+}
+
+/* Excel Table Overrides */
+.portal-content table.excel-table {
+  border-collapse: collapse !important;
+  border-radius: 0 !important;
+  border: 2px solid black !important;
+}
+.portal-content table.excel-table thead th,
+.portal-content table.excel-table tbody td,
+.portal-content table.excel-table tbody th {
+  border: 1px solid black !important;
+  color: #000 !important;
+}
+.portal-content table.excel-table th.bg-peach { background-color: #fae3d9 !important; }
+.portal-content table.excel-table th.bg-blue { background-color: #b4c6e7 !important; }
+.portal-content table.excel-table th.bg-green { background-color: #e2efda !important; }
+.portal-content table.excel-table th.bg-yellow { background-color: #ffff00 !important; }
+.portal-content table.excel-table th.bg-light-gray { background-color: #f2f2f2 !important; }
+.portal-content table.excel-table th.bg-white { background-color: #ffffff !important; }
+.portal-content table.excel-table th.bg-light-yellow { background-color: #fff2cc !important; }
+.portal-content table.excel-table tr.bg-grand-total td,
+.portal-content table.excel-table tr.bg-grand-total th { background-color: #c6e0b4 !important; }
+
+.portal-content table.excel-table tbody tr {
+  background-color: #ffffff !important;
+}
+.portal-content table.excel-table tbody tr:nth-child(even) {
+  background-color: #ffffff !important;
+}
+.portal-content table.excel-table tbody tr:hover {
+  background-color: #ffffff !important;
+  box-shadow: none !important;
 }

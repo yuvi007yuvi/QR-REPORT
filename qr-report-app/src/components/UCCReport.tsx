@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Papa from 'papaparse';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
+import type { UCCZoneManager, UCCWardTarget } from './UCCMappingManager';
+import { MASTER_SUPERVISORS } from '../data/master-supervisors';
 import { LoadingScreen } from './LoadingScreen';
 import {
     BarChart,
@@ -18,8 +22,8 @@ import { Download, Table as TableIcon, ChartBar, FileSpreadsheet, Upload, Indian
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import { toPng } from 'html-to-image';
-
-
+import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
+import natureGreenLogo from '../assets/NatureGreen_Logo.png';
 // Define the interface for the CSV data based on the file content
 interface UCCRecord {
     "S.No.": string;
@@ -90,6 +94,7 @@ interface ProcessedData {
     nested: Record<string, Record<string, Record<string, { amount: number, count: number }>>>;
     uniqueDaysPerMonth: Record<string, number>; // Month -> count of unique days
     totalUniqueDays: number; // Total unique days across all months
+    circlePivot: any[]; // Zone/Circle Pivot
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1', '#a4de6c', '#d0ed57'];
@@ -100,6 +105,38 @@ export const UCCReport: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'table' | 'chart'>('table');
     const [metricMode, setMetricMode] = useState<'amount' | 'count'>('amount');
+    const [reportType, setReportType] = useState<'ward' | 'circle'>('ward');
+
+    const [filterCircle, setFilterCircle] = useState<string>('All');
+    const [filterSupervisor, setFilterSupervisor] = useState<string>('All');
+    const [searchQuery, setSearchQuery] = useState<string>('');
+
+    const [zoneManagers, setZoneManagers] = useState<Record<string, UCCZoneManager>>({});
+    const [wardTargets, setWardTargets] = useState<Record<number, UCCWardTarget>>({});
+
+    useEffect(() => {
+        const unsubs: (() => void)[] = [];
+
+        const unsubZones = onSnapshot(collection(db, 'ucc_zone_managers'), (snapshot) => {
+            const data: Record<string, UCCZoneManager> = {};
+            snapshot.forEach(doc => {
+                data[doc.id] = doc.data() as UCCZoneManager;
+            });
+            setZoneManagers(data);
+        });
+        unsubs.push(unsubZones);
+
+        const unsubWards = onSnapshot(collection(db, 'ucc_ward_targets'), (snapshot) => {
+            const data: Record<number, UCCWardTarget> = {};
+            snapshot.forEach(doc => {
+                data[parseInt(doc.id)] = doc.data() as UCCWardTarget;
+            });
+            setWardTargets(data);
+        });
+        unsubs.push(unsubWards);
+
+        return () => unsubs.forEach(fn => fn());
+    }, []);
 
     // Store processed data for both metrics
     const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
@@ -145,6 +182,17 @@ export const UCCReport: React.FC = () => {
     };
 
     const processData = (records: UCCRecord[]) => {
+        // C&T Supervisor Lookup
+        const ctSupervisorLookup = new Map<string, string>();
+        MASTER_SUPERVISORS.forEach(sup => {
+            if (sup.department === 'C&T' && sup.ward) {
+                const wards = sup.ward.split(',').map(w => w.trim());
+                wards.forEach(w => {
+                    ctSupervisorLookup.set(w, sup.name);
+                });
+            }
+        });
+
         // Ward Lookup Map (Dynamic from CSV)
         const wardLookup = new Map<string, { name: string, no: number, zone: string }>();
 
@@ -410,11 +458,125 @@ export const UCCReport: React.FC = () => {
             uniqueDaysCounts[monthKey] = uniqueDatesPerMonth[monthKey].size;
         });
 
+        // --- Generate Circle Pivot Data ---
+        const circleGroups: Record<string, Record<string, Record<string, any>>> = {};
+        records.forEach(record => {
+            const amount = parseAmount(record["Amount Collected"]);
+            const monthKey = getMonthKey(record.Date);
+            const rawWardNo = record["Ward Name"];
+            const wardNoForCircle = parseInt(rawWardNo) || 0;
+            let rawZone = record["Zone Name"] || 'Unknown';
+            
+            if ([1, 3, 11, 15, 16, 20, 30, 31, 33, 37, 44, 47, 48, 54, 59, 68].includes(wardNoForCircle)) rawZone = 'Z1-C1';
+            else if ([6, 10, 23, 27, 28, 29, 32, 38, 41, 52, 57, 63].includes(wardNoForCircle)) rawZone = 'Z1-C2';
+            else if ([2, 4, 5, 7, 14, 18, 19, 26, 35, 49, 53, 61, 64, 65].includes(wardNoForCircle)) rawZone = 'Z1-C3';
+            else if ([12, 17, 22, 24, 36, 39, 40, 42, 43, 45, 46, 55, 56, 58, 60].includes(wardNoForCircle)) rawZone = 'Z1-C4';
+            else if ([8, 9, 13, 21, 25, 34, 50, 51, 62, 66, 67, 69, 70].includes(wardNoForCircle)) rawZone = 'Z1-C5';
+            
+            const supervisorName = record["Supervisor Name"] || 'Unknown';
+            const rawArea = record["Area"];
+            
+            let wardName = rawWardNo || 'Unknown';
+            if (rawArea && rawArea.includes('-')) {
+                const parts = rawArea.split('-');
+                if (parts.length >= 2) {
+                    wardName = parts.slice(1).join('-').trim();
+                }
+            }
+
+            if (!circleGroups[rawZone]) circleGroups[rawZone] = {};
+            if (!circleGroups[rawZone][supervisorName]) circleGroups[rawZone][supervisorName] = {};
+            if (!circleGroups[rawZone][supervisorName][wardName]) circleGroups[rawZone][supervisorName][wardName] = {};
+
+            if (!circleGroups[rawZone][supervisorName][wardName][monthKey]) {
+                circleGroups[rawZone][supervisorName][wardName][monthKey] = { amount: 0, count: 0 };
+            }
+
+            circleGroups[rawZone][supervisorName][wardName][monthKey].amount += amount;
+            circleGroups[rawZone][supervisorName][wardName][monthKey].count += 1;
+        });
+
+        const circlePivot = Object.keys(circleGroups).map(zone => {
+            const supervisors = Object.keys(circleGroups[zone]).map(supervisor => {
+                const wards = Object.keys(circleGroups[zone][supervisor]).map(ward => {
+                    const info = wardLookup.get(ward);
+                    const ctSup = ctSupervisorLookup.get(info ? String(info.no) : '') || 'N/A';
+                    const row: any = { 
+                        wardName: ward, 
+                        wardNo: info ? info.no : 0,
+                        supervisorName: supervisor,
+                        supervisorRowSpan: 0,
+                        wardRowSpan: 0,
+                        ctSupervisor: ctSup,
+                        total: { amount: 0, count: 0 }
+                    };
+                    let grandTotalAmount = 0;
+                    let grandTotalCount = 0;
+                    
+                    sortedMonths.forEach(month => {
+                        const stats = circleGroups[zone][supervisor][ward][month] || { amount: 0, count: 0 };
+                        row[month] = stats;
+                        grandTotalAmount += stats.amount;
+                        grandTotalCount += stats.count;
+                    });
+                    
+                    row.total = { amount: grandTotalAmount, count: grandTotalCount };
+                    return row;
+                }).sort((a, b) => a.wardNo - b.wardNo);
+                
+                if (wards.length > 0) {
+                    wards[0].supervisorRowSpan = wards.length;
+                }
+                
+                return wards;
+            }).flat().sort((a: any, b: any) => {
+                if (a.wardNo && b.wardNo) return a.wardNo - b.wardNo;
+                return String(a.wardName).localeCompare(String(b.wardName));
+            });
+            
+            // Calculate wardRowSpan for adjacent identical wards
+            let currentWardName: string | null = null;
+            let currentWardRowIndex = -1;
+            supervisors.forEach((row: any, idx: number) => {
+                if (row.wardName !== currentWardName) {
+                    row.wardRowSpan = 1;
+                    currentWardName = row.wardName;
+                    currentWardRowIndex = idx;
+                } else {
+                    row.wardRowSpan = 0;
+                    supervisors[currentWardRowIndex].wardRowSpan += 1;
+                }
+            });
+            
+            // Calculate Grand Total for the circle
+            let circleTotalAmount = 0;
+            let circleTotalCount = 0;
+            const circleMonthlyTotals: Record<string, {amount: number, count: number}> = {};
+            sortedMonths.forEach(month => circleMonthlyTotals[month] = {amount: 0, count: 0});
+
+            supervisors.forEach((row: any) => {
+                sortedMonths.forEach(month => {
+                    circleMonthlyTotals[month].amount += row[month].amount;
+                    circleMonthlyTotals[month].count += row[month].count;
+                });
+                circleTotalAmount += row.total.amount;
+                circleTotalCount += row.total.count;
+            });
+
+            return { 
+                zone, 
+                rows: supervisors, 
+                grandTotal: { amount: circleTotalAmount, count: circleTotalCount },
+                monthlyTotals: circleMonthlyTotals
+            };
+        });
+
         setProcessedData({
             amount: { monthly: monthlyDataAmount, property: propertyDataAmount, ward: wardDataAmount },
             count: { monthly: monthlyDataCount, property: propertyDataCount, ward: wardDataCount },
             combinedPivot: combinedPivot,
             wardPivot: wardPivot,
+            circlePivot: circlePivot,
             months: sortedMonths,
             nested: nestedData,
             uniqueDaysPerMonth: uniqueDaysCounts,
@@ -523,7 +685,8 @@ export const UCCReport: React.FC = () => {
     const exportToPDF = async () => {
         if (!processedData) return;
 
-        const tableElement = document.getElementById('ucc-report-table');
+        const tableId = reportType === 'circle' ? 'ucc-circle-report' : 'ucc-report-table';
+        const tableElement = document.getElementById(tableId);
         if (!tableElement) {
             alert('Table not found for export');
             return;
@@ -712,10 +875,22 @@ export const UCCReport: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    {/* Analysis Type Toggle - REMOVED (Merged View) */}
-
-
-                    {/* Metric Toggle */}
+                    {/* Report Type Toggle */}
+                    <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
+                        <span className="text-xs font-semibold text-gray-500 px-2 uppercase">Type:</span>
+                        <button
+                            onClick={() => setReportType('ward')}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${reportType === 'ward' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Ward Report
+                        </button>
+                        <button
+                            onClick={() => setReportType('circle')}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${reportType === 'circle' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Circle Report
+                        </button>
+                    </div>                    {/* Metric Toggle */}
                     <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
                         <span className="text-xs font-semibold text-gray-500 px-2 uppercase">Metric:</span>
                         <button
@@ -762,6 +937,52 @@ export const UCCReport: React.FC = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Circle Report Filters */}
+            {reportType === 'circle' && processedData && (
+                <div className="flex flex-wrap gap-4 bg-white p-4 rounded-lg shadow-sm">
+                    <div className="flex flex-col">
+                        <label className="text-xs font-semibold text-gray-500 uppercase mb-1">Select Circle</label>
+                        <select 
+                            className="border border-gray-300 rounded px-3 py-1.5 text-sm"
+                            value={filterCircle}
+                            onChange={(e) => setFilterCircle(e.target.value)}
+                        >
+                            <option value="All">All Circles</option>
+                            {processedData.circlePivot.map(c => (
+                                <option key={c.zone} value={c.zone}>{c.zone.replace('Z1-', '')}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex flex-col">
+                        <label className="text-xs font-semibold text-gray-500 uppercase mb-1">Supervisor</label>
+                        <select 
+                            className="border border-gray-300 rounded px-3 py-1.5 text-sm"
+                            value={filterSupervisor}
+                            onChange={(e) => setFilterSupervisor(e.target.value)}
+                        >
+                            <option value="All">All Supervisors</option>
+                            {Array.from(new Set(
+                                processedData.circlePivot
+                                    .filter(c => filterCircle === 'All' || c.zone === filterCircle)
+                                    .flatMap(c => c.rows.map((r: any) => r.supervisorName))
+                            )).sort().map(sup => (
+                                <option key={sup as string} value={sup as string}>{sup as string}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex flex-col flex-1 min-w-[200px]">
+                        <label className="text-xs font-semibold text-gray-500 uppercase mb-1">Search</label>
+                        <input 
+                            type="text" 
+                            placeholder="Search ward, supervisor..."
+                            className="border border-gray-300 rounded px-3 py-1.5 text-sm w-full"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -876,7 +1097,8 @@ export const UCCReport: React.FC = () => {
             {/* Main Content */}
             <div className="bg-white rounded-lg shadow-sm p-4 min-h-[400px]">
                 {viewMode === 'table' ? (
-                    <div id="ucc-report-table" className="overflow-x-auto border-2 border-blue-400 rounded-lg shadow-lg">
+                    reportType === 'ward' ? (
+                        <div id="ucc-report-table" className="overflow-x-auto border-2 border-blue-400 rounded-lg shadow-lg">
                         <table className="min-w-full border-collapse">
                             <thead>
                                 {/* Header with Logos and Title */}
@@ -1123,6 +1345,208 @@ export const UCCReport: React.FC = () => {
                             </tbody>
                         </table>
                     </div>
+                    ) : (
+                        <div id="ucc-circle-report" className="flex flex-col gap-8">
+                            {processedData.circlePivot
+                                .filter(circle => filterCircle === 'All' || circle.zone === filterCircle)
+                                .map((circle) => {
+                                    const searchStr = searchQuery.toLowerCase();
+                                    const filteredRows = circle.rows.filter((row: any) => {
+                                        const matchSup = filterSupervisor === 'All' || row.supervisorName === filterSupervisor;
+                                        const matchSearch = searchQuery === '' || 
+                                            row.supervisorName.toLowerCase().includes(searchStr) || 
+                                            row.wardName.toLowerCase().includes(searchStr) ||
+                                            String(row.wardNo).includes(searchStr) ||
+                                            (row.ctSupervisor && row.ctSupervisor.toLowerCase().includes(searchStr));
+                                        return matchSup && matchSearch;
+                                    });
+
+                                    if (filteredRows.length === 0) return null;
+
+                                    // Recalculate rowspans for rendering
+                                    let currentSupName: string | null = null;
+                                    let currentSupRowIndex = -1;
+                                    let currentWardName: string | null = null;
+                                    let currentWardRowIndex = -1;
+
+                                    filteredRows.forEach((row: any, idx: number) => {
+                                        if (row.supervisorName !== currentSupName) {
+                                            row.renderSupRowSpan = 1;
+                                            currentSupName = row.supervisorName;
+                                            currentSupRowIndex = idx;
+                                        } else {
+                                            row.renderSupRowSpan = 0;
+                                            filteredRows[currentSupRowIndex].renderSupRowSpan += 1;
+                                        }
+
+                                        if (row.wardName !== currentWardName) {
+                                            row.renderWardRowSpan = 1;
+                                            currentWardName = row.wardName;
+                                            currentWardRowIndex = idx;
+                                        } else {
+                                            row.renderWardRowSpan = 0;
+                                            filteredRows[currentWardRowIndex].renderWardRowSpan += 1;
+                                        }
+                                    });
+
+                                    // Recalculate Totals based on filtered rows
+                                    const filteredGrandTotal = { amount: 0, count: 0 };
+                                    const filteredMonthlyTotals: Record<string, {amount: number, count: number}> = {};
+                                    months.forEach(m => filteredMonthlyTotals[m] = {amount: 0, count: 0});
+                                    let filteredTargetTotal = 0;
+                                    
+                                    filteredRows.forEach((r: any) => {
+                                        filteredGrandTotal.amount += r.total.amount;
+                                        filteredGrandTotal.count += r.total.count;
+                                        filteredTargetTotal += wardTargets[r.wardNo]?.targetAmount || 0;
+                                        months.forEach(m => {
+                                            filteredMonthlyTotals[m].amount += r[m].amount || 0;
+                                            filteredMonthlyTotals[m].count += r[m].count || 0;
+                                        });
+                                    });
+
+                                return (
+                                <div key={circle.zone} className="overflow-x-auto bg-white mb-8">
+                                    <table className="excel-table text-sm text-slate-700 w-full">
+                                        <thead>
+                                            {/* Header Title */}
+                                            <tr>
+                                                <th colSpan={4 + months.length + 2} className="bg-peach">
+                                                    <div className="flex items-center justify-between px-8 py-3">
+                                                        <img src={nagarNigamLogo} alt="Nagar Nigam" className="h-20 w-auto mix-blend-multiply" />
+                                                        <span className="text-[36px] text-black font-extrabold uppercase tracking-wide">
+                                                            {circle.zone.replace('Z1-', '')} CIRCLE REPORT
+                                                        </span>
+                                                        <img src={natureGreenLogo} alt="Nature Green" className="h-16 w-auto mix-blend-multiply" />
+                                                    </div>
+                                                </th>
+                                            </tr>
+                                            {/* Manager Rows */}
+                                            {(() => {
+                                                const zm = zoneManagers[circle.zone] || {} as Partial<UCCZoneManager>;
+                                                return (
+                                                    <>
+                                                        <tr>
+                                                            <th colSpan={2} className="py-1 text-center font-bold text-sm bg-blue">UCC MANAGER</th>
+                                                            <th colSpan={4 + months.length} className="py-1 text-center font-bold text-sm bg-blue">OPERATION MANAGER</th>
+                                                        </tr>
+                                                        <tr>
+                                                            <th className="py-1 text-center font-bold text-sm w-24 bg-light-gray">NAME</th>
+                                                            <th className="py-1 text-center font-bold bg-light-yellow">{zm.uccManagerName || ''}</th>
+                                                            <th className="py-1 text-center font-bold text-sm w-24 bg-light-gray">NAME</th>
+                                                            <th colSpan={3 + months.length} className="py-1 text-center font-bold bg-light-yellow">{zm.operationManagerName || ''}</th>
+                                                        </tr>
+                                                        <tr>
+                                                            <th className="py-1 text-center font-bold text-sm bg-light-gray">PH NO.</th>
+                                                            <th className="py-1 text-center font-bold bg-white">{zm.uccManagerPhone || ''}</th>
+                                                            <th className="py-1 text-center font-bold text-sm bg-light-gray">PH NO.</th>
+                                                            <th colSpan={3 + months.length} className="py-1 text-center font-bold bg-white">{zm.operationManagerPhone || ''}</th>
+                                                        </tr>
+                                                        <tr>
+                                                            <th colSpan={2} className="py-1 text-center font-bold text-sm bg-green">UCC ZONAL</th>
+                                                            <th colSpan={4 + months.length} className="py-1 text-center font-bold text-sm bg-green">C&T ZONAL</th>
+                                                        </tr>
+                                                        <tr>
+                                                            <th className="py-1 text-center font-bold text-sm w-24 bg-light-gray">NAME</th>
+                                                            <th className="py-1 text-center font-bold bg-white">{zm.uccZonalName || ''}</th>
+                                                            <th className="py-1 text-center font-bold text-sm w-24 bg-light-gray">NAME</th>
+                                                            <th colSpan={3 + months.length} className="py-1 text-center font-bold bg-white">{zm.ctZonalName || ''}</th>
+                                                        </tr>
+                                                        <tr>
+                                                            <th className="py-1 text-center font-bold text-sm bg-light-gray">PH NO.</th>
+                                                            <th className="py-1 text-center font-bold bg-light-yellow">{zm.uccZonalPhone || ''}</th>
+                                                            <th className="py-1 text-center font-bold text-sm bg-light-gray">PH NO.</th>
+                                                            <th colSpan={3 + months.length} className="py-1 text-center font-bold bg-light-yellow">{zm.ctZonalPhone || ''}</th>
+                                                        </tr>
+                                                    </>
+                                                );
+                                            })()}
+                                            
+                                            {/* Data Columns */}
+                                            <tr>
+                                                <th className="px-2 py-2 text-center font-bold text-sm uppercase bg-yellow">S NO.</th>
+                                                <th className="px-2 py-2 text-center font-bold text-sm uppercase bg-yellow">UCC SUPERVISOR</th>
+                                                <th className="px-2 py-2 text-center font-bold text-sm uppercase bg-yellow">WARD</th>
+                                                <th className="px-2 py-2 text-center font-bold text-sm uppercase bg-yellow">C&T SUPERVISOR</th>
+                                                {months.map(m => (
+                                                    <th key={m} className="px-2 py-2 text-center font-bold text-sm uppercase bg-yellow">
+                                                        {getMonthLabel(m)} Collection
+                                                    </th>
+                                                ))}
+                                                <th className="px-2 py-2 text-center font-bold text-sm uppercase bg-yellow">JULY TARGET</th>
+                                                <th className="px-2 py-2 text-center font-bold text-sm uppercase bg-yellow">TOTAL</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredRows.map((row: any, rIdx: number) => (
+                                                <tr key={rIdx}>
+                                                    <td className="px-2 py-1 text-center">{rIdx + 1}</td>
+                                                    <td className="px-2 py-1 text-left align-top">
+                                                        {row.supervisorName}
+                                                    </td>
+                                                    {row.renderWardRowSpan > 0 ? (
+                                                        <td 
+                                                            rowSpan={row.renderWardRowSpan}
+                                                            className="px-2 py-1 text-center align-top"
+                                                        >
+                                                            {row.wardNo || row.wardName}
+                                                        </td>
+                                                    ) : null}
+                                                    {row.renderWardRowSpan > 0 ? (
+                                                        <td 
+                                                            rowSpan={row.renderWardRowSpan}
+                                                            className="px-2 py-1 text-center align-top text-xs text-gray-600 font-semibold"
+                                                        >
+                                                            {row.ctSupervisor}
+                                                        </td>
+                                                    ) : null}
+                                                    {months.map(m => (
+                                                        <td key={m} className="px-2 py-2 text-center border-l border-r border-gray-200 bg-yellow-50 whitespace-nowrap">
+                                                            <div className="flex flex-col text-sm">
+                                                                <span>{formatAmount(row[m].amount || 0)}</span>
+                                                                <span className="text-xs text-gray-600">({formatCount(row[m].count || 0)} slips)</span>
+                                                            </div>
+                                                        </td>
+                                                    ))}
+                                                    <td className="px-2 py-2 text-center font-semibold">
+                                                        {formatAmount(wardTargets[row.wardNo]?.targetAmount || 0)}
+                                                    </td>
+                                                    <td className="px-2 py-2 text-center font-bold border-l-2 border-orange-300 bg-orange-50 whitespace-nowrap">
+                                                        <div className="flex flex-col text-sm">
+                                                            <span>{formatAmount(row.total.amount || 0)}</span>
+                                                            <span className="text-xs text-gray-600">({formatCount(row.total.count || 0)} slips)</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {/* Circle Grand Total */}
+                                            <tr className="bg-gradient-to-r from-yellow-100 to-orange-100 font-bold border-t-2 border-orange-400">
+                                                <th colSpan={4} className="px-2 py-3 text-center font-extrabold text-xs text-orange-700">📊 GRAND TOTAL</th>
+                                                {months.map(m => (
+                                                    <th key={m} className="px-2 py-3 text-center border-l border-r border-gray-300 whitespace-nowrap">
+                                                        <div className="flex flex-col text-sm">
+                                                            <span>{formatAmount(filteredMonthlyTotals[m].amount)}</span>
+                                                            <span className="text-xs text-orange-700 font-semibold">({formatCount(filteredMonthlyTotals[m].count)} slips)</span>
+                                                        </div>
+                                                    </th>
+                                                ))}
+                                                <th className="px-2 py-3 text-center font-bold text-sm">
+                                                    {formatAmount(filteredTargetTotal)}
+                                                </th>
+                                                <th className="px-2 py-3 text-center font-extrabold border-l-2 border-orange-400 bg-orange-100 whitespace-nowrap">
+                                                    <div className="flex flex-col text-sm text-orange-900">
+                                                        <span>{formatAmount(filteredGrandTotal.amount)}</span>
+                                                        <span className="text-xs">({formatCount(filteredGrandTotal.count)} slips)</span>
+                                                    </div>
+                                                </th>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                );
+                            })}
+                        </div>
+                    )
                 ) : (
                     <div className="space-y-8">
                         <div className="h-[400px]">

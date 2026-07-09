@@ -17,7 +17,8 @@ export interface PortalUser {
     uid: string;
     email: string;
     name: string;
-    role: UserRole;
+    allowedViews?: string[];
+    status?: 'active' | 'disabled';
 }
 
 interface AuthContextType {
@@ -53,21 +54,48 @@ const loadUserProfile = async (fbUser: User): Promise<PortalUser> => {
             email: fbUser.email || '',
             name: data.name || fbUser.displayName || fbUser.email || '',
             role: fbUser.uid === 'nK7dyNuvKThljMMrxC0B2w3zmXz1' ? 'admin' : (data.role || 'viewer'),
+            allowedViews: data.allowedViews || [],
+            status: data.status || 'active',
         };
     } else {
         console.log('No user document found for UID:', fbUser.uid);
-        // First time Google sign-in — create a viewer profile automatically
+        
+        // Check if admin pre-created the user using their email as the document ID
+        let preRegRole: UserRole = 'viewer';
+        let preRegName = fbUser.displayName || fbUser.email || '';
+        let createdAt = new Date().toISOString();
+        let preRegAllowedViews: string[] = [];
+        let preRegStatus: 'active' | 'disabled' = 'active';
+        
+        if (fbUser.email) {
+            const emailRef = doc(db, 'users', fbUser.email.toLowerCase());
+            const emailDoc = await getDoc(emailRef);
+            if (emailDoc.exists()) {
+                const preData = emailDoc.data();
+                preRegRole = preData.role || 'viewer';
+                if (preData.name) preRegName = preData.name;
+                if (preData.createdAt) createdAt = preData.createdAt;
+                if (preData.allowedViews) preRegAllowedViews = preData.allowedViews;
+                if (preData.status) preRegStatus = preData.status;
+            }
+        }
+
+        // First time Google sign-in — create a profile automatically
         const newUser: PortalUser = {
             uid: fbUser.uid,
             email: fbUser.email || '',
-            name: fbUser.displayName || fbUser.email || '',
-            role: fbUser.uid === 'nK7dyNuvKThljMMrxC0B2w3zmXz1' ? 'admin' : 'viewer',
+            name: preRegName,
+            role: fbUser.uid === 'nK7dyNuvKThljMMrxC0B2w3zmXz1' ? 'admin' : preRegRole,
+            allowedViews: preRegAllowedViews,
+            status: preRegStatus,
         };
         await setDoc(userRef, {
             email: newUser.email,
             name: newUser.name,
             role: newUser.role,
-            createdAt: new Date().toISOString(),
+            allowedViews: newUser.allowedViews,
+            status: newUser.status,
+            createdAt: createdAt,
         });
         return newUser;
     }
@@ -95,6 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         email: fbUser.email || '',
                         name: fbUser.displayName || fbUser.email || '',
                         role: fbUser.uid === 'nK7dyNuvKThljMMrxC0B2w3zmXz1' ? 'admin' : 'viewer',
+                        allowedViews: [],
                     });
                 }
             } else {

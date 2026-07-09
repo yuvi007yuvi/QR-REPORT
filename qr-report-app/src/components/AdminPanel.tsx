@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     ShieldCheck, 
     RefreshCw, 
@@ -14,14 +14,49 @@ import {
 import { seedSupervisorsToFirestore } from '../utils/firebaseMigration';
 import { WardZonalMapping } from './WardZonalMapping';
 import { MasterQRManager } from './MasterQRManager';
+import { UCCMappingManager } from './UCCMappingManager';
+import { UserManagement } from './UserManagement';
+import { useAuth } from '../contexts/AuthContext';
+import type { ViewMode } from './Sidebar';
 
-export const AdminPanel: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'overview' | 'ward-mapping' | 'qr-master'>('overview');
+// Maps sidebar view IDs to internal admin tabs
+const viewToTab: Record<string, 'overview' | 'ward-mapping' | 'qr-master' | 'ucc-mapping' | 'user-management'> = {
+    'admin-panel': 'overview',
+    'admin-ward-mapping': 'ward-mapping',
+    'admin-qr-master': 'qr-master',
+    'admin-ucc-mapping': 'ucc-mapping',
+    'admin-user-management': 'user-management',
+    'admin-data-seeding': 'overview', // data seeding lives on the overview page
+};
+
+interface AdminPanelProps {
+    initialTab?: ViewMode;
+}
+
+export const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab }) => {
+    const { currentUser, isAdmin } = useAuth();
+    const [activeTab, setActiveTab] = useState<'overview' | 'ward-mapping' | 'qr-master' | 'ucc-mapping' | 'user-management'>(
+        initialTab ? (viewToTab[initialTab] || 'overview') : 'overview'
+    );
     const [status, setStatus] = useState<{ loading: boolean; message: string; type: 'success' | 'error' | 'info' | null }>({
         loading: false,
         message: '',
         type: null
     });
+
+    // Sync tab when sidebar navigation changes
+    useEffect(() => {
+        if (initialTab) {
+            setActiveTab(viewToTab[initialTab] || 'overview');
+        }
+    }, [initialTab]);
+
+    // Helper: check if user has access to a specific admin sub-module
+    const hasAccess = (viewId: string): boolean => {
+        if (isAdmin) return true;
+        if (!currentUser?.allowedViews || currentUser.allowedViews.length === 0) return false;
+        return currentUser.allowedViews.includes(viewId);
+    };
 
     const handleSeedData = async () => {
         if (!window.confirm('Are you sure you want to seed supervisor data? This will overwrite or skip based on existing data.')) return;
@@ -39,7 +74,7 @@ export const AdminPanel: React.FC = () => {
         }
     };
 
-    if (activeTab === 'ward-mapping') {
+    if (activeTab === 'ward-mapping' && hasAccess('admin-ward-mapping')) {
         return (
             <div className="admin-panel-container" style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
                 <button 
@@ -53,7 +88,7 @@ export const AdminPanel: React.FC = () => {
         );
     }
 
-    if (activeTab === 'qr-master') {
+    if (activeTab === 'qr-master' && hasAccess('admin-qr-master')) {
         return (
             <div className="admin-panel-container" style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
                 <button 
@@ -79,6 +114,34 @@ export const AdminPanel: React.FC = () => {
         );
     }
 
+    if (activeTab === 'ucc-mapping' && hasAccess('admin-ucc-mapping')) {
+        return (
+            <div className="admin-panel-container" style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+                <button 
+                    onClick={() => setActiveTab('overview')}
+                    className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-semibold text-sm mb-6 transition-colors"
+                >
+                    <ArrowLeft size={16} /> Back to Administration
+                </button>
+                <UCCMappingManager />
+            </div>
+        );
+    }
+
+    if (activeTab === 'user-management' && hasAccess('admin-user-management')) {
+        return (
+            <div className="admin-panel-container" style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+                <button 
+                    onClick={() => setActiveTab('overview')}
+                    className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-semibold text-sm mb-6 transition-colors"
+                >
+                    <ArrowLeft size={16} /> Back to Administration
+                </button>
+                <UserManagement />
+            </div>
+        );
+    }
+
     return (
         <div className="admin-panel-container" style={{ padding: '24px', maxWidth: '1000px', margin: '0 auto' }}>
             <div style={{ marginBottom: '32px' }}>
@@ -93,7 +156,7 @@ export const AdminPanel: React.FC = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
                 {/* Ward Mapping Card */}
-                <div style={{ 
+                {hasAccess('admin-ward-mapping') && <div style={{ 
                     background: '#ffffff', 
                     borderRadius: '16px', 
                     border: '1.5px solid #e2e8f0', 
@@ -129,10 +192,10 @@ export const AdminPanel: React.FC = () => {
                     >
                         Configure Wards <ArrowRight size={16} />
                     </button>
-                </div>
+                </div>}
 
                 {/* QR Master Card */}
-                <div style={{ 
+                {hasAccess('admin-qr-master') && <div style={{ 
                     background: '#ffffff', 
                     borderRadius: '16px', 
                     border: '1.5px solid #e2e8f0', 
@@ -168,10 +231,88 @@ export const AdminPanel: React.FC = () => {
                     >
                         Manage Master Data <ArrowRight size={16} />
                     </button>
-                </div>
+                </div>}
+
+                {/* UCC Mapping Card */}
+                {hasAccess('admin-ucc-mapping') && <div style={{ 
+                    background: '#ffffff', 
+                    borderRadius: '16px', 
+                    border: '1.5px solid #e2e8f0', 
+                    padding: '24px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                    cursor: 'pointer'
+                }} onClick={() => setActiveTab('ucc-mapping')}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                        <div style={{ padding: '10px', background: '#f5f3ff', borderRadius: '12px', color: '#8b5cf6' }}>
+                            <MapPin size={20} />
+                        </div>
+                        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>UCC Mapping</h3>
+                    </div>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '24px', lineHeight: 1.5 }}>
+                        Configure Circle Managers and Ward Collection Targets for UCC Reports.
+                    </p>
+                    <button 
+                        style={{
+                            width: '100%',
+                            padding: '12px',
+                            background: '#f8fafc',
+                            color: '#1e293b',
+                            border: '1.5px solid #e2e8f0',
+                            borderRadius: '10px',
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        Configure UCC <ArrowRight size={16} />
+                    </button>
+                </div>}
+
+                {/* User Management Card */}
+                {hasAccess('admin-user-management') && <div style={{ 
+                    background: '#ffffff', 
+                    borderRadius: '16px', 
+                    border: '1.5px solid #e2e8f0', 
+                    padding: '24px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                    cursor: 'pointer'
+                }} onClick={() => setActiveTab('user-management')}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                        <div style={{ padding: '10px', background: '#f0fdf4', borderRadius: '12px', color: '#16a34a' }}>
+                            <Users size={20} />
+                        </div>
+                        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>System Users</h3>
+                    </div>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '24px', lineHeight: 1.5 }}>
+                        Manage registered users and configure their system access roles (admin/viewer).
+                    </p>
+                    <button 
+                        style={{
+                            width: '100%',
+                            padding: '12px',
+                            background: '#f8fafc',
+                            color: '#1e293b',
+                            border: '1.5px solid #e2e8f0',
+                            borderRadius: '10px',
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        Manage Users <ArrowRight size={16} />
+                    </button>
+                </div>}
 
                 {/* Data Management Card */}
-                <div style={{ 
+                {hasAccess('admin-data-seeding') && <div style={{ 
                     background: '#ffffff', 
                     borderRadius: '16px', 
                     border: '1.5px solid #e2e8f0', 
@@ -210,10 +351,10 @@ export const AdminPanel: React.FC = () => {
                         {status.loading ? <RefreshCw size={16} className="animate-spin" /> : <Database size={16} />}
                         Sync Supervisors
                     </button>
-                </div>
+                </div>}
 
                 {/* User Access Card */}
-                <div style={{ 
+                {hasAccess('admin-panel') && <div style={{ 
                     background: '#ffffff', 
                     borderRadius: '16px', 
                     border: '1.5px solid #e2e8f0', 
@@ -241,7 +382,7 @@ export const AdminPanel: React.FC = () => {
                         <CheckCircle2 size={16} className="text-emerald-500" />
                         <span style={{ fontSize: '12px', color: '#475569', fontWeight: 500 }}>Admin privileges active</span>
                     </div>
-                </div>
+                </div>}
             </div>
 
             {/* Status Message */}

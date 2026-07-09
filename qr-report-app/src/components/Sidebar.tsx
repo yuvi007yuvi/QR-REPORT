@@ -264,7 +264,20 @@ const Sidebar: React.FC<SidebarProps> = ({
                     {/* Footer */}
                     <div className="sidebar-footer">
                         <p>Designed for Nature Green</p>
-                        <span className="version-badge">v2.4.0</span>
+                        <div style={{ marginTop: '6px', fontSize: '0.8em', color: '#64748b', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <span style={{ opacity: 0.8, fontSize: '0.9em', fontWeight: 500 }}>Crafted with ❤️ by</span>
+                            <span style={{ 
+                                fontWeight: 800, 
+                                background: 'linear-gradient(90deg, #10b981, #0ea5e9)', 
+                                WebkitBackgroundClip: 'text', 
+                                WebkitTextFillColor: 'transparent',
+                                letterSpacing: '0.5px',
+                                marginTop: '2px'
+                            }}>
+                                Yuvraj Singh Tomar
+                            </span>
+                        </div>
+                        <span className="version-badge" style={{ marginTop: '8px' }}>v2.4.0</span>
                     </div>
                 </div>
             </div>

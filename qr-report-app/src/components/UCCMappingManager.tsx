@@ -32,7 +32,7 @@ export const UCCMappingManager: React.FC = () => {
     const [wardAssignments, setWardAssignments] = useState<Record<string, any>>({});
     const [status, setStatus] = useState<{ message: string; type: 'success' | 'error' | null }>({ message: '', type: null });
 
-    const zones = useMemo(() => Array.from(new Set(WARD_MASTER_DATA.map(w => w.zone))).sort(), []);
+    const zones = useMemo(() => ['Circle 1', 'Circle 2', 'Circle 3', 'Circle 4', 'Circle 5'], []);
     const wards = useMemo(() => [...WARD_MASTER_DATA].sort((a, b) => a.wardNumber - b.wardNumber), []);
 
     // Load data
@@ -176,7 +176,7 @@ export const UCCMappingManager: React.FC = () => {
                         return (
                             <div key={zone} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                                 <div className="bg-slate-50 px-6 py-3 border-b border-slate-200">
-                                    <h3 className="font-black text-lg text-slate-800">{zone} CIRCLE</h3>
+                                    <h3 className="font-black text-lg text-slate-800">{zone}</h3>
                                 </div>
                                 <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 bg-white">
                                     {/* UCC Manager */}

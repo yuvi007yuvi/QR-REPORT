@@ -399,8 +399,33 @@ const App: React.FC = () => {
         </header>
 
         {/* Main Content */}
-        <main className="portal-content">
-          {renderCurrentView()}
+        <main className="portal-content" style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 64px)' }}>
+          <div style={{ flex: 1 }}>
+            {renderCurrentView()}
+          </div>
+          <footer style={{
+            textAlign: 'center',
+            padding: '16px',
+            fontSize: '0.875rem',
+            borderTop: '1px solid #e2e8f0',
+            marginTop: 'auto',
+            backgroundColor: '#ffffff',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <span style={{ color: '#94a3b8', fontWeight: 500, letterSpacing: '0.3px' }}>Crafted with 🚀 & ❤️ by</span>
+            <span style={{ 
+              background: 'linear-gradient(135deg, #4f46e5, #ec4899)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              fontWeight: 900,
+              letterSpacing: '0.5px'
+            }}>
+              Yuvraj Singh Tomar
+            </span>
+          </footer>
         </main>
       </div>
     </div>

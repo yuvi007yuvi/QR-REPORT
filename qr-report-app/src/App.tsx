@@ -226,6 +226,17 @@ const App: React.FC = () => {
         return <MonthWiseKPICalendar />;
       case 'ucc-report':
         return <UCCReport />;
+      case 'ucc-summary':
+        return (
+          <div className="w-full h-[calc(100vh-64px)] overflow-hidden">
+            <iframe 
+              src="https://ucc-summary-report.vercel.app/" 
+              title="UCC Summary Report" 
+              className="w-full h-full border-0"
+              allowFullScreen
+            />
+          </div>
+        );
       case 'daily-kyc-status':
         return <DailyKycStatusReport />;
       case 'ward-kyc-cross-check':

@@ -54,8 +54,8 @@ export type ViewMode =
     | 'admin-ucc-mapping'
     | 'admin-user-management'
     | 'admin-data-seeding'
+    | 'ucc-summary'
     | 'no-access';
-
 
 interface SidebarProps {
     currentSection: AppSection;
@@ -106,6 +106,7 @@ export const menuItems = [
         icon: Banknote,
         items: [
             { id: 'ucc-report', label: 'UCC Collection Analysis', icon: BarChart3 },
+            { id: 'ucc-summary', label: 'UCC Summary', icon: LayoutDashboard },
         ]
     },
     {

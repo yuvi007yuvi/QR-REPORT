@@ -85,7 +85,7 @@ export const UCCMappingManager: React.FC = () => {
                 [field]: value,
                 lastUpdated: new Date().toISOString()
             }, { merge: true });
-            
+
             setStatus({ message: 'Saved successfully', type: 'success' });
             setTimeout(() => setStatus({ message: '', type: null }), 2000);
         } catch (err: any) {
@@ -97,13 +97,13 @@ export const UCCMappingManager: React.FC = () => {
         try {
             const ref = doc(db, 'ucc_ward_targets', wardNumber.toString());
             const currentData = wardTargets[wardNumber] || { wardNumber, targetAmount: 0 };
-            
+
             await setDoc(ref, {
                 ...currentData,
                 [field]: value,
                 lastUpdated: new Date().toISOString()
             }, { merge: true });
-            
+
             setStatus({ message: 'Saved successfully', type: 'success' });
             setTimeout(() => setStatus({ message: '', type: null }), 2000);
         } catch (err: any) {
@@ -132,11 +132,10 @@ export const UCCMappingManager: React.FC = () => {
                         <p className="text-sm text-slate-500">Configure Circle Managers and Ward Collection Targets for UCC Reports.</p>
                     </div>
                 </div>
-                
+
                 {status.message && (
-                    <div className={`px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 ${
-                        status.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                    }`}>
+                    <div className={`px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 ${status.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                        }`}>
                         {status.type === 'success' ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
                         {status.message}
                     </div>
@@ -147,17 +146,15 @@ export const UCCMappingManager: React.FC = () => {
             <div className="flex gap-4 mb-8 border-b border-slate-200">
                 <button
                     onClick={() => setActiveSubTab('zone-managers')}
-                    className={`pb-4 px-2 text-sm font-bold border-b-2 transition-colors ${
-                        activeSubTab === 'zone-managers' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'
-                    }`}
+                    className={`pb-4 px-2 text-sm font-bold border-b-2 transition-colors ${activeSubTab === 'zone-managers' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'
+                        }`}
                 >
                     Circle Managers Configuration
                 </button>
                 <button
                     onClick={() => setActiveSubTab('ward-targets')}
-                    className={`pb-4 px-2 text-sm font-bold border-b-2 transition-colors ${
-                        activeSubTab === 'ward-targets' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'
-                    }`}
+                    className={`pb-4 px-2 text-sm font-bold border-b-2 transition-colors ${activeSubTab === 'ward-targets' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'
+                        }`}
                 >
                     Ward Collection Targets
                 </button>
@@ -185,7 +182,7 @@ export const UCCMappingManager: React.FC = () => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] text-slate-400 font-semibold mb-1 block">NAME</label>
-                                                <input 
+                                                <input
                                                     className="w-full bg-slate-50 border border-slate-200 rounded text-sm px-3 py-2 outline-none focus:border-blue-500 transition-colors"
                                                     value={data.uccManagerName || ''}
                                                     onChange={e => handleSaveZoneManager(zone, 'uccManagerName', e.target.value)}
@@ -194,7 +191,7 @@ export const UCCMappingManager: React.FC = () => {
                                             </div>
                                             <div>
                                                 <label className="text-[10px] text-slate-400 font-semibold mb-1 block">PHONE</label>
-                                                <input 
+                                                <input
                                                     className="w-full bg-slate-50 border border-slate-200 rounded text-sm px-3 py-2 outline-none focus:border-blue-500 transition-colors"
                                                     value={data.uccManagerPhone || ''}
                                                     onChange={e => handleSaveZoneManager(zone, 'uccManagerPhone', e.target.value)}
@@ -210,7 +207,7 @@ export const UCCMappingManager: React.FC = () => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] text-slate-400 font-semibold mb-1 block">NAME</label>
-                                                <input 
+                                                <input
                                                     className="w-full bg-slate-50 border border-slate-200 rounded text-sm px-3 py-2 outline-none focus:border-blue-500 transition-colors"
                                                     value={data.operationManagerName || ''}
                                                     onChange={e => handleSaveZoneManager(zone, 'operationManagerName', e.target.value)}
@@ -219,7 +216,7 @@ export const UCCMappingManager: React.FC = () => {
                                             </div>
                                             <div>
                                                 <label className="text-[10px] text-slate-400 font-semibold mb-1 block">PHONE</label>
-                                                <input 
+                                                <input
                                                     className="w-full bg-slate-50 border border-slate-200 rounded text-sm px-3 py-2 outline-none focus:border-blue-500 transition-colors"
                                                     value={data.operationManagerPhone || ''}
                                                     onChange={e => handleSaveZoneManager(zone, 'operationManagerPhone', e.target.value)}
@@ -235,7 +232,7 @@ export const UCCMappingManager: React.FC = () => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] text-slate-400 font-semibold mb-1 block">NAME</label>
-                                                <input 
+                                                <input
                                                     className="w-full bg-slate-50 border border-slate-200 rounded text-sm px-3 py-2 outline-none focus:border-blue-500 transition-colors"
                                                     value={data.uccZonalName || ''}
                                                     onChange={e => handleSaveZoneManager(zone, 'uccZonalName', e.target.value)}
@@ -244,7 +241,7 @@ export const UCCMappingManager: React.FC = () => {
                                             </div>
                                             <div>
                                                 <label className="text-[10px] text-slate-400 font-semibold mb-1 block">PHONE</label>
-                                                <input 
+                                                <input
                                                     className="w-full bg-slate-50 border border-slate-200 rounded text-sm px-3 py-2 outline-none focus:border-blue-500 transition-colors"
                                                     value={data.uccZonalPhone || ''}
                                                     onChange={e => handleSaveZoneManager(zone, 'uccZonalPhone', e.target.value)}
@@ -260,7 +257,7 @@ export const UCCMappingManager: React.FC = () => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] text-slate-400 font-semibold mb-1 block">NAME</label>
-                                                <input 
+                                                <input
                                                     className="w-full bg-slate-50 border border-slate-200 rounded text-sm px-3 py-2 outline-none focus:border-blue-500 transition-colors"
                                                     value={data.ctZonalName || ''}
                                                     onChange={e => handleSaveZoneManager(zone, 'ctZonalName', e.target.value)}
@@ -269,7 +266,7 @@ export const UCCMappingManager: React.FC = () => {
                                             </div>
                                             <div>
                                                 <label className="text-[10px] text-slate-400 font-semibold mb-1 block">PHONE</label>
-                                                <input 
+                                                <input
                                                     className="w-full bg-slate-50 border border-slate-200 rounded text-sm px-3 py-2 outline-none focus:border-blue-500 transition-colors"
                                                     value={data.ctZonalPhone || ''}
                                                     onChange={e => handleSaveZoneManager(zone, 'ctZonalPhone', e.target.value)}
@@ -305,7 +302,7 @@ export const UCCMappingManager: React.FC = () => {
                                         <td className="px-6 py-3 text-sm text-slate-600">{w.area}</td>
                                         <td className="px-6 py-3 text-sm text-slate-600">{wardAssignments[w.wardNumber.toString()]?.supervisorName || '-'}</td>
                                         <td className="px-6 py-3">
-                                            <input 
+                                            <input
                                                 type="text"
                                                 className="w-40 bg-slate-50 border border-slate-200 rounded px-3 py-1.5 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500"
                                                 value={wardTargets[w.wardNumber]?.uccSupervisorName || ''}
@@ -315,7 +312,7 @@ export const UCCMappingManager: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-3 text-sm text-slate-500">{w.zone}</td>
                                         <td className="px-6 py-3">
-                                            <input 
+                                            <input
                                                 type="number"
                                                 className="w-32 bg-slate-50 border border-slate-200 rounded px-3 py-1.5 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500"
                                                 value={target}

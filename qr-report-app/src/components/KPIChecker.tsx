@@ -125,9 +125,9 @@ export const KPIChecker: React.FC = () => {
             supNames.forEach((fullName: string) => {
                 const cleanName = fullName.replace(/\s*\(.*?\)\s*/g, '').trim().toLowerCase();
                 if (!cleanName) return;
-                if (!wardsBySupName[cleanName]) wardsBySupName[cleanName] = { wards: [], zonalName: zonalNameRaw };
+                if (!wardsBySupName[cleanName]) wardsBySupName[cleanName] = { wards: [], zonalName: zonalNameRaw.toUpperCase() };
                 wardsBySupName[cleanName].wards.push(wardNum);
-                if (zonalNameRaw) wardsBySupName[cleanName].zonalName = zonalNameRaw;
+                if (zonalNameRaw) wardsBySupName[cleanName].zonalName = zonalNameRaw.toUpperCase();
             });
         });
 
@@ -151,7 +151,7 @@ export const KPIChecker: React.FC = () => {
                 id: sup.empId,
                 mobile: sup.mobile,
                 zone: 'N/A',
-                zonalName: matched?.zonalName || sup.zonal,
+                zonalName: (matched?.zonalName || sup.zonal).toUpperCase(),
                 ward: matched ? matched.wards.sort((a, b) => parseInt(a) - parseInt(b)).join(',') : sup.ward,
                 uniformCount: 0,
                 segregationCount: 0,
@@ -184,7 +184,7 @@ export const KPIChecker: React.FC = () => {
                     // Update ward/zonal from admin panel if available
                     const matched = findWardAssignment(existing.name);
                     if (matched) {
-                        if (matched.zonalName) existing.zonalName = matched.zonalName;
+                        if (matched.zonalName) existing.zonalName = matched.zonalName.toUpperCase();
                         if (matched.wards.length > 0) existing.ward = matched.wards.sort((a, b) => parseInt(a) - parseInt(b)).join(',');
                     } else if (existing.ward === 'N/A' && wardStr !== 'N/A') {
                         existing.ward = wardStr;
@@ -197,7 +197,7 @@ export const KPIChecker: React.FC = () => {
                         id: rawId || 'N/A',
                         mobile: record['Supervisor Number'] || 'N/A',
                         zone: zoneNum,
-                        zonalName: matched?.zonalName || 'IEC TEAM (Sujeet Singh)',
+                        zonalName: (matched?.zonalName || 'IEC TEAM (Sujeet Singh)').toUpperCase(),
                         ward: matched ? matched.wards.sort((a, b) => parseInt(a) - parseInt(b)).join(',') : wardStr,
                         uniformCount: type === 'uniform' ? 1 : 0,
                         segregationCount: type === 'segregation' ? 1 : 0,

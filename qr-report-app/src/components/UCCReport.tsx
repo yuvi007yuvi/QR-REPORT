@@ -20,8 +20,7 @@ import {
 } from 'recharts';
 import { Download, Table as TableIcon, ChartBar, FileSpreadsheet, Upload, IndianRupee, Hash } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import { toPng } from 'html-to-image';
+import { exportToPDFImage } from '../utils/exporter';
 import nagarNigamLogo from '../assets/nagar-nigam-logo.png';
 import natureGreenLogo from '../assets/NatureGreen_Logo.png';
 // Define the interface for the CSV data based on the file content
@@ -697,80 +696,8 @@ export const UCCReport: React.FC = () => {
             const originalCursor = document.body.style.cursor;
             document.body.style.cursor = 'wait';
 
-            // Capture the table as PNG using html-to-image
-            const dataUrl = await toPng(tableElement, {
-                quality: 1.0,
-                pixelRatio: 2,
-                cacheBust: true
-            });
+            await exportToPDFImage(tableId, 'UCC_Collection_Report');
 
-            // Create a temporary image to get dimensions
-            const img = new Image();
-            img.src = dataUrl;
-
-            await new Promise((resolve) => {
-                img.onload = resolve;
-            });
-
-            // A4 landscape dimensions in mm
-            const pdfWidth = 297;
-            const pdfHeight = 210;
-            const margin = 5;
-            const availableWidth = pdfWidth - (2 * margin);
-            const availableHeight = pdfHeight - (2 * margin);
-
-            // Calculate scaled dimensions
-            let imgWidth = availableWidth;
-            let imgHeight = (img.height * imgWidth) / img.width;
-
-            // Create PDF in landscape mode
-            const pdf = new jsPDF('l', 'mm', 'a4');
-
-            // If image fits on one page
-            if (imgHeight <= availableHeight) {
-                pdf.addImage(dataUrl, 'PNG', margin, margin, imgWidth, imgHeight);
-            } else {
-                // Split across multiple pages
-                let currentY = 0;
-                let pageNum = 0;
-
-                while (currentY < img.height) {
-                    if (pageNum > 0) {
-                        pdf.addPage();
-                    }
-
-                    // Calculate slice height
-                    const sliceHeight = (availableHeight * img.width) / availableWidth;
-                    const remainingHeight = img.height - currentY;
-                    const actualSliceHeight = Math.min(sliceHeight, remainingHeight);
-
-                    // Create canvas for this slice
-                    const canvas = document.createElement('canvas');
-                    canvas.width = img.width;
-                    canvas.height = actualSliceHeight;
-                    const ctx = canvas.getContext('2d');
-
-                    if (ctx) {
-                        // Draw the slice
-                        ctx.drawImage(
-                            img,
-                            0, currentY,
-                            img.width, actualSliceHeight,
-                            0, 0,
-                            img.width, actualSliceHeight
-                        );
-
-                        const sliceDataUrl = canvas.toDataURL('image/png');
-                        const sliceImgHeight = (actualSliceHeight * availableWidth) / img.width;
-                        pdf.addImage(sliceDataUrl, 'PNG', margin, margin, availableWidth, sliceImgHeight);
-                    }
-
-                    currentY += actualSliceHeight;
-                    pageNum++;
-                }
-            }
-
-            pdf.save('UCC_Collection_Report.pdf');
             document.body.style.cursor = originalCursor;
         } catch (error) {
             console.error('Error generating PDF:', error);
@@ -848,16 +775,11 @@ export const UCCReport: React.FC = () => {
         withLoading(() => exportToExcel(), 2000);
     };
 
-    const handlePDFExport = () => {
-        // PDF export has its own internal async logic, but we can wrap the trigger
-        // We don't use withLoading here because exportToPDF is async and handles its own cursor
-        // However, to show the full screen loader:
-        setLoading(true);
-        // Give time for the loader to render before starting heavy PDF generation
-        setTimeout(async () => {
-            await exportToPDF();
-            setLoading(false);
-        }, 1000);
+    const handlePDFExport = async () => {
+        // PDF export handles its own cursor wait state
+        // We cannot use setLoading(true) because it unmounts the table component,
+        // causing document.getElementById(tableId) to fail.
+        await exportToPDF();
     };
 
     const { combinedPivot, wardPivot, months } = processedData;

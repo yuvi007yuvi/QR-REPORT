@@ -60,6 +60,16 @@
 }
 
 /* =====================================================
+   EXPORT UTILITIES
+   ===================================================== */
+.hide-scrollbars-for-export * {
+  scrollbar-width: none !important;
+}
+.hide-scrollbars-for-export ::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* =====================================================
    GLOBAL RESET & BASE
    ===================================================== */
 

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Download, FileDown, Eye, Users, Image as ImageIcon } from 'lucide-react';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
 import type { ComplaintRecord } from '../utils/csvParser';
 import {
   parseCSV,
@@ -8,6 +10,7 @@ import {
 } from '../utils/csvParser';
 
 import { MASTER_SUPERVISORS } from '../data/master-supervisors';
+import { WARD_MASTER_DATA } from '../data/ward-master';
 
 // Import logos
 import NatureGreenLogo from '../assets/NatureGreen_Logo.png';
@@ -26,9 +29,9 @@ const calculateDuration = (dateStr: string) => {
     // Standardize separators - Replace semicolon with comma for native JS date support
     // This handles the format like "May 1; 2026 9:04 AM"
     const cleaned = dateStr.replace(/;/g, ',').trim();
-    
+
     let regDate = new Date(cleaned);
-    
+
     // Fallback for DD-MM-YYYY or DD/MM/YYYY numeric formats if native parsing fails
     if (isNaN(regDate.getTime())) {
       const datePart = cleaned.split(' ')[0];
@@ -45,15 +48,15 @@ const calculateDuration = (dateStr: string) => {
     }
 
     if (isNaN(regDate.getTime())) return 0;
-    
+
     const now = new Date();
     // Calculate difference in days by setting both to start of day
     const d1 = new Date(regDate.getFullYear(), regDate.getMonth(), regDate.getDate());
     const d2 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
+
     const diffTime = d2.getTime() - d1.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
+
     return Math.max(0, diffDays);
   } catch (e) {
     return 0;
@@ -68,6 +71,18 @@ const CDWasteComplaintReport: React.FC = () => {
 
 
   const [showDetails, setShowDetails] = useState<{ supervisor: string, complaints: ComplaintRecord[] } | null>(null);
+  const [wardAssignments, setWardAssignments] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'ward_assignments'), (snapshot) => {
+      const mapping: Record<string, any> = {};
+      snapshot.forEach(doc => {
+        mapping[doc.id] = doc.data();
+      });
+      setWardAssignments(mapping);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Refs for export
   const reportRef = useRef<HTMLDivElement>(null);
@@ -99,6 +114,74 @@ const CDWasteComplaintReport: React.FC = () => {
 
 
 
+  // Build reverse map from wardAssignments + MASTER_SUPERVISORS
+  const supervisorToWards = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+
+    MASTER_SUPERVISORS.filter(s => s.department === 'C&T').forEach(sup => {
+      if (!map.has(sup.name)) map.set(sup.name, new Set());
+      sup.ward.split(',').forEach(w => {
+        const trimmed = w.trim();
+        if (trimmed && trimmed !== 'N/A' && trimmed !== 'NA') {
+          map.get(sup.name)!.add(parseInt(trimmed).toString());
+        }
+      });
+    });
+
+    Object.entries(wardAssignments).forEach(([wardNumStr, data]) => {
+      if (data && data.supervisorName) {
+        const supName = data.supervisorName;
+        if (!map.has(supName)) map.set(supName, new Set());
+
+        for (const [otherSup, wards] of map.entries()) {
+          if (otherSup !== supName && wards.has(wardNumStr)) {
+            wards.delete(wardNumStr);
+          }
+        }
+
+        map.get(supName)!.add(wardNumStr);
+      }
+    });
+
+    return map;
+  }, [wardAssignments]);
+
+  // Helper to get matching C&T supervisor for a complaint
+  const getCTSupervisor = useMemo(() => (wardName: string) => {
+    const match = wardName.match(/(\d+)/);
+    if (!match) return null;
+    const wardNumStr = parseInt(match[0]).toString();
+
+    const assignment = wardAssignments[wardNumStr];
+    if (assignment && assignment.supervisorName) {
+
+      let fallbackZonal = 'Unknown';
+      const masterSup = MASTER_SUPERVISORS.find(s =>
+        s.department === 'C&T' &&
+        (s.name === assignment.supervisorName || assignment.supervisorName.includes(s.name) || assignment.supervisorName.replace(/\s*\(C&T\)\s*/i, '') === s.name)
+      );
+      if (masterSup) {
+        fallbackZonal = masterSup.zonal;
+      }
+
+      return {
+        name: assignment.supervisorName,
+        zonal: assignment.zonalName || assignment.zonalHead || fallbackZonal,
+        wardList: Array.from(supervisorToWards.get(assignment.supervisorName) || [])
+      };
+    }
+
+    const master = wardToSupervisorMap.get(match[0]) || wardToSupervisorMap.get(wardNumStr);
+    if (master) {
+      return {
+        name: master.name,
+        zonal: master.zonal,
+        wardList: Array.from(supervisorToWards.get(master.name) || [])
+      };
+    }
+    return null;
+  }, [wardAssignments, supervisorToWards, wardToSupervisorMap]);
+
   // Apply filters
   useEffect(() => {
     let filtered = [...complaintData];
@@ -112,19 +195,16 @@ const CDWasteComplaintReport: React.FC = () => {
     }
 
     if (selectedSupervisor !== 'All') {
-      filtered = filtered.filter(record => record.assignee.includes(selectedSupervisor));
+      filtered = filtered.filter(record => {
+        const supervisor = getCTSupervisor(record.ward);
+        return supervisor && supervisor.name === selectedSupervisor;
+      });
     }
 
     if (selectedZonalHead !== 'All') {
-      // Filter by Zonal Head using our Map
       filtered = filtered.filter(record => {
-        const wardNumberMatch = record.ward.match(/(\d+)/);
-        if (wardNumberMatch) {
-          const wardNum = wardNumberMatch[0];
-          const supervisor = wardToSupervisorMap.get(wardNum);
-          return supervisor && supervisor.zonal === selectedZonalHead;
-        }
-        return false;
+        const supervisor = getCTSupervisor(record.ward);
+        return supervisor && supervisor.zonal === selectedZonalHead;
       });
     }
 
@@ -159,37 +239,56 @@ const CDWasteComplaintReport: React.FC = () => {
     return getUniqueValues(complaintData, 'ward');
   }, [complaintData]);
 
-  const supervisors = useMemo(() => {
-    // Return supervisors from Master Data C&T
-    return Array.from(new Set(
-      MASTER_SUPERVISORS
-        .filter(s => s.department === 'C&T')
-        .map(s => s.name)
-    )).sort();
-  }, []);
-
+  // Extract unique filter options incorporating dynamic Firebase data
   const zonalHeads = useMemo(() => {
-    // Return Unique Zonal Heads from Master Data C&T
-    return Array.from(new Set(
-      MASTER_SUPERVISORS
-        .filter(s => s.department === 'C&T')
-        .map(s => s.zonal)
-    )).sort();
-  }, []);
+    const heads = new Set(
+      MASTER_SUPERVISORS.filter(s => s.department === 'C&T').map(s => s.zonal)
+    );
+    Object.values(wardAssignments).forEach(assignment => {
+      const zonal = assignment?.zonalName || assignment?.zonalHead;
+      if (zonal) {
+        heads.add(zonal);
+      }
+    });
+    return Array.from(heads).sort();
+  }, [wardAssignments]);
+
+  const supervisors = useMemo(() => {
+    const sups = new Set(
+      MASTER_SUPERVISORS.filter(s => s.department === 'C&T').map(s => s.name)
+    );
+    Object.values(wardAssignments).forEach(assignment => {
+      if (assignment?.supervisorName) {
+        sups.add(assignment.supervisorName);
+      }
+    });
+
+    // Convert to array
+    const allSups = Array.from(sups).sort();
+
+    // If a specific zonal head is selected, we ideally want to filter,
+    // but mapping is complex. For safety, if they select a Zonal Head,
+    // we can filter based on getCTSupervisor results in the data, 
+    // or just return allSups if we want to be safe.
+    if (selectedZonalHead === 'All') {
+      return allSups;
+    }
+
+    // Filter supervisors to only those associated with the selected Zonal Head
+    const filteredSups = new Set<string>();
+    MASTER_SUPERVISORS.filter(s => s.department === 'C&T' && s.zonal === selectedZonalHead).forEach(s => filteredSups.add(s.name));
+    Object.values(wardAssignments).forEach(assignment => {
+      if (assignment?.zonalHead === selectedZonalHead && assignment?.supervisorName) {
+        filteredSups.add(assignment.supervisorName);
+      }
+    });
+
+    return Array.from(filteredSups).sort();
+  }, [selectedZonalHead, wardAssignments]);
 
   // Group complaints by zonal head
   const groupedByZonalHead = useMemo(() => {
-    const grouped: { [key: string]: { [key: string]: { complaints: ComplaintRecord[], wardCounts: { [key: string]: number } } } } = {};
-
-    // Helper to get matching C&T supervisor for a complaint
-    const getCTSupervisor = (wardName: string) => {
-      const match = wardName.match(/(\d+)/);
-      if (!match) return null;
-      // Try strict match first, then maybe fallback (e.g. "01" vs "1")
-      // Our map keys are trimmed strings from Master Data.
-      // Assuming Master Data has "1" and complaint has "Ward 1" -> match[0] is "1".
-      return wardToSupervisorMap.get(match[0]) || wardToSupervisorMap.get(parseInt(match[0]).toString());
-    };
+    const grouped: { [key: string]: { [key: string]: { complaints: ComplaintRecord[], wardCounts: { [key: string]: number }, typeCounts?: { [key: string]: number } } } } = {};
 
     filteredData.forEach(record => {
       const matchedSupervisor = getCTSupervisor(record.ward);
@@ -205,27 +304,66 @@ const CDWasteComplaintReport: React.FC = () => {
         if (!grouped[zonalHead][supervisorName]) {
           grouped[zonalHead][supervisorName] = {
             complaints: [],
-            wardCounts: {}
+            wardCounts: {},
+            typeCounts: {}
           };
+
+          // Pre-populate with all wards for this supervisor
+          const assignedWards = matchedSupervisor.wardList || [];
+          assignedWards.forEach(w => {
+            if (w && w !== 'N/A' && w !== 'NA') {
+              const wardNum = parseInt(w);
+              const wardObj = WARD_MASTER_DATA.find(wd => wd.wardNumber === wardNum);
+              const fullWardName = wardObj ? wardObj.area : w;
+              grouped[zonalHead][supervisorName].wardCounts[fullWardName] = 0;
+            }
+          });
         }
 
         grouped[zonalHead][supervisorName].complaints.push(record);
 
-        // Count complaints per ward
-        if (!grouped[zonalHead][supervisorName].wardCounts[record.ward]) {
-          grouped[zonalHead][supervisorName].wardCounts[record.ward] = 0;
+        // Count complaints per ward, normalizing ward name to match pre-populated keys
+        let wardKey = record.ward;
+        const match = record.ward.match(/(\d+)/);
+        if (match) {
+          const wardNum = parseInt(match[0]);
+          const wardObj = WARD_MASTER_DATA.find(wd => wd.wardNumber === wardNum);
+          if (wardObj) {
+            wardKey = wardObj.area;
+          }
         }
-        grouped[zonalHead][supervisorName].wardCounts[record.ward]++;
+
+        if (grouped[zonalHead][supervisorName].wardCounts[wardKey] === undefined) {
+          grouped[zonalHead][supervisorName].wardCounts[wardKey] = 0;
+        }
+        grouped[zonalHead][supervisorName].wardCounts[wardKey]++;
+
+        // Count complaint types
+        let compType = record.complaintType || 'Other';
+        if (record.complaintType && record.complaintSubtype) {
+          compType = `${record.complaintType} - ${record.complaintSubtype}`;
+        }
+        if (!grouped[zonalHead][supervisorName].typeCounts) {
+          grouped[zonalHead][supervisorName].typeCounts = {};
+        }
+        grouped[zonalHead][supervisorName].typeCounts[compType] = (grouped[zonalHead][supervisorName].typeCounts[compType] || 0) + 1;
       } else {
         // Optional: handle unmapped complaints?
         // For now, they are just excluded from the grouped view or put in "Unassigned"
         const unassignedKey = "Unassigned";
         if (!grouped[unassignedKey]) grouped[unassignedKey] = {};
-        if (!grouped[unassignedKey]["Unknown"]) grouped[unassignedKey]["Unknown"] = { complaints: [], wardCounts: {} };
+        if (!grouped[unassignedKey]["Unknown"]) grouped[unassignedKey]["Unknown"] = { complaints: [], wardCounts: {}, typeCounts: {} };
 
         grouped[unassignedKey]["Unknown"].complaints.push(record);
         if (!grouped[unassignedKey]["Unknown"].wardCounts[record.ward]) grouped[unassignedKey]["Unknown"].wardCounts[record.ward] = 0;
         grouped[unassignedKey]["Unknown"].wardCounts[record.ward]++;
+
+        let compType = record.complaintType || 'Other';
+        if (record.complaintType && record.complaintSubtype) {
+          compType = `${record.complaintType} - ${record.complaintSubtype}`;
+        }
+        if (!grouped[unassignedKey]["Unknown"].typeCounts) grouped[unassignedKey]["Unknown"].typeCounts = {};
+        grouped[unassignedKey]["Unknown"].typeCounts[compType] = (grouped[unassignedKey]["Unknown"].typeCounts[compType] || 0) + 1;
       }
     });
 
@@ -275,22 +413,30 @@ const CDWasteComplaintReport: React.FC = () => {
         return;
       }
 
+      // Hide scrollbars before capture
+      element.classList.add('hide-scrollbars-for-export');
+
       const imgData = await toPng(element, {
+        pixelRatio: 2,
         cacheBust: true,
         backgroundColor: '#ffffff'
       });
 
+      // Restore scrollbars
+      element.classList.remove('hide-scrollbars-for-export');
+
+      // Create PDF with custom dimensions matching the exact image size
+      // This ensures the entire report is on a single, continuous page without cuts
+      const tempPdf = new jsPDF({ unit: 'px' });
+      const imgProps = tempPdf.getImageProperties(imgData);
+      
       const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
+        orientation: imgProps.width > imgProps.height ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [imgProps.width, imgProps.height]
       });
 
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(imgData, 'PNG', 0, 0, imgProps.width, imgProps.height);
       pdf.save(`C_D_Waste_Complaint_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -307,11 +453,18 @@ const CDWasteComplaintReport: React.FC = () => {
         return;
       }
 
+      // Hide scrollbars before capture
+      element.classList.add('hide-scrollbars-for-export');
+
       const imgData = await toJpeg(element, {
-        quality: 0.95,
+        quality: 1.0,
+        pixelRatio: 2,
         cacheBust: true,
         backgroundColor: '#ffffff'
       });
+
+      // Restore scrollbars
+      element.classList.remove('hide-scrollbars-for-export');
 
       // Create temporary link to download image
       const link = document.createElement('a');
@@ -376,50 +529,54 @@ const CDWasteComplaintReport: React.FC = () => {
         </div>
 
         <div className="flex-1 overflow-auto p-4 w-full max-w-6xl">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-blue-100">
+          <div className="bg-white rounded-lg shadow-sm border-2 border-black overflow-x-auto">
+            <table className="min-w-full divide-y divide-black">
+              <thead className="bg-blue-100 border-b-2 border-black">
                 <tr>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider">S.No</th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider">Complaint ID</th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider">Supervisor Name</th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider">Zone</th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider">Ward</th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider">Date</th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider">Duration</th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider">Assigned / Remarks</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider border border-black">S.No</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider border border-black">Complaint ID</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider border border-black">Supervisor Name</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider border border-black">Zone</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider border border-black">Ward</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider border border-black">Date</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider border border-black">Duration</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider border border-black">Complaint Type</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider border border-black">Status</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-black uppercase tracking-wider border border-black">Assigned / Remarks</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-black">
                 {showDetails.complaints.map((record, index) => {
                   const duration = calculateDuration(record.complaintRegisteredDate);
                   return (
                     <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center">{index + 1}</td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center">{record.compId}</td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center">{showDetails.supervisor}</td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center">{record.zone}</td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center">{record.ward}</td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center">{record.complaintRegisteredDate}</td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-center">
-                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                          duration > 7 ? 'bg-red-100 text-red-700' : 
-                          duration > 3 ? 'bg-orange-100 text-orange-700' : 
-                          'bg-green-100 text-green-700'
-                        }`}>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center border border-black">{index + 1}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center border border-black">{record.compId}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center border border-black">{showDetails.supervisor}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center border border-black">{record.zone}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center border border-black">{record.ward}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center border border-black">{record.complaintRegisteredDate}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-center border border-black">
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${duration > 7 ? 'bg-red-100 text-red-700' :
+                            duration > 3 ? 'bg-orange-100 text-orange-700' :
+                              'bg-green-100 text-green-700'
+                          }`}>
                           {duration} Days
                         </span>
                       </td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center">{record.status}</td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center">{record.assignee}</td>
+                      <td className="px-4 py-2 text-sm text-black text-center max-w-[200px] truncate border border-black" title={`${record.complaintType} - ${record.complaintSubtype}`}>
+                        <div className="font-semibold text-xs">{record.complaintType}</div>
+                        <div className="text-[10px] text-gray-500">{record.complaintSubtype}</div>
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center border border-black">{record.status}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-black text-center border border-black">{record.assignee}</td>
                     </tr>
                   );
                 })}
               </tbody>
-              <tfoot className="bg-blue-700 text-white">
+              <tfoot className="bg-blue-700 text-white border-t-2 border-black">
                 <tr>
-                  <td colSpan={8} className="px-4 py-2 text-sm font-semibold text-center text-black">
+                  <td colSpan={10} className="px-4 py-2 text-sm font-semibold text-center text-white border border-black">
                     Total: {showDetails.complaints.length} Open Complaints
                   </td>
                 </tr>
@@ -573,7 +730,7 @@ const CDWasteComplaintReport: React.FC = () => {
                   <div className="bg-emerald-600 text-white px-4 py-2 flex items-center justify-between border-b border-black print-bg-emerald">
                     <div className="flex items-center gap-2">
                       <Users className="w-5 h-5" />
-                      <h3 className="text-lg font-bold uppercase">Zonal Head: {zonalHead}</h3>
+                      <h3 className="text-lg font-bold uppercase !text-white">Zonal Head: {zonalHead}</h3>
                     </div>
                     <span className="font-bold bg-white text-emerald-700 px-3 py-0.5 rounded-full text-sm">
                       Total: {zonalTotal}
@@ -585,44 +742,55 @@ const CDWasteComplaintReport: React.FC = () => {
                     <table className="w-full text-sm border-collapse">
                       <thead className="bg-gray-100 text-gray-900 border-b border-black font-bold uppercase text-xs">
                         <tr>
-                          <th className="px-4 py-3 text-center border-r border-black w-16">S.No.</th>
-                          <th className="px-4 py-3 text-left border-r border-black w-1/4">Supervisor Name</th>
-                          <th className="px-4 py-3 text-left border-r border-black w-1/2">Ward Details (Ward: Count)</th>
-                          <th className="px-4 py-3 text-center border-r border-black w-24">Max Duration</th>
-                          <th className="px-4 py-3 text-center border-r border-black w-20">Open</th>
-                          <th className="px-4 py-3 text-center w-24 no-print">Action</th>
+                          <th className="px-4 py-3 text-center border border-black w-16">S.No.</th>
+                          <th className="px-4 py-3 text-left border border-black w-1/4">Supervisor Name</th>
+                          <th className="px-4 py-3 text-left border border-black w-1/3">Ward Details (Ward: Count)</th>
+                          <th className="px-4 py-3 text-left border border-black w-1/4">Complaint Types</th>
+                          <th className="px-4 py-3 text-center border border-black w-24">Max Duration</th>
+                          <th className="px-4 py-3 text-center border border-black w-20">Open</th>
+                          <th className="px-4 py-3 text-center border border-black w-24 no-print">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-200">
+                      <tbody className="divide-y divide-black">
                         {Object.entries(supervisors).map(([supervisor, supData], idx) => {
                           const maxDuration = Math.max(...supData.complaints.map(c => calculateDuration(c.complaintRegisteredDate)), 0);
                           return (
                             <tr key={supervisor} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                              <td className="px-4 py-2 text-center text-gray-600 border-r border-gray-300">
+                              <td className="px-4 py-2 text-center text-gray-600 border border-black">
                                 {idx + 1}
                               </td>
-                              <td className="px-4 py-2 font-bold text-gray-800 border-r border-gray-300">
+                              <td className="px-4 py-2 font-bold text-gray-800 border border-black">
                                 {supervisor}
                               </td>
-                              <td className="px-4 py-2 border-r border-gray-300">
+                              <td className="px-4 py-2 border border-black">
                                 <div className="flex flex-wrap gap-2">
                                   {Object.entries(supData.wardCounts).map(([ward, count]) => (
-                                    <span key={ward} className="inline-flex items-center px-2 py-1 rounded bg-gray-100 border border-gray-200 text-xs">
+                                    <span key={ward} className="inline-flex items-center px-2 py-1 rounded bg-gray-100 border border-black text-xs">
                                       <span className="font-semibold text-gray-700 mr-1">{ward}:</span>
                                       <span className="font-bold text-red-600">{count}</span>
                                     </span>
                                   ))}
                                 </div>
                               </td>
-                              <td className="px-4 py-2 text-center border-r border-gray-300">
+                              <td className="px-4 py-2 border border-black">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {Object.entries(supData.typeCounts || {}).map(([cType, count]) => (
+                                    <span key={cType} className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 border border-black text-[11px]">
+                                      <span className="font-semibold text-blue-800 mr-1">{cType}:</span>
+                                      <span className="font-bold text-blue-600">{count}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="px-4 py-2 text-center border border-black">
                                 <span className={`font-bold ${maxDuration > 7 ? 'text-red-600' : maxDuration > 3 ? 'text-orange-600' : 'text-gray-700'}`}>
                                   {maxDuration} Days
                                 </span>
                               </td>
-                              <td className="px-4 py-2 text-center font-bold text-red-600 text-base border-r border-gray-300">
+                              <td className="px-4 py-2 text-center font-bold text-red-600 text-base border border-black">
                                 {supData.complaints.length}
                               </td>
-                              <td className="px-4 py-2 text-center no-print">
+                              <td className="px-4 py-2 text-center no-print border border-black">
                                 <button
                                   className="text-blue-600 hover:text-blue-800 font-medium hover:underline text-xs flex items-center justify-center gap-1 mx-auto"
                                   onClick={() => setShowDetails({ supervisor, complaints: supData.complaints })}
@@ -634,13 +802,14 @@ const CDWasteComplaintReport: React.FC = () => {
                           );
                         })}
                       </tbody>
-                      <tfoot className="bg-gray-50 border-t border-black font-bold">
-                        <tr>
-                          <td colSpan={2} className="px-4 py-2 text-right uppercase text-xs text-gray-500 border-r border-gray-300">Zonal Total</td>
-                          <td className="border-r border-gray-300"></td>
-                          <td className="border-r border-gray-300"></td>
-                          <td className="px-4 py-2 text-center text-emerald-700">{zonalTotal}</td>
-                          <td></td>
+                      <tfoot className="bg-gray-50 font-bold">
+                        <tr className="border-t-2 border-black">
+                          <td colSpan={2} className="px-4 py-2 text-right uppercase text-xs text-gray-800 border-r border-b border-black">Zonal Total</td>
+                          <td className="border-r border-b border-black"></td>
+                          <td className="border-r border-b border-black"></td>
+                          <td className="border-r border-b border-black"></td>
+                          <td className="px-4 py-2 text-center text-emerald-700 font-extrabold border-r border-b border-black">{zonalTotal}</td>
+                          <td className="border-b border-black"></td>
                         </tr>
                       </tfoot>
                     </table>

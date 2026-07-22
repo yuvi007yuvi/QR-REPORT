@@ -1345,7 +1345,15 @@ export const UCCReport: React.FC = () => {
                                             </tr>
                                             {/* Manager Rows */}
                                             {(() => {
-                                                const zm = zoneManagers[circle.zone] || {} as Partial<UCCZoneManager>;
+                                                const zoneKeyMap: Record<string, string> = {
+                                                    'Z1-C1': 'Circle 1',
+                                                    'Z1-C2': 'Circle 2',
+                                                    'Z1-C3': 'Circle 3',
+                                                    'Z1-C4': 'Circle 4',
+                                                    'Z1-C5': 'Circle 5'
+                                                };
+                                                const mappedZoneKey = zoneKeyMap[circle.zone] || circle.zone;
+                                                const zm = zoneManagers[mappedZoneKey] || {} as Partial<UCCZoneManager>;
                                                 return (
                                                     <>
                                                         <tr>

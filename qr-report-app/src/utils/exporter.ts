@@ -148,8 +148,8 @@ export const exportToPDFImage = async (elementId: string, filename: string = 'QR
 
         await new Promise(resolve => setTimeout(resolve, 50));
 
-        // Use PNG for better quality in PDF
-        const dataUrl = await toPng(element, { backgroundColor: '#ffffff' });
+        // Use PNG for better quality in PDF, increased pixelRatio for sharper text
+        const dataUrl = await toPng(element, { backgroundColor: '#ffffff', pixelRatio: 3 });
 
         const imgWidth = element.offsetWidth;
         const imgHeight = element.offsetHeight;

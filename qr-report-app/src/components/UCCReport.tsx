@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Papa from 'papaparse';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -805,8 +806,8 @@ export const UCCReport: React.FC = () => {
 
     return (
         <div className="p-6 space-y-6 relative">
-            {isExporting && (
-                <div className="fixed inset-0 z-[100] bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center">
+            {isExporting && createPortal(
+                <div className="fixed inset-0 z-[99999] bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center">
                     <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center text-center max-w-sm w-full border border-blue-100">
                         <div className="relative mb-6">
                             <div className="absolute inset-0 bg-blue-100 rounded-full animate-ping opacity-75"></div>
@@ -821,7 +822,8 @@ export const UCCReport: React.FC = () => {
                             <div className="bg-blue-600 h-1.5 rounded-full w-full animate-pulse"></div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
             <div className="flex flex-wrap justify-between items-center bg-white p-4 rounded-lg shadow-sm gap-4">
                 <div>

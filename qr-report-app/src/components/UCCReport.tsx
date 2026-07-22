@@ -105,6 +105,7 @@ export const UCCReport: React.FC = () => {
     const [viewMode, setViewMode] = useState<'table' | 'chart'>('table');
     const [metricMode, setMetricMode] = useState<'amount' | 'count'>('amount');
     const [reportType, setReportType] = useState<'ward' | 'circle'>('ward');
+    const [isExporting, setIsExporting] = useState<boolean>(false);
 
     const [filterCircle, setFilterCircle] = useState<string>('All');
     const [filterSupervisor, setFilterSupervisor] = useState<string>('All');
@@ -772,14 +773,19 @@ export const UCCReport: React.FC = () => {
     };
 
     const handleExcelExport = () => {
-        withLoading(() => exportToExcel(), 2000);
+        setIsExporting(true);
+        setTimeout(() => {
+            exportToExcel();
+            setIsExporting(false);
+        }, 1500);
     };
 
-    const handlePDFExport = async () => {
-        // PDF export handles its own cursor wait state
-        // We cannot use setLoading(true) because it unmounts the table component,
-        // causing document.getElementById(tableId) to fail.
-        await exportToPDF();
+    const handlePDFExport = () => {
+        setIsExporting(true);
+        setTimeout(async () => {
+            await exportToPDF();
+            setIsExporting(false);
+        }, 500);
     };
 
     const { combinedPivot, wardPivot, months } = processedData;
@@ -789,7 +795,25 @@ export const UCCReport: React.FC = () => {
 
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 relative">
+            {isExporting && (
+                <div className="fixed inset-0 z-[100] bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center">
+                    <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center text-center max-w-sm w-full border border-blue-100">
+                        <div className="relative mb-6">
+                            <div className="absolute inset-0 bg-blue-100 rounded-full animate-ping opacity-75"></div>
+                            <div className="relative bg-blue-600 text-white p-4 rounded-full shadow-lg">
+                                <Download className="w-8 h-8 animate-bounce" />
+                            </div>
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">Generating Report</h3>
+                        <p className="text-gray-500 text-sm">Please wait while your document is being prepared...</p>
+                        
+                        <div className="w-full bg-gray-100 rounded-full h-1.5 mt-6 overflow-hidden">
+                            <div className="bg-blue-600 h-1.5 rounded-full w-full animate-pulse"></div>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="flex flex-wrap justify-between items-center bg-white p-4 rounded-lg shadow-sm gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-800">UCC Collection Analysis</h2>
@@ -1438,9 +1462,14 @@ export const UCCReport: React.FC = () => {
                                                             </div>
                                                         </td>
                                                     ))}
-                                                    <td className="px-2 py-2 text-center font-semibold">
-                                                        {formatAmount(wardTargets[row.wardNo]?.targetAmount || 0)}
-                                                    </td>
+                                                    {row.renderWardRowSpan > 0 ? (
+                                                        <td 
+                                                            rowSpan={row.renderWardRowSpan}
+                                                            className="px-2 py-2 text-center font-semibold align-middle"
+                                                        >
+                                                            {formatAmount(wardTargets[row.wardNo]?.targetAmount || 0)}
+                                                        </td>
+                                                    ) : null}
                                                     <td className="px-2 py-2 text-center font-bold border-l-2 border-orange-300 bg-orange-50 whitespace-nowrap">
                                                         <div className="flex flex-col text-sm">
                                                             <span>{formatAmount(row.total.amount || 0)}</span>

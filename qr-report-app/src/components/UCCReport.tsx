@@ -1329,9 +1329,11 @@ export const UCCReport: React.FC = () => {
                                             row.renderWardRowSpan = 1;
                                             currentWardName = row.wardName;
                                             currentWardRowIndex = idx;
+                                            row.wardTotalAmount = row.total.amount;
                                         } else {
                                             row.renderWardRowSpan = 0;
                                             filteredRows[currentWardRowIndex].renderWardRowSpan += 1;
+                                            filteredRows[currentWardRowIndex].wardTotalAmount += row.total.amount;
                                         }
                                     });
 
@@ -1344,7 +1346,9 @@ export const UCCReport: React.FC = () => {
                                     filteredRows.forEach((r: any) => {
                                         filteredGrandTotal.amount += r.total.amount;
                                         filteredGrandTotal.count += r.total.count;
-                                        filteredTargetTotal += wardTargets[r.wardNo]?.targetAmount || 0;
+                                        if (r.renderWardRowSpan > 0) {
+                                            filteredTargetTotal += wardTargets[r.wardNo]?.targetAmount || 0;
+                                        }
                                         months.forEach(m => {
                                             filteredMonthlyTotals[m].amount += r[m].amount || 0;
                                             filteredMonthlyTotals[m].count += r[m].count || 0;
@@ -1357,7 +1361,7 @@ export const UCCReport: React.FC = () => {
                                         <thead>
                                             {/* Header Title */}
                                             <tr>
-                                                <th colSpan={4 + months.length + 2} className="bg-peach">
+                                                <th colSpan={4 + months.length + 3} className="bg-peach">
                                                     <div className="flex items-center justify-between px-8 py-3">
                                                         <img src={nagarNigamLogo} alt="Nagar Nigam" className="h-20 w-auto mix-blend-multiply" />
                                                         <span className="text-[36px] text-black font-extrabold uppercase tracking-wide">
@@ -1382,35 +1386,35 @@ export const UCCReport: React.FC = () => {
                                                     <>
                                                         <tr>
                                                             <th colSpan={2} className="py-1 text-center font-bold text-sm bg-blue">UCC MANAGER</th>
-                                                            <th colSpan={4 + months.length} className="py-1 text-center font-bold text-sm bg-blue">OPERATION MANAGER</th>
+                                                            <th colSpan={4 + months.length + 1} className="py-1 text-center font-bold text-sm bg-blue">OPERATION MANAGER</th>
                                                         </tr>
                                                         <tr>
                                                             <th className="py-1 text-center font-bold text-sm w-24 bg-light-gray">NAME</th>
                                                             <th className="py-1 text-center font-bold bg-light-yellow">{zm.uccManagerName || ''}</th>
                                                             <th className="py-1 text-center font-bold text-sm w-24 bg-light-gray">NAME</th>
-                                                            <th colSpan={3 + months.length} className="py-1 text-center font-bold bg-light-yellow">{zm.operationManagerName || ''}</th>
+                                                            <th colSpan={3 + months.length + 1} className="py-1 text-center font-bold bg-light-yellow">{zm.operationManagerName || ''}</th>
                                                         </tr>
                                                         <tr>
                                                             <th className="py-1 text-center font-bold text-sm bg-light-gray">PH NO.</th>
                                                             <th className="py-1 text-center font-bold bg-white">{zm.uccManagerPhone || ''}</th>
                                                             <th className="py-1 text-center font-bold text-sm bg-light-gray">PH NO.</th>
-                                                            <th colSpan={3 + months.length} className="py-1 text-center font-bold bg-white">{zm.operationManagerPhone || ''}</th>
+                                                            <th colSpan={3 + months.length + 1} className="py-1 text-center font-bold bg-white">{zm.operationManagerPhone || ''}</th>
                                                         </tr>
                                                         <tr>
                                                             <th colSpan={2} className="py-1 text-center font-bold text-sm bg-green">UCC ZONAL</th>
-                                                            <th colSpan={4 + months.length} className="py-1 text-center font-bold text-sm bg-green">C&T ZONAL</th>
+                                                            <th colSpan={4 + months.length + 1} className="py-1 text-center font-bold text-sm bg-green">C&T ZONAL</th>
                                                         </tr>
                                                         <tr>
                                                             <th className="py-1 text-center font-bold text-sm w-24 bg-light-gray">NAME</th>
                                                             <th className="py-1 text-center font-bold bg-white">{zm.uccZonalName || ''}</th>
                                                             <th className="py-1 text-center font-bold text-sm w-24 bg-light-gray">NAME</th>
-                                                            <th colSpan={3 + months.length} className="py-1 text-center font-bold bg-white">{zm.ctZonalName || ''}</th>
+                                                            <th colSpan={3 + months.length + 1} className="py-1 text-center font-bold bg-white">{zm.ctZonalName || ''}</th>
                                                         </tr>
                                                         <tr>
                                                             <th className="py-1 text-center font-bold text-sm bg-light-gray">PH NO.</th>
                                                             <th className="py-1 text-center font-bold bg-light-yellow">{zm.uccZonalPhone || ''}</th>
                                                             <th className="py-1 text-center font-bold text-sm bg-light-gray">PH NO.</th>
-                                                            <th colSpan={3 + months.length} className="py-1 text-center font-bold bg-light-yellow">{zm.ctZonalPhone || ''}</th>
+                                                            <th colSpan={3 + months.length + 1} className="py-1 text-center font-bold bg-light-yellow">{zm.ctZonalPhone || ''}</th>
                                                         </tr>
                                                     </>
                                                 );
@@ -1428,6 +1432,7 @@ export const UCCReport: React.FC = () => {
                                                     </th>
                                                 ))}
                                                 <th className="px-2 py-2 text-center font-bold text-sm uppercase bg-yellow">JULY TARGET</th>
+                                                <th className="px-2 py-2 text-center font-bold text-sm uppercase bg-yellow">PENDING</th>
                                                 <th className="px-2 py-2 text-center font-bold text-sm uppercase bg-yellow">TOTAL</th>
                                             </tr>
                                         </thead>
@@ -1470,6 +1475,22 @@ export const UCCReport: React.FC = () => {
                                                             {formatAmount(wardTargets[row.wardNo]?.targetAmount || 0)}
                                                         </td>
                                                     ) : null}
+                                                    {row.renderWardRowSpan > 0 ? (
+                                                        <td 
+                                                            rowSpan={row.renderWardRowSpan}
+                                                            className="px-2 py-2 text-center font-semibold align-middle"
+                                                        >
+                                                            {(() => {
+                                                                const target = wardTargets[row.wardNo]?.targetAmount || 0;
+                                                                const pending = target - (row.wardTotalAmount || 0);
+                                                                return (
+                                                                    <div className={`text-sm ${pending > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                                                        {formatAmount(pending)}
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </td>
+                                                    ) : null}
                                                     <td className="px-2 py-2 text-center font-bold border-l-2 border-orange-300 bg-orange-50 whitespace-nowrap">
                                                         <div className="flex flex-col text-sm">
                                                             <span>{formatAmount(row.total.amount || 0)}</span>
@@ -1491,6 +1512,16 @@ export const UCCReport: React.FC = () => {
                                                 ))}
                                                 <th className="px-2 py-3 text-center font-bold text-sm">
                                                     {formatAmount(filteredTargetTotal)}
+                                                </th>
+                                                <th className="px-2 py-3 text-center font-bold text-sm">
+                                                    {(() => {
+                                                        const pendingTotal = filteredTargetTotal - filteredGrandTotal.amount;
+                                                        return (
+                                                            <div className={`${pendingTotal > 0 ? 'text-red-700' : 'text-green-700'}`}>
+                                                                {formatAmount(pendingTotal)}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </th>
                                                 <th className="px-2 py-3 text-center font-extrabold border-l-2 border-orange-400 bg-orange-100 whitespace-nowrap">
                                                     <div className="flex flex-col text-sm text-orange-900">

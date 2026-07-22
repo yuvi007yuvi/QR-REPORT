@@ -94,6 +94,7 @@ interface ProcessedData {
     uniqueDaysPerMonth: Record<string, number>; // Month -> count of unique days
     totalUniqueDays: number; // Total unique days across all months
     circlePivot: any[]; // Zone/Circle Pivot
+    dateRange: string;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1', '#a4de6c', '#d0ed57'];
@@ -571,6 +572,13 @@ export const UCCReport: React.FC = () => {
             };
         });
 
+        const sortedAllDates = Array.from(allUniqueDates).sort((a, b) => {
+            const [d1, m1, y1] = a.split('/');
+            const [d2, m2, y2] = b.split('/');
+            return new Date(`${y1}-${m1}-${d1}`).getTime() - new Date(`${y2}-${m2}-${d2}`).getTime();
+        });
+        const dateRange = sortedAllDates.length > 0 ? `${sortedAllDates[0]} to ${sortedAllDates[sortedAllDates.length - 1]}` : 'Unknown';
+
         setProcessedData({
             amount: { monthly: monthlyDataAmount, property: propertyDataAmount, ward: wardDataAmount },
             count: { monthly: monthlyDataCount, property: propertyDataCount, ward: wardDataCount },
@@ -580,7 +588,8 @@ export const UCCReport: React.FC = () => {
             months: sortedMonths,
             nested: nestedData,
             uniqueDaysPerMonth: uniqueDaysCounts,
-            totalUniqueDays: allUniqueDates.size
+            totalUniqueDays: allUniqueDates.size,
+            dateRange: dateRange
         });
     };
 
@@ -1364,9 +1373,17 @@ export const UCCReport: React.FC = () => {
                                                 <th colSpan={4 + months.length + 3} className="bg-peach">
                                                     <div className="flex items-center justify-between px-8 py-3">
                                                         <img src={nagarNigamLogo} alt="Nagar Nigam" className="h-20 w-auto mix-blend-multiply" />
-                                                        <span className="text-[36px] text-black font-extrabold uppercase tracking-wide">
-                                                            {circle.zone.replace('Z1-', '')} CIRCLE REPORT
-                                                        </span>
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="text-[36px] text-black font-extrabold uppercase tracking-wide">
+                                                                {circle.zone.replace('Z1-', '')} CIRCLE REPORT
+                                                            </span>
+                                                            <span className="text-sm text-gray-800 font-bold mt-1">
+                                                                Report Period: {processedData.dateRange} | Generated: {new Date().toLocaleString('en-IN', {
+                                                                    day: '2-digit', month: '2-digit', year: 'numeric',
+                                                                    hour: '2-digit', minute: '2-digit', hour12: true
+                                                                })}
+                                                            </span>
+                                                        </div>
                                                         <img src={natureGreenLogo} alt="Nature Green" className="h-16 w-auto mix-blend-multiply" />
                                                     </div>
                                                 </th>

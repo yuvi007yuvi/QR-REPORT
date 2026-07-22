@@ -601,6 +601,32 @@ export const UCCReport: React.FC = () => {
         return date.toLocaleString('default', { month: 'short', year: 'numeric' });
     };
 
+    const getExportFilename = (extension?: string) => {
+        const date = new Date();
+        const formattedDate = date.toLocaleDateString('en-IN', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        }).replace(/\//g, '-');
+        
+        const formattedTime = date.toLocaleTimeString('en-IN', {
+            hour: '2-digit', minute: '2-digit', hour12: false
+        }).replace(/:/g, '');
+
+        let baseName = 'UCC_Report';
+        
+        if (reportType === 'circle') {
+            if (filterCircle !== 'All') {
+                baseName = `UCC_${filterCircle.replace('Z1-', '')}_Circle_Report`;
+            } else {
+                baseName = `UCC_All_Circles_Report`;
+            }
+        } else {
+            baseName = `UCC_Ward_Report`;
+        }
+        
+        const name = `${baseName}_${formattedDate}_${formattedTime}`;
+        return extension ? `${name}.${extension}` : name;
+    };
+
     const exportToExcel = () => {
         if (!processedData) return;
         const { wardPivot, months, nested } = processedData;
@@ -689,7 +715,7 @@ export const UCCReport: React.FC = () => {
         const wsMerged = XLSX.utils.json_to_sheet(mergedRows);
         XLSX.utils.book_append_sheet(wb, wsMerged, "Merged Analysis");
 
-        XLSX.writeFile(wb, "UCC_Report_Merged_Analysis.xlsx");
+        XLSX.writeFile(wb, getExportFilename('xlsx'));
     };
 
     const exportToPDF = async () => {
@@ -707,7 +733,7 @@ export const UCCReport: React.FC = () => {
             const originalCursor = document.body.style.cursor;
             document.body.style.cursor = 'wait';
 
-            await exportToPDFImage(tableId, 'UCC_Collection_Report');
+            await exportToPDFImage(tableId, getExportFilename());
 
             document.body.style.cursor = originalCursor;
         } catch (error) {
@@ -1548,6 +1574,16 @@ export const UCCReport: React.FC = () => {
                                                         <span className="text-xs">({formatCount(filteredGrandTotal.count)} slips)</span>
                                                     </div>
                                                 </th>
+                                            </tr>
+                                            {/* Credits Row */}
+                                            <tr>
+                                                <td colSpan={4 + months.length + 3} className="px-4 py-6 text-left border-0 bg-white">
+                                                    <div className="flex flex-col text-[10px] text-gray-400 font-medium italic">
+                                                        <span>Designed for Nature Green</span>
+                                                        <span>Crafted with ♥ by Yuvraj Singh Tomar</span>
+                                                        <span>v2.4.0</span>
+                                                    </div>
+                                                </td>
                                             </tr>
                                         </tbody>
                                     </table>

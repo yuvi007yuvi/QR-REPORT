@@ -92,7 +92,17 @@ export const exportToJPEG = async (elementId: string, filename: string = 'QR_Rep
         // Small wait for layout
         await new Promise(resolve => setTimeout(resolve, 50));
 
-        const dataUrl = await toJpeg(element, { quality: 0.95, backgroundColor: '#ffffff' });
+        const canvasWidth = element.scrollWidth;
+        const canvasHeight = element.scrollHeight;
+
+        const dataUrl = await toJpeg(element, { 
+            backgroundColor: '#ffffff', 
+            quality: 0.95,
+            width: canvasWidth,
+            height: canvasHeight,
+            // A 1x1 transparent PNG to prevent html-to-image from throwing "Event" on broken images/fonts
+            imagePlaceholder: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+        });
 
         const link = document.createElement('a');
         link.download = `${filename}.jpg`;
@@ -148,20 +158,40 @@ export const exportToPDFImage = async (elementId: string, filename: string = 'QR
 
         await new Promise(resolve => setTimeout(resolve, 50));
 
-        // Use PNG for better quality in PDF, increased pixelRatio for sharper text
-        const dataUrl = await toPng(element, { backgroundColor: '#ffffff', pixelRatio: 3 });
+        const canvasWidth = element.scrollWidth;
+        const canvasHeight = element.scrollHeight;
 
-        const imgWidth = element.offsetWidth;
-        const imgHeight = element.offsetHeight;
-
-        const doc = new jsPDF({
-            orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
-            unit: 'px',
-            format: [imgWidth, imgHeight]
+        // Use PNG for better quality in PDF
+        const dataUrl = await toPng(element, { 
+            backgroundColor: '#ffffff', 
+            pixelRatio: 1.5, // Reduced slightly to avoid maximum canvas height limits on very long reports
+            width: canvasWidth,
+            height: canvasHeight,
+            // Prevent Event errors on un-fetchable images
+            imagePlaceholder: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
         });
 
-        doc.addImage(dataUrl, 'PNG', 0, 0, imgWidth, imgHeight);
-        doc.save(`${filename}.pdf`);
+        const pdf = new jsPDF('p', 'pt', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvasHeight * pdfWidth) / canvasWidth;
+
+        let heightLeft = pdfHeight;
+        let position = 0;
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        // Add first page
+        pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+
+        // Add subsequent pages if the table is taller than one A4 page
+        while (heightLeft > 0) {
+            position -= pageHeight;
+            pdf.addPage();
+            pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
+            heightLeft -= pageHeight;
+        }
+
+        pdf.save(`${filename}.pdf`);
 
     } catch (error) {
         console.error('Error exporting to PDF:', error);

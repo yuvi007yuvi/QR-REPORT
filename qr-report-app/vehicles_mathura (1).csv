@@ -1,0 +1,393 @@
+ID,Vehicle Number,Vehicle ID,Fuel Efficiency,Driver Name,Driver Mobile,Status,Active,Vehicle Type,Fuel Type,Ward ID,IMEI,Is Pocket Tracker,Route IDs
+41,9579,VM-1,,VIRENDRA SINGH,9368273441,,False,Primary - Auto Tipper,CNG,241,,False,
+42,M065 UP85AG0888,,,BOBBY BANSAL,7830505276,,True,Primary - Auto Tipper,CNG,229,,False,
+45,CH_49540 LOADER,VM-1,,Jaya Sharma,8707085982,,True,Secondary - Tractor Loader,Diesel,131,,False,
+46,DL51GD9441,VM-1,,Jagmohan,8923234830,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,225,,False,633;885
+48,M087  UP85AG0785,,,Dharmendra Singh,9045417509,,True,Primary - Auto Tipper,CNG,245,,False,670;699
+49,M091 UP85AG0778,VM-1,,VISHAL,7310665508,,True,Primary - Auto Tipper,CNG,224,,False,
+50,UP85FT 2574,,,Duda Driver,7830505222,,True,Primary - Auto Tipper,CNG,208,,False,850
+53,UP85AG0725,,,Sahil Solanki,8192905901,,True,Secondary - Refuse Compactor (RC),Diesel,131,,False,
+54,UP85AG0726_RC,,,RAJU,9068558347,,False,Secondary - Refuse Compactor (RC),Diesel,131,,False,
+55,UP85AG0727,VM-1,,Sushil Kumar,8534878947,,True,Secondary - Refuse Compactor (RC),Diesel,131,,False,
+56,M252 UP85ET 7850_C,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,252,,False,861;904;698
+57,MR005-70145768,VM-1,,Pintu saini,9286111631,,False,Primary - Manual Rickshaw,Electric,103,359097370145768,True,
+58,DL51EV0209,VM-1,,AKSHAY,8126014045,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,205,,False,
+59,DL51GD0277,VM-1,,GAJENDRA SINGH,7017818285,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,203,,False,802
+60,DL51GD9456,VM-1,,HARVEER,7505305867,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,242,,False,
+62,DL51GD9539,VM-1,,Manoj,7351228212,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,236,,False,
+63,DL5TGD9454,,,KANHAIYA,7817946479,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,213,,False,900
+64,M001 UP14PT7952,,,vijay singh,9084176607,,True,Primary - Auto Tipper,CNG,222,,False,637
+66,M004 UP14PT7951,,,VISHAL,8439680765,,True,Primary - Auto Tipper,CNG,203,,False,749
+67,M006 UP14PT8096,,,Khem Chand,6395006090,,True,Primary - Auto Tipper,CNG,224,,False,540;538
+68,M007 UP14PT7719_C,VM-1,,Pawan,7820089173,,True,Primary - Auto Tipper,CNG,231,,False,
+69,M008 UP14PT7996,,,DEVENDRA,9389138761,,False,Primary - Auto Tipper,CNG,204,,False,
+70,M009 UP14PT7717,,,Sandeep Kumar,6395754565,,True,Primary - Auto Tipper,CNG,221,,False,636
+71,M010 UP14PT8107,,,Rajeev,7055907259,,True,Primary - Auto Tipper,CNG,254,,False,894;726
+72,M011 DL51EV0215,,,NEERAJ,6397506437,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,233,,False,905
+73,M012 UP14PT7946,,,Harjindar Singh,7668655161,,True,Primary - Auto Tipper,CNG,235,,False,556;654
+74,M013 UP14PT7750,,,NAGESH Kumar,9027647550,,True,Primary - Auto Tipper,CNG,101,,False,875;573
+75,M014 UP14PT7936,,,Rajkumar,7505890686,,True,Primary - Auto Tipper,CNG,1,,False,759
+76,M015 UP14PT7997,,,Kailash,9927437127,,False,Primary - Auto Tipper,CNG,243,,False,
+77,M016 UP14PT7747,,,Bharat,7668493173,,True,Primary - Auto Tipper,CNG,247,,False,813
+78,M017 UP14PT7724,,,Bhola,9557914981,,True,Primary - Auto Tipper,CNG,246,,False,671
+80,M019 UP14PT7945,,,Tilkend Chandel,7819968631,,True,Primary - Auto Tipper,CNG,227,,False,544
+81,M020 UP14PT7998,,,LAKSHMAN,9389511621,,True,Primary - Auto Tipper,CNG,232,,False,
+82,M022 UP14PT7993_C,,,Arjun,7017751488,,False,Primary - Auto Tipper,CNG,212,,False,
+83,M023 UP14PT7726,,,Abhishek khare,8533942597,,True,Primary - Auto Tipper,CNG,226,,False,542
+84,M024 UP14PT7999,,,RANVEER,9289305298,,True,Primary - Auto Tipper,CNG,233,,False,
+85,M026 UP14PT7718,VM-1,,Anil kumar,8057442237,,True,Primary - Auto Tipper,CNG,235,,False,
+86,M027 UP14PT8097,,,SANJU,7505303304,,True,Primary - Auto Tipper,CNG,233,,False,
+89,M032 UP14PT7720_C,,,SATISH KUMAR,7668488228,,False,Primary - Auto Tipper,CNG,257,,False,
+90,M036 UP14PT8105_C,VM-1,,Jagmohan,8923234830,,True,Primary - Auto Tipper,CNG,208,,False,
+91,M038 UP14PT7753,,,Pawan,7820089173,,True,Primary - Auto Tipper,CNG,240,,False,685
+92,M039 UP14PT7949,,,Jitendra bharti,9259490690,,True,Primary - Auto Tipper,CNG,222,,False,533
+93,M040 UP14PT7938,VM-1,,Mohan Singh,8650296297,,True,Primary - Auto Tipper,CNG,215,,False,
+94,M042 UP85AG0883,,,Rohtash Singh,9568776534,,True,Primary - Auto Tipper,CNG,202,,False,504;794
+95,M045  UP85AG0890_C,,,Chandan singh,7351208160,,True,Primary - Auto Tipper,CNG,240,,False,
+96,M050 UP85AG0772_C,,,VIRENDRA SINGH,9368273441,,True,Primary - Auto Tipper,CNG,209,,False,
+97,M051 UP85AG0892,,,CHANDRA PRAKASH,7820097248,,True,Primary - Auto Tipper,CNG,240,,False,566
+98,M052 UP85AG0790,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,231,,False,
+99,M053 UP85AG0769,,,Ramji lal,6395636209,,True,Primary - Auto Tipper,CNG,247,,False,
+101,M055 UP85AG0891_C,,,BALBHANT,9520937723,,True,Primary - Auto Tipper,CNG,244,,False,
+102,M056 UP85AG0963,,,Krishna kant,8273807619,,True,Primary - Auto Tipper,CNG,230,,False,
+103,M057 UP85AG0774,VM-1,,Duda Driver,7830505222,,False,Primary - Auto Tipper,CNG,206,,False,
+104,M058 UP85AG0950,VM-1,,Dharmendra Singh,9045417509,,True,Primary - Auto Tipper,CNG,207,,False,760
+105,M060 UP85AG0881,VM-1,,LAKHAN YADAV,8923175303,,True,Primary - Auto Tipper,CNG,230,,False,549
+106,M061 UP85AG0801,,,BALDEV,9520740751,,True,Primary - Auto Tipper,CNG,220,,False,
+107,M064 UP85AG0673,,,To Be Assigned,9899899891,,False,Primary - Auto Tipper,CNG,236,,False,
+108,M072   UP85AG0803,,,vijay singh,9084176607,,True,Primary - Auto Tipper,CNG,214,,False,519
+109,M073   UP85AG0753,VM-1,,Jitendra bharti,9259490690,,True,Primary - Auto Tipper,CNG,207,,False,
+110,M075   UP85AG0671,VM-1,,To Be Assigned,9899899891,,False,Primary - Auto Tipper,CNG,3,,False,
+111,M076  UP85AG0779,VM-1,,Arjun,7017751488,,True,Primary - Auto Tipper,CNG,224,,False,539
+112,M077  UP85AG0761_C,,,KISHAN,7895053126,,False,Primary - Auto Tipper,CNG,228,,False,
+113,M078   UP85AG0757,VM-1,,Pawan,7820089173,,True,Primary - Auto Tipper,CNG,234,,False,554
+114,M079   UP85AG0754,,,Tarun,7217227673,,True,Primary - Auto Tipper,CNG,206,,False,
+115,M080  UP85AG0795_C,,,Duda Driver,7830505222,,True,Primary - Auto Tipper,CNG,101,,False,809
+116,M081  UP85AG0893_C,VM-1,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,247,,False,812
+117,M085  UP14PT7950_TEMPLE,,,MOHIT SAINI ,8755983564,,True,Primary - Auto Tipper,CNG,241,,False,
+118,M086   UP85AG0880,,,Jagmohan,8923234830,,True,Primary - Auto Tipper,CNG,217,,False,628
+119,M088  UP85AG0791_C,VM-1,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,209,,False,882;874;920
+120,M092 UP14PT7727_C,,,Raju,6395563407,,True,Primary - Auto Tipper,CNG,255,,False,688
+121,M093 UP85AG26941_BREAKDOWN,VM-1,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,237,,False,
+122,M094   UP85AG0759,VM-1,,OMPRAKASH,9520203773,,True,Primary - Auto Tipper,CNG,203,,False,719;909
+123,M095    UP85AG0788,,,MOHIT,9368953580,,True,Primary - Auto Tipper,CNG,230,,False,
+124,M096   UP85AG0894,VM-1,,Madan Lal,8384814269,,True,Primary - Auto Tipper,CNG,215,,False,641
+125,M098   UP85AGT0956,,,Himmat Singh,7983045379,,True,Primary - Auto Tipper,CNG,104,,False,
+126,M099 0787,VM-1,,DESHRAJ SINGH,9719915599,,True,Primary - Auto Tipper,CNG,241,,False,
+127,M100   UP85AG0886_C,,,AMAN SAMBARIYA,6395685860,,True,Primary - Auto Tipper,CNG,232,,False,
+128,M101  UP85AG0751,,,JITENDRA SINGH,9720479760,,True,Primary - Auto Tipper,CNG,209,,False,
+129,M102   UP85AG0758,VM-1,,Duda Driver,7830505222,,True,Primary - Auto Tipper,CNG,248,,False,
+130,M103   UP85AG0802,VM-1,,To Be Assigned,9899899891,,False,Primary - Auto Tipper,CNG,204,,False,
+131,M105   UP85AG0800,VM-1,,Narendra Yadav,9286029557,,True,Primary - Auto Tipper,CNG,212,,False,936
+133,M108    UP85AG0796,,,Pawan,9368241812,,True,Primary - Auto Tipper,CNG,224,,False,764
+134,M109 UP85AG0794,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,246,,False,
+135,M111  UP85AG0882,,,Vikas,7819989685,,True,Primary - Auto Tipper,CNG,249,,False,577
+136,M112   UP85AG0885_C,,,Manish kumar,8126059860,,True,Primary - Auto Tipper,CNG,102,,False,613
+137,M113   UP85AGT0966,VM-1,,Jitendra bharti,9259490690,,True,Primary - Auto Tipper,CNG,204,,False,930
+138,M114    UP85AGT0957,,,Veeru,7983722136,,True,Primary - Auto Tipper,CNG,258,,False,588;586
+139,M115 UP85AG0887_C,,,SONVEER,7428541259,,True,Primary - Auto Tipper,CNG,210,,False,605
+140,M116 UP85AG0768,,,Jay Prakash,8923557519,,True,Primary - Auto Tipper,CNG,218,,False,
+141,M117   UP85AG0765_C,,,Ravi Pathik,8266062914,,True,Primary - Auto Tipper,CNG,256,,False,805
+142,M124 DL51EV0233,VM-1,,KRISH DAGOR,7302826346,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,205,,False,
+143,M126  UP85AG0799,VM-1,,SATYAPRAKASH,9119032047,,True,Primary - Auto Tipper,CNG,99,,False,780
+144,M127   UP85AG0762,,,Sunil,8958538470,,True,Primary - Auto Tipper,CNG,221,,False,853;852
+145,M128 DL51GD9569,184,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,211,,False,
+146,M129   UP85AG0780,VM-1,,Balvendra Singh,7818803338,,True,Primary - Auto Tipper,CNG,223,,False,536;535
+147,M132    UP85AG0770,VM-1,,BRAJ MOHAN,7830272823,,True,Primary - Auto Tipper,CNG,221,,False,510
+148,M134 UP85AG0970,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,99,,False,
+150,M137 UP85AG0954_BREAKDOWN,VM-1,,HARIOM,8077401547,,False,Primary - Auto Tipper,CNG,207,,False,
+152,M142 UP85ET 7844,,,Rajkumar Saini,9027739285,,True,Primary - Auto Tipper,CNG,227,,False,642
+153,M173 UP85AG0884,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,236,,False,
+154,M174 UP85AG0771,,,RAHUL,7668313763,,True,Primary - Auto Tipper,CNG,209,,False,
+155,M175 DL51GD9465,,,SATYAVEER,9675689810,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,210,,False,825;622
+156,M177 UP85AG0793_C,VM-1,,To Be Assigned,9899899891,,False,Secondary - Hook Loader,CNG,131,,False,
+157,M178 UP85AG0760,,,Vinod Kumar,8475863365,,True,Primary - Auto Tipper,CNG,259,,False,589;855
+158,M179 UP85AG0720_C,,,Duda Driver,7830505222,,True,Primary - Auto Tipper,CNG,218,,False,
+159,M180 UP85AG0685,,,RAKESH,9286264624,,False,Primary - Auto Tipper,CNG,254,,False,
+160,M181 UP85AG0763,,,Navneet Parasar,7037173221,,True,Primary - Auto Tipper,CNG,243,,False,676
+161,M182 UP85AG0797,,,Rajkumar Saini,9027739285,,True,Primary - Auto Tipper,CNG,227,,False,
+162,M183 UP85AG0912(ER),VM-1,,SATENDRA,7428541246,,False,Primary - AUTO TIPPER 3 WHEELER,Electric,249,,False,
+163,M185 UP85AG0756,,,Neeraj Kumar,6397080325,,False,Primary - Auto Tipper,CNG,248,,False,
+164,M191 UP85AG0948,,,Sunil,8958538470,,True,Primary - Auto Tipper,CNG,254,,False,915;725
+165,M193 UP85AG0914(ER),VM-1,,To Be Assigned,9899899891,,False,Primary - AUTO TIPPER 3 WHEELER,Electric,235,,False,
+167,M196 DL51GD9113_C,,,KAMAL SINGH,8126244414,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,258,,False,803
+168,M197 DL51GD9401_C,VM-1,,Jalaluddin,9259542123,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,260,,False,591
+169,M199 UP85AG0773_C,,,To Be Assigned,9899899891,,False,Primary - Auto Tipper,CNG,215,,False,
+170,M200 UP85AG0968,VM-1,,Nivendra,9557009352,,True,Primary - Auto Tipper,CNG,260,,False,590
+171,M201 UP85AG0755,VM-1,,Sonu khaa,8126161578,,True,Primary - Auto Tipper,CNG,248,,False,575
+172,M204 UP85AG0955,VM-1,,SATYAVEER,9675689810,,True,Primary - Auto Tipper,CNG,104,,False,832;620
+173,M207 UP85AG0965,VM-1,,MUKESH,9690848092,,True,Primary - Auto Tipper,CNG,231,,False,645
+174,M208 UP85AG0672,,,To Be Assigned,9899899891,,False,Primary - Auto Tipper,CNG,212,,False,
+175,M209  UP85AG0679,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,261,,False,
+176,M219 UP85AG0962,,,VEERU,9634404263,,True,Primary - Auto Tipper,CNG,216,,False,619
+177,M220 UP14PT7715,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,218,,False,
+178,M222 UP85AG0952,VM-1,,KAMAL SINGH,8126244414,,True,Primary - Auto Tipper,CNG,212,,False,
+179,M223 UP85AG0959,VM-1,,Nitin,8979602516,,True,Primary - Auto Tipper,CNG,3,,False,770
+180,M224 UP85AG0961,,,Anil sharma,7300915087,,True,Primary - Auto Tipper,CNG,103,,False,
+181,M225 UP85AG0953,,,To Be Assigned,9899899891,,False,Primary - Auto Tipper,CNG,240,,False,
+182,M226 UP85AG0969,,,Krishna kant,8273807619,,True,Primary - Auto Tipper,CNG,1,,False,765
+183,M228 UP85AG0775,,,RISHABH,7906427713,,False,Primary - Auto Tipper,CNG,255,,False,
+184,M229   UP85AG0792_C,,,LOKESH,9068087554,,True,Primary - Auto Tipper,CNG,211,,False,
+185,M230 UP85AG0665_C,VM-1,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,222,,False,
+186,M231 UP85ET 7837,VM-1,,YOGESH KUMAR,7060983865,,True,Primary - Auto Tipper,CNG,245,,False,680
+187,M232 UP85ET 7839_C,,,SURJEET CHANCHAL,8534958597,,True,Primary - Auto Tipper,CNG,256,,False,808
+188,M233 UP85ET 7835,v1,,Sudhakar Kumar,9084560440,,True,Primary - Auto Tipper,CNG,230,,False,
+189,M234 UP85ET 7832,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,209,,False,940
+190,M235 UP85ET 7838_C,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,243,,False,854
+191,M236 UP85ET 7830,,,RAHUL,7668313763,,True,Primary - Auto Tipper,CNG,238,,False,752
+192,M237 UP85ET 7866,,,SATYAPRAKASH,9119032047,,True,Primary - Auto Tipper,CNG,222,,False,
+193,M238 UP85ET 7831,,,Nand lal,9105368180,,True,Primary - Auto Tipper,CNG,227,,False,543
+195,M244 UP85AG0789_C,VM-1,,MUKESH,9690848092,,True,Primary - Auto Tipper,CNG,242,,False,925;923
+196,M245 DL51EV0265,VM-1,,MADHAV,9760747719,,False,Primary - AUTO TIPPER 3 WHEELER,Electric,245,,False,
+197,M253 UP85ET 7854,,,Khem chand,9568541632,,True,Primary - Auto Tipper,CNG,100,,False,781;935
+198,M254 UP85ET 7853,VM-1,,DHEERAJ SINGH,7668422511,,True,Primary - Auto Tipper,CNG,228,,False,545;878
+199,M255 UP85ET 7849,,,BHUPENDRA,7404591272,,True,Primary - Auto Tipper,CNG,207,,False,612;910
+200,M256 UP85ET 7861,VM-1,,Anil kumar,8057442237,,True,Primary - Auto Tipper,CNG,205,,False,
+201,M257 UP85ET 7845,,,Anish,6375080540,,True,Primary - Auto Tipper,CNG,239,,False,
+202,M258 UP85ET 7843,,,SANJU,7505303304,,True,Primary - Auto Tipper,CNG,239,,False,884;682;683
+203,M259 UP85ET 7852,,,BHUPENDRA,7404591272,,True,Primary - Auto Tipper,CNG,210,,False,621
+204,M260 UP85ET 7859,,,Ravindra Kumar,9027989852,,True,Primary - Auto Tipper,CNG,242,,False,924
+206,M262 UP85ET 7851,,,Bharat,7037267255,,True,Primary - Auto Tipper,CNG,247,,False,815
+208,M264 UP85ET 7867,,,BRAJ MOHAN,7830272823,,True,Primary - Auto Tipper,CNG,257,,False,585
+209,M265 UP14PT8095,VM-1,,Bakil kumar,8923923026,,True,Primary - Auto Tipper,CNG,225,,False,889;632
+210,M266 UP85ET 7864,,,Pankaj Kumar,7037059582,,True,Primary - Auto Tipper,CNG,205,,False,758
+211,M267 UP85ET 7855,,,CHANDRA PRAKASH,7820097248,,False,Primary - Auto Tipper,CNG,212,,False,
+212,M268 UP85ET 7848,VM-1,,ABHISHEK,7078721823,,True,Primary - Auto Tipper,CNG,247,,False,814
+213,M269 UP85ET 7841,,,Sunil,8958538470,,True,Primary - Auto Tipper,CNG,212,,False,516
+214,M271 UP85ET 7847_C,,,MOHIT,9368953580,,True,Primary - Auto Tipper,CNG,256,,False,807
+216,M273 UP85ET 7846,VM-1,,Sahdev Raghav,9105359440,,True,Primary - Auto Tipper,CNG,207,,False,821
+217,M275 UP85AG7863,,,Mohan Singh,8650296297,,True,Primary - Auto Tipper,CNG,215,,False,522
+219,M277 UP85ET 7842,VM-1,,Prasant Kumar,9520408540,,False,Primary - Auto Tipper,CNG,212,,False,
+220,M278 UP85ET 7840,,,vikram,8181813771,,True,Primary - Auto Tipper,CNG,200,,False,755
+221,MR001-70143920,,,Vishnu Kumar,8000658017,,False,Primary - Wheel Barrow,Electric,241,359097370143920,True,
+223,MR003-70144647,,,Nitin,8979602516,,False,Primary - Manual Rickshaw,Electric,209,359097370144647,True,
+224,MR004-70147590,,,Pintu saini,9286111631,,False,Primary - Wheel Barrow,Electric,247,359097370147590,True,
+225,MR006-70143904,,,Akash,8193038561,,True,Primary - Wheel Barrow,Electric,257,359097370143904,True,779
+226,MR009-70145685,,,Raju,7037649209,,True,Primary - Wheel Barrow,Electric,261,359097370145685,True,881
+230,MR011-70145214,,,Anuj,8218860961,,False,Primary - Wheel Barrow,Electric,225,359097370145214,True,
+231,MR013-70147533,,,Raju,7037649209,,True,Primary - Manual Rickshaw,Electric,203,359097370147533,True,614
+236,MR027-70143441,,,HAJARI,7300807476,,True,Primary - Manual Rickshaw,Electric,232,359097370143441,True,507
+237,MR029-70145446,,,Bobby,7830505276,,True,Primary - Manual Rickshaw,Electric,3,359097370145446,True,771;772
+238,MR030-70143656,,,Aditya,9084653106,,True,Primary - Manual Rickshaw,Electric,101,359097370143656,True,702
+239,MR031-70147434,,,Sandeep Chand,6398190701,,False,Primary - Manual Rickshaw,Electric,261,359097370147434,True,
+240,MR032-70145651,,,Sanjeev Sharma,8267875038,,True,Primary - Manual Rickshaw,Electric,247,359097370145651,True,696
+242,MR034-70143664,,,DINESH,9456224634,,True,Primary - Manual Rickshaw,Electric,215,359097370143664,True,520
+243,MR035-70148598,,,Pintu saini,9286111631,,False,Primary - Wheel Barrow,Electric,247,359097370148598,True,
+247,MR044-70147541,,,AMIT KUMAR DHANGER,8755463066,,False,Primary - Manual Rickshaw,Electric,244,359097370147541,True,
+248,MR022-70148549,,,Hemant chaudhary,8279352114,,True,Primary - Wheel Barrow,Electric,252,359097370148549,True,797;796
+249,MR012-70148523,VM-1,,JASMANTA,8533098072,,False,Primary - Manual Rickshaw,Electric,200,359097370148523,True,
+252,MR024-70143946,VM-1,,HARGOVIND,8979363398,,False,Primary - Manual Rickshaw,Electric,208,359097370143946,True,
+254,MR028-70148226,VM-1,,SUDESH,9520522925,,False,Primary - Wheel Barrow,Electric,257,359097370148226,True,
+255,MR047-70145297,,,Lakhan,7454097784,,True,Primary - Manual Rickshaw,Electric,252,359097370145297,True,847
+257,MR019-70148606,,,Kanhniya,7060015186,,True,Primary - Wheel Barrow,Electric,252,359097370148606,True,846
+259,MR040-70148093,VM-1,,Deepak Yadav,7668980678,,False,Primary - Manual Rickshaw,Electric,236,359097370148093,True,
+260,MR045-70145206,VM-1,,Khyaliram,8449120880,,False,Primary - Manual Rickshaw,Electric,226,359097370145206,True,
+262,MR048-70145701,VM-1,,To Be Assigned,9899899891,,True,Primary - Manual Rickshaw,Electric,244,359097370145701,True,679
+263,NEW TRACTOR,,,To Be Assigned,9899899891,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+264,MR049-70145354,,,LOKESH,9068087554,,False,Primary - Wheel Barrow,Electric,236,359097370145354,True,
+265,MR050-70147392,,,HARIKESH,8218387116,,False,Primary - Manual Rickshaw,Electric,3,359097370147392,True,
+266,RJ06GD5309,VM-1,,Vikash Kumar Dhangar,9720905228,,True,Primary - Auto Tipper,CNG,210,,False,514
+268,UP14PT7751,VM-1,,SANJAY KUMAR,9837639834,,True,Primary - Auto Tipper,CNG,247,,False,
+270,UP85AG0668_MAINTENANCE VEHICLE,,,Pintu saini,9286111631,,False,Primary - Auto Tipper,CNG,100,,False,
+271,UP85AG0804,VM-1,,Sohil,7451882986,,True,Primary - Auto Tipper,CNG,212,,False,801
+272,MUP85AG0798,VM-1,,Om Prakesh,7895319228,,True,Primary - Auto Tipper,CNG,246,,False,687
+274,UP14PT7749,,,Deepak,9193576419,,True,Primary - Auto Tipper,CNG,256,,False,804
+275,UP14PT7752,,,Satyapal,8077281343,,True,Primary - Auto Tipper,CNG,224,,False,638
+276,UP14PT7948,,,Mahaveer,9758008715,,False,Primary - Auto Tipper,CNG,206,,False,
+277,UP85AG0752,,,Pramod Kumar,8171614105,,True,Primary - Auto Tipper,CNG,215,,False,640
+278,UP85AG0767,,,BRAJESH BAGHEL,9193041751,,True,Primary - Auto Tipper,CNG,247,,False,
+280,UP85AG0949,,,Duda Driver,7830505222,,True,Primary - Auto Tipper,CNG,236,,False,659
+281,UP85ET 7856,VM-1,,Kanhniya,7060015186,,True,Primary - Auto Tipper,CNG,225,,False,631;888
+282,UP85ET7858,VM-1,,Devesh,8859614126,,True,Primary - Auto Tipper,CNG,204,,False,
+337,UP85AG0964,vm-1,,KAMAL SINGH,8126244414,,True,Primary - Auto Tipper,CNG,216,,False,922
+371,M243 UP85ET 7836,VM-1,,Mohan Singh,7895113895,,True,Primary - Auto Tipper,CNG,207,,False,596
+373,UP14PT7748,VM-1,,Atul,8077527805,,True,Primary - Auto Tipper,CNG,238,,False,
+403,M054 UP14PT7728,VM-1,,Amardeep,8791258897,,True,Primary - Auto Tipper,CNG,256,,False,806
+404,UP85ET7857,VM-1,,Sagar Yadav,6398259496,,True,Primary - Auto Tipper,CNG,258,,False,587
+502,M263 UP85ET 7862,,,Shrichand,8445889055,,True,Primary - Auto Tipper,CNG,212,,False,635
+503,UP14ET1439 H,,,Narendra Singh,8859151619,,False,Secondary - HYVA,Diesel,131,,False,
+535,RJ06GD5348,,,Jay Prakash,8923557519,,True,Primary - Auto Tipper,CNG,3,,False,
+601,RJO6GD1723,,,RAJENDRA,9897589513,,False,Primary - Auto Tipper,CNG,3,,False,
+634,UP85AG0652,,,CHETRAM,8218903674,,False,Secondary - Dustbin Placer Vehicle,Diesel,131,,False,
+635,UP85AG0825,,,Duda Driver,7830505222,,True,Secondary - Dumper,Diesel,131,,False,
+636,UP85AG0821,,,SONVEER,7428541259,,True,Secondary - Dumper,Diesel,131,,False,
+637,CNG DUMFER 3820,,,SONVEER,7428541259,,True,Secondary - Dumper,CNG,131,,False,
+638,HYVA6028,,,Duda Driver,7830505222,,True,Secondary - Dumper,Diesel,131,,False,
+639,UP85AG0851,,,Manvendra Singh,8650977751,,True,Secondary - Dumper,Diesel,131,,False,
+640,UP85AG0842,,,UMESH CHAND,9927046618,,True,Secondary - JCB 3DX,Diesel,131,,False,
+641,UP14RT3308,,,Mukesh,8755356752,,True,Secondary - JCB 3DX,Diesel,131,,False,
+642,UP85CT3893,,,Hukam Singh,8533047298,,False,Secondary - JCB 2DX,Diesel,131,,False,
+643,UP14PT8010_BOLERO,,,Gopal Singh,9997734757,,True,Primary - Auto Tipper,CNG,131,,False,
+646,UP85AG0822,,,SONVEER,7428541259,,True,Secondary - Dumper,Diesel,131,,False,
+647,CNG DUMFER 3874,,,Duda Driver,7830505222,,True,Secondary - Dumper,CNG,131,,False,
+648,UP85AT3750,,,Daya Shanker Sharma,6396600431,,True,Secondary - JCB 2DX,Diesel,131,,False,
+649,UP85AG0823,,,Duda Driver,7830505222,,True,Secondary - Hook Loader,Diesel,131,,False,
+650,M141 UP14NT7638,,,Sangram,8267062297,,True,Primary - Auto Tipper,CNG,230,,False,548
+651,UP85AG0841,,,Pankaj Singh,8287949815,,True,Secondary - JCB 3DX,Diesel,131,,False,
+652,UP85AG0879,,,Rajesh,8923512168,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+653,RJ06GD1038,,,Pankaj Kumar,7037059582,,True,Primary - Auto Tipper,CNG,255,,False,776
+654,UP85AG0687,,,Mukesh,8755356752,,True,Secondary - JCB 3DX,Diesel,131,,False,
+655,UP85AG0777,,,Mangal Singh,8958860425,,True,Primary - Auto Tipper,CNG,250,,False,739
+656,UP85AG0722,,,Vishal,9997631641,,True,Secondary - Refuse Compactor (RC),Diesel,131,,False,
+657,UP85AG0723,,,Mahendra,9897457268,,True,Secondary - Refuse Compactor (RC),Diesel,131,,False,
+658,UP85AG0834,,,Radheshyam,7088029740,,True,Secondary - Dumper,Diesel,131,,False,
+659,UP85AG0850,,,VIKASH,9917493967,,True,Secondary - Dumper,Diesel,131,,False,
+660,UP85AG0726,,,Raju,7037649209,,True,Secondary - Refuse Compactor (RC),Diesel,131,,False,
+667,UP85FT2584,,,YOGESH KUMAR,7060983865,,True,Primary - Auto Tipper,CNG,260,,False,734
+700,UP85FT2585,,,SANTOSH KUMAR,7983510290,,True,Primary - Auto Tipper,CNG,253,,False,724
+733,UP85FT2580,,,Duda Driver,7830505222,,True,Primary - Auto Tipper,CNG,259,,False,
+766,UP85FT2577,,,Ravi Kumar,9798908204,,True,Primary - Auto Tipper,CNG,237,,False,873;562
+799,RJ06GD1748,,,SANJU,7505303304,,True,Primary - Auto Tipper,CNG,233,,False,
+832,UP85FT2579,,,Narendra Yadav,9286029557,,True,Primary - Auto Tipper,CNG,207,,False,513
+833,HYVA 1660,,,Rajkumar,7505890686,,True,Secondary - HYVA,Diesel,131,,False,
+865,UP85FT2583,,,Shivam,9368436915,,True,Primary - Auto Tipper,CNG,259,,False,
+866,U85AG0875,,,BALDEV,9520740751,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+867,UP85AG0819,,,Bobby,7830505276,,True,Secondary - Tractor Loader,Diesel,131,,False,
+868,UP85AG0817,,,Mukesh,9149174678,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+869,UP85AG0746,,,Gagan Khare,8384824943,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+898,UP85FT2581,,,RAM,9068620520,,True,Primary - Auto Tipper,CNG,100,,False,558;557
+899,UP85AG0820,,,Pankaj Kumar,7037059582,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+900,UP85AG0744,,,Dhal Chand,8439729886,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+901,UP85FT2588,,,MAHESH KUMAR,9318325921,,True,Primary - Auto Tipper,CNG,223,,False,
+902,UP85AG0816,,,Sunil,9105560780,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+903,UP85AG0712,,,BHUPENDRA,7404591272,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+904,UP85AT4024,,,Sahil Solanki,8192905901,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+905,UP85AG0743,,,SONU,6396169012,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+906,UP85AG0747,,,Om Prakesh,7895319228,,True,Secondary - Tractor Loader,Diesel,131,,False,
+907,UP85AG0876,,,Bhoop singh,9870769718,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+908,UP85AT4023,,,VEERU,9634404263,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+909,UP85AT4022,,,Pawan,7820089173,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+910,UP14PT8106,,,Harvendra,9773886564,,True,Primary - Auto Tipper,CNG,242,,False,927;926
+931,UP85AG0848,,,Duda Driver,7830505222,,True,Secondary - Dumper,Diesel,131,,False,
+964,UP85AG0756,,,RAHUL SIROHI,7500339252,,True,Primary - Auto Tipper,CNG,238,,False,753
+997,RJ06GD5343,,,SHANKAR CHOUDHARI,7819947565,,True,Primary - Auto Tipper,CNG,209,,False,
+1030,UP85AG0849,,,Rajesh Chauhan,9058483636,,True,Secondary - Dumper,Diesel,131,,False,
+1063,DL51GD9464,,,SUBHASH,6396806509,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,255,,False,799
+1064,UP16RT3853,,,Prasant Kumar,9520408540,,True,Primary - AUTO TIPPER EV,Electric,251,,False,580
+1065,UP16RT3854,,,Madan Lal,8384814269,,True,Primary - AUTO TIPPER EV,Electric,102,,False,742;595
+1066,UP16RT3814,,,MAHESH,8433047396,,True,Primary - AUTO TIPPER EV,Electric,201,,False,791
+1067,UP16RT3820,,,Narendra Singh,8859151619,,True,Primary - AUTO TIPPER EV,Electric,242,,False,651
+1068,UP16RT3832,,,Mohan Singh,7895113895,,True,Primary - AUTO TIPPER EV,Electric,215,,False,546
+1069,UP16RT3801,,,SHANI,8218770153,,True,Primary - AUTO TIPPER EV,Electric,259,,False,917
+1070,UP16RT3982,,,Rajkumar,7409590334,,True,Primary - AUTO TIPPER EV,Electric,230,,False,870;660
+1071,UP16RT3862,,,Mohan Singh,7895113895,,True,Primary - AUTO TIPPER EV,Electric,213,,False,611
+1072,UP16RT3821,,,Praveen,9368944761,,True,Primary - AUTO TIPPER EV,Electric,251,,False,819;581
+1073,UP16RT3828,,,CHANDER PAL,9137126938,,True,Primary - AUTO TIPPER EV,Electric,99,,False,442;662
+1074,UP16RT3822,,,GOVIND,9411043143,,True,Primary - AUTO TIPPER EV,Electric,231,,False,649
+1075,UP16RT3805,,,Jagmohan,8923234830,,True,Primary - AUTO TIPPER EV,Electric,234,,False,553
+1076,UP16RT3831,,,Brajvir singh,6398895652,,True,Primary - AUTO TIPPER EV,Electric,102,,False,594
+1077,UP16RT3811,,,AMAN CHAUDHARY,9258475317,,True,Primary - AUTO TIPPER EV,Electric,243,,False,677
+1078,UP16RT3850,,,Shiva,7817058945,,True,Primary - AUTO TIPPER EV,Electric,103,,False,866;746
+1079,UP16RT3983,,,Rahul Kumar,9548955545,,True,Primary - AUTO TIPPER EV,Electric,240,,False,684
+1080,UP16RT3981,,,RAJAT SAMBARIYA,8077453451,,True,Primary - AUTO TIPPER EV,Electric,223,,False,475
+1081,UP16RT3863,,,Sagar,7024325763,,True,Primary - AUTO TIPPER EV,Electric,201,,False,793;792
+1082,UP16RT3834,,,Narendra Singh,8859151619,,True,Primary - AUTO TIPPER EV,Electric,234,,False,555
+1083,UP16RT3816,,,Anil,7060067146,,True,Primary - AUTO TIPPER EV,Electric,235,,False,673
+1084,UP16RT3825,,,HARIOM,9634891789,,True,Primary - AUTO TIPPER EV,Electric,218,,False,525
+1085,UP16RT3802,,,Prasant Kumar,9520408540,,True,Primary - AUTO TIPPER EV,Electric,219,,False,862;528
+1086,UP16RT3806,,,Sudhakar Kumar,9084560440,,True,Primary - AUTO TIPPER EV,Electric,217,,False,629
+1087,EMCS-0774,,,Admin,9981380676,,False,Others,Electric,1,,False,
+1088,UP16RT3815,,,Anil,7060067146,,True,Primary - AUTO TIPPER EV,Electric,205,,False,509
+1089,UP16RT3804,,,Pankaj Singh,8287949815,,True,Primary - AUTO TIPPER EV,Electric,226,,False,579
+1090,UP16RT3826,,,Manvendra,8477949516,,True,Primary - AUTO TIPPER EV,Electric,248,,False,741
+1091,UP16RT3858,,,Sonu,9634664192,,True,Primary - AUTO TIPPER EV,Electric,246,,False,686
+1092,UP16RT3985,,,Rohit,8218864135,,True,Primary - AUTO TIPPER EV,Electric,103,,False,599
+1093,UP16RT3830,,,GAURAV,7417080967,,True,Primary - AUTO TIPPER EV,Electric,211,,False,626
+1094,UP16RT3803,,,Jitendra,9720962413,,True,Primary - AUTO TIPPER EV,Electric,232,,False,551
+1095,UP16RT3980,,,Ramji lal,6395636209,,True,Primary - AUTO TIPPER EV,Electric,102,,False,593
+1096,UP16RT3819,,,Ashu,8535052296,,True,Primary - AUTO TIPPER EV,Electric,243,,False,678
+1097,UP16RT3810,,,Shyam,9643739080,,True,Primary - AUTO TIPPER EV,Electric,102,,False,592
+1098,UP16RT3979,,,Ravikant,8273150434,,True,Primary - AUTO TIPPER EV,Electric,210,,False,895;858
+1099,UP16RT3833,,,Padam Chand,9520421953,,True,Primary - AUTO TIPPER EV,Electric,219,,False,527
+1100,UP16RT3852,,,RAHUL SIROHI,7500339252,,True,Primary - AUTO TIPPER EV,Electric,1,,False,
+1101,UP16RT3813,,,MADHAV,9760747719,,True,Primary - AUTO TIPPER EV,Electric,206,,False,822
+1102,UP16RT3856,,,susheel pandit,8923976232,,True,Primary - AUTO TIPPER EV,Electric,101,,False,810
+1103,UP16RT3855,,,Pramod Kumar,8171614105,,True,Primary - AUTO TIPPER EV,Electric,218,,False,534;343
+1104,UP16RT3807,,,UMESH CHAND,9927046618,,True,Primary - AUTO TIPPER EV,Electric,250,,False,700
+1105,UP16RT3827,,,CHETRAM,8218903674,,True,Primary - AUTO TIPPER EV,Electric,220,,False,740;911
+1106,UP16RT3851,,,Mahendra,9897457268,,True,Primary - AUTO TIPPER EV,Electric,248,,False,574
+1107,UP16RT3829,,,Chandan singh,7351208160,,True,Primary - AUTO TIPPER EV,Electric,240,,False,655
+1108,UP16RT3984,,,MAGAN SINGH,7302615528,,True,Primary - AUTO TIPPER EV,Electric,229,,False,748
+1109,UP16RT3857,,,SIYA RAM,9997189760,,True,Primary - AUTO TIPPER EV,Electric,218,,False,524
+1110,UP16RT3818,,,Sagar Yadav,6398259496,,True,Primary - AUTO TIPPER EV,Electric,236,,False,560
+1111,UP16RT3817,,,BACCHU SINGH,9760596871,,True,Primary - AUTO TIPPER EV,Electric,218,,False,526
+1112,UP16RT3808,,,Atul,8077527805,,True,Primary - AUTO TIPPER EV,Electric,238,,False,914;754
+1113,UP16RT3978,,,Manvendra Singh,8650977751,,True,Primary - AUTO TIPPER EV,Electric,3,,False,769
+1114,UP85ET7855,,,CHANDRA PRAKASH,7820097248,,True,Primary - Auto Tipper,CNG,212,,False,515
+1115,UP16RT3849,,,Chandan singh,7351208160,,True,Primary - AUTO TIPPER EV,Electric,218,,False,523
+1116,UP85AG0685,,,RAKESH,9286264624,,True,Primary - Auto Tipper,CNG,215,,False,616
+1117,DL51GD9579,,,VIRENDRA SINGH,9368273441,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,241,,False,
+1118,UP85AG0724,,,MAHENDRA SINGH,8302453208,,True,Secondary - Refuse Compactor (RC),Diesel,131,,False,
+1119,M135   UP85AG0674,,,Vishal Singh,8543982344,,True,Primary - Auto Tipper,CNG,215,,False,800
+1120,DL51EV0265,,,MADHAV,9760747719,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,245,,False,893
+1121,UP85AG0738,,,SIYA RAM,9997189760,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1122,UP85AG0435,,,RadhaRaman DHANGAR,7455003857,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1123,UP85AG0438,,,AJAY KUMAR,6387372159,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1124,UP85AG0344,,,Pawan,9368241812,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1125,UP85AG0960,,,Duda Driver,7830505222,,True,Primary - Auto Tipper,CNG,1,,False,
+1126,UP85AG0761,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,228,,False,643
+1127,MR018-70143474,,,PRASHANT,9368599021,,True,Primary - Manual Rickshaw,Electric,226,359097370143474,True,912;681
+1128,UP85FT2582,,,Duda Driver,7830505222,,True,Primary - Auto Tipper,CNG,1,,False,
+1129,MR002-70146006,,,KISHAN,7895053126,,True,Primary - Wheel Barrow,Electric,243,359097370146006,True,818
+1130,MR041-70147558,,,SUBHASH CHAND,9389684351,,True,Primary - Manual Rickshaw,Electric,103,359097370147558,True,868;867
+1131,MR026-70147715,,,Kapilsingh,8506036609,,True,Primary - Wheel Barrow,Electric,261,359097370147715,True,842
+1132,MR039-70146022,,,Vishal,9193771825,,True,Primary - Manual Rickshaw,Electric,201,359097370146022,True,790
+1133,MR043-70144902,,,VIKASH KUMAR,9917493967,,True,Primary - Wheel Barrow,Electric,233,359097370144902,True,908
+1134,MR015-70143748,,,VIKASH,9917493967,,True,Primary - Wheel Barrow,Electric,261,359097370143748,True,844
+1135,MR016-70144258,,,Raju bhagel,7037649208,,True,Primary - Wheel Barrow,Electric,261,359097370144258,True,843
+1136,MR014-70147624,,,Sandeep Kumar,6395754565,,True,Primary - Manual Rickshaw,Electric,261,359097370147624,True,841
+1137,RJ06GD6728,,,SATYAPRAKASH,9119032047,,False,Primary - Auto Tipper,Diesel,131,,False,
+1138,RJ06GD6723,,,KRISH DAGOR,7302826346,,False,Primary - Auto Tipper,Diesel,131,355172106378126,True,
+1139,M137 UP85AG0954,,,JITENDRA,7830102926,,True,Primary - Auto Tipper,CNG,247,,False,811
+1140,MR008-70148556,,,MOHIT,9368953580,,False,Primary - Manual Rickshaw,Electric,200,359097370148556,True,
+1141,MR007-70147996,,,DEVENDRA,9389138761,,True,Primary - Manual Rickshaw,Electric,205,359097370147996,True,826
+1142,UP85AG0668,,,Pintu saini,9286111631,,True,Primary - Auto Tipper,CNG,104,,False,
+1143,UP14PT7714,,,Rajiv,9675175246,,True,Primary - Auto Tipper,CNG,200,,False,
+1144,UP85ET7834,,,Test Employee 10,8888888888,,True,Primary - Auto Tipper,CNG,209,,False,603
+1145,UP14PT7996,,,Mathura Admin,9981380676,,True,Primary - Auto Tipper,CNG,204,,False,931
+1146,UP14PT7993,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,212,,False,901
+1147,DL51GD9528,,,Test,1212121210,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,236,867111062801466,False,816;663
+1148,DL1LAP6014,,,To Be Assigned,9899899891,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,221,,False,849
+1149,UP14KT5684,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,104,,False,506
+1150,DL51GD9597,,,To Be Assigned,9899899891,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,205,,False,
+1151,DL51GD0260,,,To Be Assigned,9899899891,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,249,,False,697
+1152,MR042-70148234,MR042-70148234,,Kanhaiya,9368728374,,True,Primary - Manual Rickshaw,Electric,252,359097370148234,True,694
+1153,MR020-70145636,1,,Khem Chand,6395006090,,True,Primary - Wheel Barrow,Electric,233,359097370145636,True,906
+1154,MR010-70146501,,,To Be Assigned,9899899891,ACTIVE,True,Primary - Manual Rickshaw,Electric,,359097370146501,True,773;774
+1155,UP14KT5768,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,248,,False,
+1156,UP85AG0958,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,211,,False,897;598
+1157,UP14KT5653,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,104,,False,778
+1158,UP85AG4025,,,To Be Assigned,9899899891,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1159,UP85DC5773,,,To Be Assigned,9899899891,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1160,HR44P8222,,,To Be Assigned,9899899891,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1161,UP85CN1278,,,To Be Assigned,9899899891,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1162,AR02B7854,,,To Be Assigned,9899899891,,True,Secondary - Dumper,CNG,131,,False,
+1163,DL51GD9414,,,To Be Assigned,9899899891,,True,Primary - AUTO TIPPER 3 WHEELER,Electric,131,,False,
+1164,UP14KT6086,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,212,,False,
+1165,UP85AG4021,,,To Be Assigned,9899899891,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1166,UP14PT7754,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,233,,False,
+1167,UP85H8780,,,To Be Assigned,9899899891,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1168,RJ06GD1770,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,131,,False,
+1169,UP85CA3767,,,To Be Assigned,9899899891,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1170,UP14KT5651,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,212,,False,937
+1171,UP85AG0830,,,To Be Assigned,9899899891,,True,Secondary - JCB 3DX,Diesel,131,,False,
+1172,UP85CT4671,,,To Be Assigned,9899899891,,True,Secondary - JCB 2DX,Diesel,131,,False,
+1173,AR02B7857,,,To Be Assigned,9899899891,,True,Secondary - Dumper,CNG,131,,False,
+1174,UP14NT8170,,,To Be Assigned,9899899891,,True,Secondary - JCB 3DX,Diesel,131,,False,
+1175,UP85AT3748,,,To Be Assigned,9899899891,,True,Secondary - JCB 3DX,Diesel,131,,False,
+1176,UP85AG0877,,,To Be Assigned,9899899891,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1177,UP85AG1005,,,To Be Assigned,9899899891,,True,Secondary - JCB 3DX,Diesel,131,,False,
+1178,MH3EP8698,,,To Be Assigned,9899899891,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1179,RJ05RE1568,,,To Be Assigned,9899899891,,True,Secondary - Tractor Loader,Diesel,131,,False,
+1180,DL1LY1326,,,To Be Assigned,9899899891,,True,Secondary - Dumper,CNG,131,,False,
+1181,UP14KT6092,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,104,,False,938
+1182,UP14KT6113,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,104,,False,565
+1183,UP85BL9705,,,To Be Assigned,9899899891,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1184,UP85AM5464,,,To Be Assigned,9899899891,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1185,UP85CR0616,,,To Be Assigned,9899899891,,True,Secondary - Tractor Loader,Diesel,131,,False,
+1186,UP14KT5694,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,1,,False,
+1187,UP86AS1975,,,To Be Assigned,9899899891,,True,Secondary - Tractor Trolley,Diesel,131,,False,
+1188,RJ06GD6750,,,To Be Assigned,9899899891,,True,Primary - Auto Tipper,CNG,1,,False,
+1189,UP16EF4980,,,To Be Assigned,9899899891,,True,Others,Diesel,131,,False,
+1190,AR02B7984,,,To Be Assigned,9899899891,,True,Secondary - Dumper,CNG,131,,False,
+1191,HR28C3004,,,To Be Assigned,9899899891,,True,Secondary - Tractor Trolley,Diesel,131,,False,

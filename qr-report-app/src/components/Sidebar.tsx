@@ -54,6 +54,7 @@ export type ViewMode =
     | 'admin-ucc-mapping'
     | 'admin-user-management'
     | 'admin-data-seeding'
+    | 'qr-generator'
     | 'ucc-summary'
     | 'no-access';
 
@@ -144,6 +145,7 @@ export const menuItems = [
             { id: 'admin-ucc-mapping', label: 'UCC Mapping', icon: Map },
             { id: 'admin-user-management', label: 'User Management', icon: Settings },
             { id: 'admin-data-seeding', label: 'Data Seeding', icon: Settings },
+            { id: 'qr-generator', label: 'Vehicle QR Generator', icon: FileSpreadsheet },
         ]
     }
 ];

@@ -27,6 +27,7 @@ import MSWDateWiseReport from './components/MSWDateWiseReport';
 import MonthWiseKPICalendar from './components/MonthWiseKPICalendar';
 import DoorToDoorReport from './components/DoorToDoorReport';
 import { AdminPanel } from './components/AdminPanel';
+import QRCodeGenerator from './components/QRCodeGenerator';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
 import { LogOut, ShieldCheck } from 'lucide-react';
@@ -262,6 +263,8 @@ const App: React.FC = () => {
       case 'admin-user-management':
       case 'admin-data-seeding':
         return <AdminPanel initialTab={currentView} />;
+      case 'qr-generator':
+        return <QRCodeGenerator />;
       default:
         return <Dashboard stats={reportStats} onUpload={handleGlobalUpload} />;
     }
@@ -281,6 +284,7 @@ const App: React.FC = () => {
       { id: 'kpi-monthly-calendar', label: 'Monthly KPI Calendar' },
       { id: 'msw-date-wise', label: 'Date Wise MSW Data' },
       { id: 'admin-panel', label: 'Admin Panel' },
+      { id: 'qr-generator', label: 'Vehicle QR Generator' },
     ];
 
     return allItems.find(i => i.id === currentView)?.label

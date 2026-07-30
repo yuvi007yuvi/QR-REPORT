@@ -30,7 +30,7 @@ import { AdminPanel } from './components/AdminPanel';
 import QRCodeGenerator from './components/QRCodeGenerator';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
-import { LogOut, ShieldCheck } from 'lucide-react';
+import { LogOut, ShieldCheck, Users } from 'lucide-react';
 import { processData } from './utils/dataProcessor';
 import masterData from './data/masterData.json';
 import supervisorData from './data/supervisorData.json';
@@ -51,6 +51,7 @@ const App: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingView, setPendingView] = useState<string | null>(null);
+  const [visitorsCount, setVisitorsCount] = useState<number>(0);
 
   const [reportData, setReportData] = useState<ReportRecord[]>(() => {
     const { report } = processData(masterData, supervisorData, [], 'All', {});
@@ -64,12 +65,18 @@ const App: React.FC = () => {
   const [wardAssignments, setWardAssignments] = useState<Record<string, WardAssignment>>({});
   const [masterQRPoints, setMasterQRPoints] = useState<any[]>([]);
   const [scannedData, setScannedData] = useState<any[]>([]);
-  const [selectedZone, setSelectedZone] = useState<string>('All');
 
   // Persist routing state across refreshes
   React.useEffect(() => {
     localStorage.setItem('currentSection', currentSection);
   }, [currentSection]);
+
+  React.useEffect(() => {
+    const current = parseInt(localStorage.getItem('visitorsCount') || '12458', 10);
+    const updated = current + 1;
+    localStorage.setItem('visitorsCount', updated.toString());
+    setVisitorsCount(updated);
+  }, []);
 
   React.useEffect(() => {
     localStorage.setItem('currentView', currentView);
@@ -102,10 +109,10 @@ const App: React.FC = () => {
   React.useEffect(() => {
     // If we have Firestore master points, use them. Otherwise fallback to JSON.
     const masterSource = masterQRPoints.length > 0 ? masterQRPoints : masterData;
-    const { report, stats } = processData(masterSource, supervisorData, scannedData, selectedZone, wardAssignments);
+    const { report, stats } = processData(masterSource, supervisorData, scannedData, 'All', wardAssignments);
     setReportData(report);
     setReportStats(stats);
-  }, [masterQRPoints, scannedData, wardAssignments, selectedZone]);
+  }, [masterQRPoints, scannedData, wardAssignments]);
 
   // Enforce RBAC constraints on currentView
   React.useEffect(() => {
@@ -332,22 +339,15 @@ const App: React.FC = () => {
           </div>
 
           <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {/* Global Zone Filter */}
-            <div className="flex bg-slate-100/80 backdrop-blur-md p-1 rounded-xl border border-slate-200">
-              {(['All', 'Mathura', 'Vrindavan'] as const).map(z => (
-                <button
-                  key={z}
-                  onClick={() => setSelectedZone(z)}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                    selectedZone === z 
-                    ? 'bg-white text-indigo-600 shadow-sm' 
-                    : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {z}
-                </button>
-              ))}
+            {/* Visitors Count */}
+            <div className="hidden sm:flex items-center gap-2 bg-slate-100/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-200">
+              <Users size={14} className="text-slate-400" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Visitors</span>
+              <span className="text-xs font-bold text-indigo-600 bg-white px-2 py-0.5 rounded-md shadow-sm">
+                {visitorsCount.toLocaleString()}
+              </span>
             </div>
+
             {/* User info */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{

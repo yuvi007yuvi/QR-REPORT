@@ -56,6 +56,7 @@ export type ViewMode =
     | 'admin-data-seeding'
     | 'qr-generator'
     | 'ucc-summary'
+    | 'visitor-celebration'
     | 'no-access';
 
 interface SidebarProps {
@@ -76,6 +77,7 @@ export const menuItems = [
         icon: LayoutDashboard,
         items: [
             { id: 'dashboard', label: 'Summary Dashboard', icon: LayoutDashboard },
+            { id: 'visitor-celebration', label: 'Count Celebration', icon: LayoutDashboard },
             { id: 'zonal', label: 'Zonal QR Report', icon: Map },
             { id: 'detailed-zonal-qr', label: 'Detailed Zonal Analytics', icon: BarChart3 },
             { id: 'zonal-tabular-report', label: 'Zonal Tabular Analysis', icon: FileText },

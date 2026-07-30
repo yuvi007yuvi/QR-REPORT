@@ -28,9 +28,11 @@ import MonthWiseKPICalendar from './components/MonthWiseKPICalendar';
 import DoorToDoorReport from './components/DoorToDoorReport';
 import { AdminPanel } from './components/AdminPanel';
 import QRCodeGenerator from './components/QRCodeGenerator';
+import { VisitorCelebration } from './components/VisitorCelebration';
+import { OdometerCount } from './components/OdometerCount';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
-import { LogOut, ShieldCheck, Users } from 'lucide-react';
+import { LogOut, ShieldCheck, Users, X } from 'lucide-react';
 import { processData } from './utils/dataProcessor';
 import masterData from './data/masterData.json';
 import supervisorData from './data/supervisorData.json';
@@ -48,11 +50,25 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>(() => {
     return (localStorage.getItem('currentView') as ViewMode) || 'dashboard';
   });
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingView, setPendingView] = useState<string | null>(null);
   const [visitorsCount, setVisitorsCount] = useState<number>(0);
+  const [showGreeting, setShowGreeting] = useState(true);
 
+  React.useEffect(() => {
+    if (showGreeting) {
+      const timer = setTimeout(() => setShowGreeting(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showGreeting]);
+
+  React.useEffect(() => {
+    const current = parseInt(localStorage.getItem('visitorsCount') || '12458', 10);
+    const updated = current + 1;
+    localStorage.setItem('visitorsCount', updated.toString());
+    setVisitorsCount(updated);
+  }, []);
   const [reportData, setReportData] = useState<ReportRecord[]>(() => {
     const { report } = processData(masterData, supervisorData, [], 'All', {});
     return report;
@@ -70,13 +86,6 @@ const App: React.FC = () => {
   React.useEffect(() => {
     localStorage.setItem('currentSection', currentSection);
   }, [currentSection]);
-
-  React.useEffect(() => {
-    const current = parseInt(localStorage.getItem('visitorsCount') || '12458', 10);
-    const updated = current + 1;
-    localStorage.setItem('visitorsCount', updated.toString());
-    setVisitorsCount(updated);
-  }, []);
 
   React.useEffect(() => {
     localStorage.setItem('currentView', currentView);
@@ -272,9 +281,18 @@ const App: React.FC = () => {
         return <AdminPanel initialTab={currentView} />;
       case 'qr-generator':
         return <QRCodeGenerator />;
+      case 'visitor-celebration':
+        return <VisitorCelebration visitorsCount={visitorsCount} />;
       default:
         return <Dashboard stats={reportStats} onUpload={handleGlobalUpload} />;
     }
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
   };
 
   const sectionLabel = (() => {
@@ -316,6 +334,29 @@ const App: React.FC = () => {
         isAdmin={isAdmin}
       />
 
+      {/* Greeting Popup */}
+      {showGreeting && currentUser && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="bg-white/90 backdrop-blur-xl border border-indigo-100 shadow-2xl rounded-2xl p-4 flex items-center gap-4 transition-all pr-8">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-500 to-emerald-500 flex items-center justify-center text-white text-xl font-black shadow-inner">
+              {currentUser.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-indigo-400 mb-0.5">Welcome Back</p>
+              <h3 className="text-slate-800 font-bold text-lg leading-tight">
+                {getGreeting()}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-emerald-600">{currentUser.name.split(' ')[0]}</span>!
+              </h3>
+            </div>
+            <button 
+              onClick={() => setShowGreeting(false)} 
+              className="absolute top-2 right-2 text-slate-300 hover:text-slate-500 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
 
       <div className="portal-main">
         {/* Floating Glassmorphic Header */}
@@ -323,8 +364,8 @@ const App: React.FC = () => {
           <div className="header-left">
             <button
               className="header-hamburger"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open navigation"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              aria-label="Toggle navigation"
             >
               <Menu size={20} />
             </button>
@@ -353,7 +394,7 @@ const App: React.FC = () => {
               <Users size={14} className="text-slate-400" />
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Visit Count</span>
               <span className="text-xs font-bold text-indigo-600 bg-white px-2 py-0.5 rounded-md shadow-sm">
-                {visitorsCount.toLocaleString()}
+                <OdometerCount value={visitorsCount} />
               </span>
             </div>
 

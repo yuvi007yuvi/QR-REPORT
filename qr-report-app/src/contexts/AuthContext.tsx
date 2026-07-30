@@ -17,6 +17,7 @@ export interface PortalUser {
     uid: string;
     email: string;
     name: string;
+    role?: UserRole;
     allowedViews?: string[];
     status?: 'active' | 'disabled';
 }
@@ -106,6 +107,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
     const [currentUser, setCurrentUser] = useState<PortalUser | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+
+    // 10-minute session inactivity timeout
+    useEffect(() => {
+        if (!currentUser) return;
+
+        let timeoutId: NodeJS.Timeout;
+
+        const resetTimer = () => {
+            clearTimeout(timeoutId);
+            // Set timeout to 10 minutes (600,000 ms)
+            timeoutId = setTimeout(() => {
+                console.log('Session expired due to inactivity.');
+                logout();
+            }, 600000);
+        };
+
+        // Initialize the timer
+        resetTimer();
+
+        // Listen for activity events to reset the timer
+        const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+        events.forEach(event => document.addEventListener(event, resetTimer));
+
+        return () => {
+            clearTimeout(timeoutId);
+            events.forEach(event => document.removeEventListener(event, resetTimer));
+        };
+    }, [currentUser]);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {

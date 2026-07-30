@@ -41,7 +41,7 @@ import { formatDisplayDate } from './utils/dataProcessor';
 
 const App: React.FC = () => {
   const { currentUser, isLoading: authLoading, logout, isAdmin } = useAuth();
-  
+
   const [currentSection, setCurrentSection] = useState<AppSection>(() => {
     return (localStorage.getItem('currentSection') as AppSection) || 'daily';
   });
@@ -117,23 +117,23 @@ const App: React.FC = () => {
   // Enforce RBAC constraints on currentView
   React.useEffect(() => {
     if (!currentUser || isAdmin) return;
-    
+
     const allowed = currentUser.allowedViews;
-    
+
     // Legacy fallback: if allowedViews is undefined, allow all
     if (!allowed) return;
-    
+
     if (allowed.length === 0) {
-       // If no views allowed, maybe we should set to a special no-access view, but for now we let it render nothing or a restricted dashboard.
-       if (currentView !== 'no-access') {
-           setCurrentView('no-access');
-       }
-       return;
+      // If no views allowed, maybe we should set to a special no-access view, but for now we let it render nothing or a restricted dashboard.
+      if (currentView !== 'no-access') {
+        setCurrentView('no-access');
+      }
+      return;
     }
-    
+
     // If current view is not allowed, redirect to the first allowed view
     if (currentView !== 'no-access' && !allowed.includes(currentView)) {
-        setCurrentView(allowed[0] as ViewMode);
+      setCurrentView(allowed[0] as ViewMode);
     }
   }, [currentUser, currentView, isAdmin]);
 
@@ -165,15 +165,15 @@ const App: React.FC = () => {
   if (currentUser.status === 'disabled') {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
-          <ShieldCheck size={64} className="text-rose-400 mb-4" />
-          <h2 className="text-2xl font-bold text-slate-800">Account Disabled</h2>
-          <p className="text-slate-500 mt-2">Your access to the portal has been suspended.</p>
-          <button 
-              onClick={() => logout()}
-              className="mt-6 px-6 py-2.5 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-colors"
-          >
-              Sign Out
-          </button>
+        <ShieldCheck size={64} className="text-rose-400 mb-4" />
+        <h2 className="text-2xl font-bold text-slate-800">Account Disabled</h2>
+        <p className="text-slate-500 mt-2">Your access to the portal has been suspended.</p>
+        <button
+          onClick={() => logout()}
+          className="mt-6 px-6 py-2.5 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-colors"
+        >
+          Sign Out
+        </button>
       </div>
     );
   }
@@ -201,11 +201,11 @@ const App: React.FC = () => {
   const renderCurrentView = () => {
     if (currentView === 'no-access') {
       return (
-          <div className="flex flex-col items-center justify-center h-[70vh]">
-              <ShieldCheck size={64} className="text-slate-300 mb-4" />
-              <h2 className="text-2xl font-bold text-slate-700">Access Restricted</h2>
-              <p className="text-slate-500 mt-2">You don't have permission to view any modules. Please contact an administrator.</p>
-          </div>
+        <div className="flex flex-col items-center justify-center h-[70vh]">
+          <ShieldCheck size={64} className="text-slate-300 mb-4" />
+          <h2 className="text-2xl font-bold text-slate-700">Access Restricted</h2>
+          <p className="text-slate-500 mt-2">You don't have permission to view any modules. Please contact an administrator.</p>
+        </div>
       );
     }
 
@@ -237,9 +237,9 @@ const App: React.FC = () => {
       case 'ucc-summary':
         return (
           <div className="w-full h-[calc(100vh-64px)] overflow-hidden">
-            <iframe 
-              src="https://ucc-summary-report.vercel.app/" 
-              title="UCC Summary Report" 
+            <iframe
+              src="https://ucc-summary-report.vercel.app/"
+              title="UCC Summary Report"
               className="w-full h-full border-0"
               allowFullScreen
             />
@@ -339,10 +339,19 @@ const App: React.FC = () => {
           </div>
 
           <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {/* Visitors Count */}
+            {/* System Status */}
+            <div className="hidden lg:flex items-center gap-2 bg-emerald-50/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-emerald-100" title="All Systems Operational">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">System Online</span>
+            </div>
+
+            {/* Visit Count */}
             <div className="hidden sm:flex items-center gap-2 bg-slate-100/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-200">
               <Users size={14} className="text-slate-400" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Visitors</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Visit Count</span>
               <span className="text-xs font-bold text-indigo-600 bg-white px-2 py-0.5 rounded-md shadow-sm">
                 {visitorsCount.toLocaleString()}
               </span>
@@ -420,7 +429,7 @@ const App: React.FC = () => {
             gap: '6px'
           }}>
             <span style={{ color: '#94a3b8', fontWeight: 500, letterSpacing: '0.3px' }}>Crafted with 🚀 & ❤️ by</span>
-            <span style={{ 
+            <span style={{
               background: 'linear-gradient(135deg, #4f46e5, #ec4899)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',

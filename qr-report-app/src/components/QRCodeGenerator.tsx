@@ -250,16 +250,22 @@ export const QRCodeGenerator: React.FC = () => {
         format: 'a4'
       });
 
-      const margin = 15;
-      const spacing = 10;
+      const cols = 3;
+      const rows = 2;
+      const itemsPerPage = cols * rows;
+      
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       
-      const cols = 2;
-      const cardWidthMM = (pdfWidth - (margin * 2) - spacing) / cols;
-      let currentY = margin;
+      const marginX = 15;
+      const spacingX = 10;
+      const cardWidthMM = (pdfWidth - (marginX * 2) - (spacingX * (cols - 1))) / cols;
 
       for (let i = 0; i < elements.length; i++) {
+        if (i > 0 && i % itemsPerPage === 0) {
+          pdf.addPage();
+        }
+
         const el = elements[i] as HTMLElement;
         const dataUrl = await toPng(el, { cacheBust: true, quality: 1, pixelRatio: 2 });
         
@@ -269,19 +275,19 @@ export const QRCodeGenerator: React.FC = () => {
         
         const cardHeightMM = (img.height / img.width) * cardWidthMM;
 
-        const col = i % cols;
-        const x = margin + col * (cardWidthMM + spacing);
+        const pageIndex = i % itemsPerPage;
+        const col = pageIndex % cols;
+        const row = Math.floor(pageIndex / cols);
         
-        if (i > 0 && col === 0) {
-           currentY += cardHeightMM + spacing;
-        }
+        const x = marginX + col * (cardWidthMM + spacingX);
+        
+        const spacingY = 20;
+        const totalHeight = (cardHeightMM * rows) + (spacingY * (rows - 1));
+        const startY = (pdfHeight - totalHeight) / 2;
+        
+        const y = startY + row * (cardHeightMM + spacingY);
 
-        if (currentY + cardHeightMM > pdfHeight - margin) {
-           pdf.addPage();
-           currentY = margin;
-        }
-
-        pdf.addImage(dataUrl, 'PNG', x, currentY, cardWidthMM, cardHeightMM);
+        pdf.addImage(dataUrl, 'PNG', x, y, cardWidthMM, cardHeightMM);
       }
 
       pdf.save('Bulk_QR_Codes.pdf');

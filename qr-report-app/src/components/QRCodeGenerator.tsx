@@ -43,12 +43,12 @@ const QRCodeCard: React.FC<QRCodeCardProps> = ({ vehicle }) => {
       <div 
         ref={cardRef} 
         className="qr-card-export-target flex flex-col items-center bg-[#e8f2f2] rounded-xl overflow-hidden shadow-sm border border-slate-200"
-        style={{ width: '350px' }}
+        style={{ width: '500px' }}
       >
         {/* Header with Logos */}
-        <div className="w-full flex justify-center items-center gap-6 px-6 pt-6 pb-2">
-          <img src={NagarNigamLogo} alt="Nagar Nigam" className="h-16 w-auto object-contain" />
-          <img src={NatureGreenLogo} alt="Nature Green" className="h-16 w-auto object-contain" />
+        <div className="w-full flex justify-center items-center gap-8 px-8 pt-8 pb-4">
+          <img src={NagarNigamLogo} alt="Nagar Nigam" className="h-20 w-auto object-contain" />
+          <img src={NatureGreenLogo} alt="Nature Green" className="h-20 w-auto object-contain" />
         </div>
 
         <div className="px-6 pb-0 w-full">
@@ -63,17 +63,16 @@ const QRCodeCard: React.FC<QRCodeCardProps> = ({ vehicle }) => {
             <div className="absolute top-1/2 -left-[6px] w-[6px] h-12 bg-[#0a4d46] rounded-l-md" />
             <div className="absolute top-1/3 -right-[6px] w-[6px] h-16 bg-[#0a4d46] rounded-r-md" />
 
-            {/* Scanner Brackets */}
-            <div className="absolute top-8 left-8 w-8 h-8 border-t-[3px] border-l-[3px] border-[#0a4d46] rounded-tl-lg" />
-            <div className="absolute top-8 right-8 w-8 h-8 border-t-[3px] border-r-[3px] border-[#0a4d46] rounded-tr-lg" />
-            <div className="absolute bottom-8 left-8 w-8 h-8 border-b-[3px] border-l-[3px] border-[#0a4d46] rounded-bl-lg" />
-            <div className="absolute bottom-8 right-8 w-8 h-8 border-b-[3px] border-r-[3px] border-[#0a4d46] rounded-br-lg" />
-
             {/* QR Code Background & Container */}
-            <div className="bg-white p-4 z-10 shadow-sm rounded-sm">
+            <div className="relative bg-white p-3 z-10 shadow-sm rounded-lg w-[85%] aspect-square flex items-center justify-center">
+              <div className="absolute -top-4 -left-4 w-12 h-12 border-t-[4px] border-l-[4px] border-[#0a4d46] rounded-tl-xl"></div>
+              <div className="absolute -top-4 -right-4 w-12 h-12 border-t-[4px] border-r-[4px] border-[#0a4d46] rounded-tr-xl"></div>
+              <div className="absolute -bottom-4 -left-4 w-12 h-12 border-b-[4px] border-l-[4px] border-[#0a4d46] rounded-bl-xl"></div>
+              <div className="absolute -bottom-4 -right-4 w-12 h-12 border-b-[4px] border-r-[4px] border-[#0a4d46] rounded-br-xl"></div>
+
               <QRCodeSVG 
                 value={vehicle.number} 
-                size={180}
+                style={{ width: '100%', height: '100%' }}
                 level="H"
                 includeMargin={false}
                 fgColor="#000000"
@@ -84,12 +83,12 @@ const QRCodeCard: React.FC<QRCodeCardProps> = ({ vehicle }) => {
         </div>
 
         {/* Text Section (Below Phone, integrated in card) */}
-        <div className="mt-4 bg-[#e8f2f2] w-full flex flex-col items-center text-center py-3 border-t-2 border-[#0a4d46]">
-          <span className="text-[#0a4d46] text-lg leading-tight">
+        <div className="mt-6 bg-[#e8f2f2] w-full flex flex-col items-center text-center py-5 border-t-2 border-[#0a4d46]">
+          <span className="text-[#0a4d46] text-2xl leading-tight">
             Vehicle Number: <span className="font-bold">{vehicle.number}</span>
           </span>
           {vehicle.type && (
-            <span className="text-[#0a4d46] text-sm font-semibold mt-1 opacity-80 uppercase tracking-wide">
+            <span className="text-[#0a4d46] text-lg font-semibold mt-1 opacity-80 uppercase tracking-wide">
               {vehicle.type}
             </span>
           )}
@@ -257,8 +256,8 @@ export const QRCodeGenerator: React.FC = () => {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       
-      const marginX = 15;
-      const spacingX = 10;
+      const marginX = 5;
+      const spacingX = 5;
       const cardWidthMM = (pdfWidth - (marginX * 2) - (spacingX * (cols - 1))) / cols;
 
       for (let i = 0; i < elements.length; i++) {
@@ -281,7 +280,7 @@ export const QRCodeGenerator: React.FC = () => {
         
         const x = marginX + col * (cardWidthMM + spacingX);
         
-        const spacingY = 20;
+        const spacingY = 15;
         const totalHeight = (cardHeightMM * rows) + (spacingY * (rows - 1));
         const startY = (pdfHeight - totalHeight) / 2;
         

@@ -42,7 +42,7 @@ const QRCodeCard: React.FC<QRCodeCardProps> = ({ vehicle }) => {
     <div className="flex flex-col items-center">
       <div 
         ref={cardRef} 
-        className="flex flex-col items-center bg-[#e8f2f2] rounded-xl overflow-hidden shadow-sm border border-slate-200"
+        className="qr-card-export-target flex flex-col items-center bg-[#e8f2f2] rounded-xl overflow-hidden shadow-sm border border-slate-200"
         style={{ width: '350px' }}
       >
         {/* Header with Logos */}
@@ -114,6 +114,7 @@ export const QRCodeGenerator: React.FC = () => {
   const [generatedList, setGeneratedList] = useState<VehicleData[]>([]);
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
   const [uploadStats, setUploadStats] = useState<UploadStats | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   
   const uniqueTypes = Array.from(new Set(generatedList.map(v => v.type).filter(Boolean))) as string[];
   const displayedList = filterTypes.length === 0 ? generatedList : generatedList.filter(v => v.type && filterTypes.includes(v.type));
@@ -232,7 +233,64 @@ export const QRCodeGenerator: React.FC = () => {
 
   const downloadAllAsPDF = async () => {
     if (generatedList.length === 0) return;
-    alert("To download all, please download them individually or use browser print to PDF.");
+    setIsExporting(true);
+    
+    try {
+      const { jsPDF } = await import('jspdf');
+      
+      const elements = document.querySelectorAll('.qr-card-export-target');
+      if (elements.length === 0) {
+        setIsExporting(false);
+        return;
+      }
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const margin = 15;
+      const spacing = 10;
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const cols = 2;
+      const cardWidthMM = (pdfWidth - (margin * 2) - spacing) / cols;
+      let currentY = margin;
+
+      for (let i = 0; i < elements.length; i++) {
+        const el = elements[i] as HTMLElement;
+        const dataUrl = await toPng(el, { cacheBust: true, quality: 1, pixelRatio: 2 });
+        
+        const img = new Image();
+        img.src = dataUrl;
+        await new Promise(resolve => { img.onload = resolve; });
+        
+        const cardHeightMM = (img.height / img.width) * cardWidthMM;
+
+        const col = i % cols;
+        const x = margin + col * (cardWidthMM + spacing);
+        
+        if (i > 0 && col === 0) {
+           currentY += cardHeightMM + spacing;
+        }
+
+        if (currentY + cardHeightMM > pdfHeight - margin) {
+           pdf.addPage();
+           currentY = margin;
+        }
+
+        pdf.addImage(dataUrl, 'PNG', x, currentY, cardWidthMM, cardHeightMM);
+      }
+
+      pdf.save('Bulk_QR_Codes.pdf');
+    } catch (err) {
+      console.error('Error generating PDF', err);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -410,9 +468,10 @@ export const QRCodeGenerator: React.FC = () => {
                   {displayedList.length > 1 && (
                     <button 
                       onClick={downloadAllAsPDF}
-                      className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg font-bold text-sm transition-colors whitespace-nowrap"
+                      disabled={isExporting}
+                      className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-bold text-sm transition-colors whitespace-nowrap"
                     >
-                      <Download size={16} /> Bulk Export PDF
+                      <Download size={16} /> {isExporting ? 'Exporting...' : 'Bulk Export PDF'}
                     </button>
                   )}
                 </div>
